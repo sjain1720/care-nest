@@ -227,12 +227,16 @@ export interface ClaimCase {
   escalation: EscalationStep[];
 }
 
+export type LetterKind = 'clarification' | 'reconsideration' | 'grievance' | 'cover_letter';
+
 export interface LetterDraft {
-  kind: 'clarification' | 'reconsideration' | 'grievance' | 'cover_letter';
+  kind: LetterKind;
   to: string;
   subject: string;
   body: string;
   evidenceIndex: string[];
+  /** e.g. "Upload the settlement letter so the deductions can be listed." */
+  warnings?: string[];
 }
 
 export type UploadEvent = { type: 'step'; label: string } | { type: 'done'; detectedType: string; pages: number; message?: string };

@@ -9,6 +9,7 @@ This file is updated after every phase. Each phase section lists only what that 
 | Phase 1 – UI/UX shell | The full web app on demo data (no Google Cloud needed) |
 | Phase 2 – Policy understanding | Upload a real policy PDF, get extracted facts and cited answers (needs Google Cloud). Unit tests run without it |
 | Phase 3 – Bill and settlement analyser | Upload a bill and a settlement letter: missing pages, arithmetic, room-rent cut, non-payables, estimate, every deduction explained (needs Google Cloud). Unit tests run without it |
+| Phase 4 – Claim Copilot, letters, ADK agents | Ask anything about the policy, bill, settlement or documents; 4 kinds of letters; saved checklist; query helper; ADK agent team in `adk web` (needs Google Cloud). Unit tests run without it |
 
 > **Company laptops:** if your network inspects HTTPS traffic, the gcloud CLI may fail with `CERTIFICATE_VERIFY_FAILED`. In that case:
 > - Run the **frontend** locally: npm works on these networks.
@@ -254,6 +255,31 @@ In the web app:
 
 ### 3. Real bills
 The dataset's medical bills contain **real patient details**. Use them only in your own private project, never in the public demo or the repo. `eval/run_bill_check.py` runs them in bulk and prints no names. See `googleCloudStepsForThisPhase.md` step 3.3.
+
+---
+
+## Phase 4 – Claim Copilot, letters and ADK agents
+
+No new tools or packages.
+
+### 1. Unit tests (no Google Cloud needed)
+```bash
+cd backend
+python -m unittest discover -s tests -t .      # Windows: py -3.12 -m unittest discover -s tests -t .
+```
+Expected: `Ran 54 tests ... OK`. The new tests cover keyword routing, case facts with sources, all 4 letter types, the check for invented amounts, saved checklist ticks, and the "Claim rejected" stage.
+
+### 2. Try it (needs the Phase 2 and 3 setup)
+- **Ask:** with **Ask** live on `/status`, ask about the bill ("How much will I pay?"), the settlement ("Why was money deducted?") or documents. The first progress step shows which specialist answered.
+- **Letters:** with **Letter to insurer** live, choose a letter type on `/case/letter`. Drafts come from the backend with checked amounts and a list of documents to attach.
+- **Checklist:** with **My case** live, ticks on `/case` are saved.
+- **Query helper:** with **Insurer query helper** live, `/case/query` uses your real policy.
+
+### 3. ADK agent team
+```bash
+bash scripts/adk-web.sh      # pick "claim_copilot" (or the single "policy_agent")
+```
+The agents live in `backend/app/adk_copilot.py`, and their tools in `backend/app/agent_tools.py`.
 
 ---
 

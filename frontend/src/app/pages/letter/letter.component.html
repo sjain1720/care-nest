@@ -1,11 +1,24 @@
 <div class="page">
   <div class="page-head no-print">
     <h1>Letter to the insurer</h1>
-    <p>A factual request for clarification, based on your settlement letter and policy. Check and edit before sending.</p>
+    <p>Built from your own documents. The facts and amounts are checked by our code. Read and edit before sending.</p>
   </div>
+
+  <div class="kinds no-print" role="group" aria-label="Kind of letter">
+    @for (k of kinds; track k.id) {
+      <button type="button" class="kind" [class.active]="kind() === k.id" (click)="load(k.id)"
+              [disabled]="loading() || (!live && k.id !== 'clarification')" [attr.aria-pressed]="kind() === k.id">
+        <strong>{{ k.label }}</strong><small>{{ !live && k.id !== 'clarification' ? 'Available with live data' : k.when }}</small>
+      </button>
+    }
+  </div>
+
+  @if (error()) { <p class="warn">{{ error() }}</p> }
+  @if (loading()) { <p class="muted">Drafting your letter…</p> }
 
   @if (letter(); as l) {
     <section class="card">
+      @for (w of l.warnings ?? []; track $index) { <div class="warn no-print">{{ w }}</div> }
       <div class="meta">
         <span>To</span><strong>{{ l.to }}</strong>
         <span>Subject</span><strong>{{ l.subject }}</strong>

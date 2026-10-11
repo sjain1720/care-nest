@@ -54,7 +54,12 @@ export class CaseComponent {
   }
 
   toggle(id: string): void {
-    this.checklist.update((list) => list.map((i): ChecklistItem =>
-      i.id === id ? { ...i, status: i.status === 'collected' ? 'missing' : 'collected' } : i));
+    const item = this.checklist().find((i) => i.id === id);
+    if (!item) return;
+    const status: ChecklistStatus = item.status === 'collected' ? 'missing' : 'collected';
+    this.checklist.update((list) => list.map((i): ChecklistItem => (i.id === id ? { ...i, status } : i)));
+    this.api.updateChecklistItem(id, status).subscribe({
+      error: () => this.checklist.update((list) => list.map((i): ChecklistItem => (i.id === id ? item : i))),
+    });
   }
 }

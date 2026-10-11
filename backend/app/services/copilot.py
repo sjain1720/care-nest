@@ -1,0 +1,58 @@
+"""Claim Copilot: routes each question to the right specialist (Gemini router, keyword fallback)."""
+import logging
+from typing import Literal
+
+from google.genai import types
+from pydantic import BaseModel
+
+from app.core.config import get_settings
+from app.core.gcp import gemini
+from app.schemas import AgentStep, AskResponse, NextAction
+from app.services.case_qa import answer_case_question
+from app.services.intents import keyword_intent
+from app.services.policy_qa import answer_question
+
+log = logging.getLogger(__name__)
+
+_NAMES = {"policy": "Policy Specialist", "bill": "Bill & Settlement Analyst", "settlement": "Bill & Settlement Analyst",
+          "documents": "Claim Assistant", "cashless_query": "Policy Specialist"}
+
+
+class Route(BaseModel):
+    intent: Literal["policy", "bill", "settlement", "documents", "cashless_query"]
+
+
+ROUTER_PROMPT = """Classify the user's health-insurance question for routing. Reply with one intent:
+policy = what the policy covers, waiting periods, limits, exclusions, co-pay, general insurance questions;
+bill = their hospital bill, charges, what they may have to pay themselves;
+settlement = deductions or amounts in the insurer's settlement, or a rejected claim;
+documents = which papers they need, where to get them, claim forms, submitting a claim;
+cashless_query = a query, request or hold from the insurer/TPA during a cashless admission."""
+
+
+def route(question: str) -> tuple[str, str]:
+    """(intent, how it was decided)."""
+    try:
+        response = gemini().models.generate_content(
+            model=get_settings().gemini_model,
+            contents=[ROUTER_PROMPT, question],
+            config=types.GenerateContentConfig(response_mime_type="application/json", response_schema=Route, temperature=0),
+        )
+        parsed = response.parsed if isinstance(response.parsed, Route) else Route.model_validate_json(response.text)
+        return parsed.intent, "router"
+    except Exception:  # routing must never block an answer; fall back to keywords
+        log.warning("Gemini router failed; using keyword routing", exc_info=True)
+        return keyword_intent(question), "keywords"
+
+
+def answer(question: str) -> AskResponse:
+    intent, how = route(question)
+    first = AgentStep(agent="Claim Copilot", label=f"Passing your question to the {_NAMES[intent]}" + (" (keyword match)" if how == "keywords" else ""))
+    if intent in ("policy", "cashless_query"):
+        result = answer_question(question)
+        if intent == "cashless_query":
+            result.answer.nextAction = NextAction(label="Open the insurer query helper", route="/case/query")
+    else:
+        result = answer_case_question(question, intent)
+    result.steps = [first, *result.steps]
+    return result

@@ -4,8 +4,15 @@ import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
-import { ApiService } from '../../services/api.service';
-import { LetterDraft } from '../../models/models';
+import { ApiService, isLive } from '../../services/api.service';
+import { LetterDraft, LetterKind } from '../../models/models';
+
+const KINDS: { id: LetterKind; label: string; when: string }[] = [
+  { id: 'clarification', label: 'Ask why money was deducted', when: 'After a settlement with deductions' },
+  { id: 'reconsideration', label: 'Ask to reconsider a rejection', when: 'After the claim was rejected' },
+  { id: 'grievance', label: 'Raise a grievance', when: 'When an earlier letter got no proper reply' },
+  { id: 'cover_letter', label: 'Claim submission cover letter', when: 'When sending your claim papers' },
+];
 
 @Component({
   selector: 'app-letter',
@@ -24,6 +31,12 @@ import { LetterDraft } from '../../models/models';
     .escalation li::before { counter-increment: step; content: counter(step); position: absolute; left: 0; top: 0; width: 28px; height: 28px;
                              border-radius: 50%; background: var(--cn-primary-soft); color: var(--cn-primary); font-weight: 700;
                              display: flex; align-items: center; justify-content: center; }
+    .kinds { display: grid; gap: 8px; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); margin-bottom: 16px; }
+    .kind { text-align: left; border: 1px solid var(--cn-border); border-radius: 12px; padding: 10px 12px; background: #fff; font: inherit; cursor: pointer; }
+    .kind.active { border-color: var(--cn-primary); background: var(--cn-primary-soft); }
+    .kind:disabled { cursor: not-allowed; opacity: .55; }
+    .kind small { display: block; color: var(--cn-muted); }
+    .warn { background: var(--cn-warn-soft); color: var(--cn-warn); border-radius: 10px; padding: 8px 12px; margin-bottom: 12px; font-size: .9rem; }
     @media print {
       textarea { display: none; }
       .print-only { display: block; }
@@ -39,11 +52,31 @@ export class LetterComponent {
   claimCase = toSignal(this.api.getCase());
   body = '';
   copied = signal(false);
+  kind = signal<LetterKind>('clarification');
+  loading = signal(false);
+  error = signal<string | null>(null);
+  readonly kinds = KINDS;
+  /** Demo data has only the clarification letter; the other kinds are written live by the backend. */
+  readonly live = isLive('letter');
 
   constructor() {
-    this.api.getLetter().pipe(takeUntilDestroyed(this.destroyRef)).subscribe((l) => {
-      this.letter.set(l);
-      this.body = l.body;
+    this.load('clarification');
+  }
+
+  load(kind: LetterKind): void {
+    this.kind.set(kind);
+    this.loading.set(true);
+    this.error.set(null);
+    this.api.getLetter(kind).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+      next: (l) => {
+        this.letter.set(l);
+        this.body = l.body;
+        this.loading.set(false);
+      },
+      error: (e) => {
+        this.error.set(e?.error?.detail ?? 'Could not draft the letter. Please try again.');
+        this.loading.set(false);
+      },
     });
   }
 

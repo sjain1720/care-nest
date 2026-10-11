@@ -24,7 +24,8 @@ ESCALATION = [
 ]
 
 
-def build_checklist(doc_types: set[str], bill: dict | None, settlement: dict | None) -> list[dict]:
+def build_checklist(doc_types: set[str], bill: dict | None, settlement: dict | None, overrides: dict | None = None,
+                    rejected: bool = False) -> list[dict]:
     items = [{"id": i, "group": "claim", "name": n, "source": s, "why": w, "status": "collected" if t and t in doc_types else "missing"}
              for i, n, s, w, t in REIMBURSEMENT_DOCS]
     if bill and bill.get("missingPages"):
@@ -40,14 +41,23 @@ def build_checklist(doc_types: set[str], bill: dict | None, settlement: dict | N
     if settlement and room.get("overLimit"):
         items.append({"id": "x-room", "group": "dispute", "name": "Hospital note on room availability", "source": "Hospital admission desk",
                       "why": "Shows whether a room within your limit was available – helps challenge a room-rent cut", "status": "missing"})
+    if rejected:
+        items.append({"id": "x-reject", "group": "dispute", "name": "Treating doctor's letter explaining the treatment", "source": "Your treating doctor",
+                      "why": "A clear medical explanation often answers the reason given for a rejection", "status": "missing"})
+    # Statuses the user ticked in the app win over the automatic ones.
+    for item in items:
+        if overrides and item["id"] in overrides:
+            item["status"] = overrides[item["id"]]
     return items
 
 
 def build_case(case_doc: dict) -> dict:
-    bill, settlement = case_doc.get("bill"), case_doc.get("settlement")
+    bill, settlement, rejection = case_doc.get("bill"), case_doc.get("settlement"), case_doc.get("rejection")
     documents = case_doc.get("documents", [])
     header = case_doc.get("billHeader") or {}
-    if settlement:
+    if rejection:
+        stage = "Claim rejected – you can ask for reconsideration"
+    elif settlement:
         deducted = sum(d["amount"] for d in settlement["deductions"])
         stage = f"Settled with {_rupees(deducted)} deducted" if deducted else "Settled in full"
     elif bill:
@@ -63,9 +73,10 @@ def build_case(case_doc: dict) -> dict:
         "dischargeDate": header.get("dischargeDate") or "",
         "diagnosis": header.get("diagnosis") or "Not read yet – add the discharge summary",
         "claimType": header.get("claimType") or "reimbursement",
-        "claimNumber": (settlement or {}).get("claimNumber") or "",
+        "claimNumber": (settlement or rejection or {}).get("claimNumber") or "",
         "stage": stage,
         "documents": documents,
-        "checklist": build_checklist({d["type"] for d in documents}, bill, settlement),
+        "checklist": build_checklist({d["type"] for d in documents}, bill, settlement,
+                                     case_doc.get("checklistStatus"), rejected=bool(rejection)),
         "escalation": ESCALATION,
     }

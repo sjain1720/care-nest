@@ -2,8 +2,8 @@ import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable, catchError, concat, concatMap, delay, from, map, of, shareReplay, switchMap, tap } from 'rxjs';
 import {
-  AgentStep, AnswerCard, AskEvent, Bill, ClaimCase, LetterDraft, MockQa, MockQuery, PolicyDetailsInput, PolicyFacts, QueryEvent, QueryHelp,
-  Settlement, UploadEvent,
+  AgentStep, AnswerCard, AskEvent, Bill, ChecklistStatus, ClaimCase, LetterDraft, LetterKind, MockQa, MockQuery, PolicyDetailsInput, PolicyFacts,
+  QueryEvent, QueryHelp, Settlement, UploadEvent,
 } from '../models/models';
 
 export type Feature = 'policy' | 'ask' | 'upload' | 'case' | 'bill' | 'settlement' | 'letter' | 'query';
@@ -11,13 +11,13 @@ export type Feature = 'policy' | 'ask' | 'upload' | 'case' | 'bill' | 'settlemen
 /** Which features have a real backend yet. Only these can be switched to live data on /status. */
 export const FEATURES: { id: Feature; label: string; backendReady: boolean }[] = [
   { id: 'policy', label: 'My policy (facts, traps, waiting periods)', backendReady: true },
-  { id: 'ask', label: 'Ask (policy questions)', backendReady: true },
+  { id: 'ask', label: 'Ask (Claim Copilot: policy, bill, settlement, documents)', backendReady: true },
   { id: 'upload', label: 'Upload documents', backendReady: true },
   { id: 'case', label: 'My case and checklist', backendReady: true },
   { id: 'bill', label: 'Hospital bill check', backendReady: true },
   { id: 'settlement', label: 'Settlement breakdown', backendReady: true },
-  { id: 'letter', label: 'Letter to insurer', backendReady: false },
-  { id: 'query', label: 'Insurer query helper', backendReady: false },
+  { id: 'letter', label: 'Letter to insurer', backendReady: true },
+  { id: 'query', label: 'Insurer query helper', backendReady: true },
 ];
 
 const LIVE_KEY = 'carenest.live';
@@ -72,7 +72,19 @@ export class ApiService {
     this.bill$ = this.loadOptional<Bill>('bill', 'bill.json', '/api/case/bill');
     this.settlement$ = this.loadOptional<Settlement>('settlement', 'settlement.json', '/api/case/settlement');
   }
-  getLetter(): Observable<LetterDraft> { return this.get<LetterDraft>('letter', 'letter.json', '/api/case/letter'); }
+  getLetter(kind: LetterKind = 'clarification'): Observable<LetterDraft> {
+    return isLive('letter')
+      ? this.http.get<LetterDraft>('/api/case/letter', { params: { kind } })
+      : this.http.get<LetterDraft>('/mocks/letter.json');
+  }
+
+  /** Saves a checklist tick. Demo mode keeps it in the page only. */
+  updateChecklistItem(id: string, status: ChecklistStatus): Observable<ClaimCase | null> {
+    if (!isLive('case')) return of(null);
+    return this.http.patch<ClaimCase>(`/api/case/checklist/${encodeURIComponent(id)}`, { status }).pipe(
+      tap((c) => (this.case$ = of(c).pipe(shareReplay(1)))),
+    );
+  }
 
   ask(question: string): Observable<AskEvent> {
     if (isLive('ask')) {
@@ -115,8 +127,11 @@ export class ApiService {
 
   explainQuery(queryText: string): Observable<QueryEvent> {
     if (isLive('query')) {
-      return this.http.post<QueryHelp>('/api/case/query-help', { queryText }).pipe(
-        map((help): QueryEvent => ({ type: 'result', help })),
+      return this.http.post<{ steps: AgentStep[]; help: QueryHelp }>('/api/case/query-help', { queryText }).pipe(
+        switchMap((r) => concat(
+          from(r.steps).pipe(concatMap((step) => of<QueryEvent>({ type: 'step', step }).pipe(delay(200)))),
+          of<QueryEvent>({ type: 'result', help: r.help }),
+        )),
       );
     }
     return this.http.get<MockQuery>('/mocks/cashless-query.json').pipe(

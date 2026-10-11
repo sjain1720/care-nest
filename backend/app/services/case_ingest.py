@@ -39,19 +39,26 @@ def process_case_document(pdf_bytes: bytes, filename: str, doc_type: str) -> Upl
         issues = [c for c in bill["checks"] if c["severity"] in ("high", "medium")]
         message = f"{len(bill['items'])} charges read. " + (f"{len(issues)} thing(s) to check." if issues else "No problems found in the arithmetic.")
 
-    elif doc_type == "Settlement letter":
+    elif doc_type in ("Settlement letter", "Rejection letter"):
         ext = extract_settlement(pdf_bytes)
-        deductions = [{"id": f"d{i}", "label": d.label, "amount": d.amount, "insurerReason": d.insurerReason,
-                       "page": d.page, "docId": doc_id, "docUrl": doc_url} for i, d in enumerate(ext.deductions, 1)]
-        bill = case_store.get_case().get("bill")
-        explained = explain_deductions(deductions, bill) if deductions else []
-        claimed = ext.claimedAmount or (bill or {}).get("total") or 0
-        approved = ext.approvedAmount or 0
-        settlement = {"claimNumber": ext.claimNumber or "", "letterDate": ext.letterDate or "", "billedAmount": (bill or {}).get("total") or claimed,
-                      "claimedAmount": claimed, "approvedAmount": approved, "deductions": explained,
-                      "reconciliation": reconcile(claimed, approved, explained), "letterType": ext.letterType}
-        case_store.update_case(mask_all({"settlement": settlement}))
-        message = f"{len(explained)} deduction(s) found and explained."
+        if ext.letterType == "rejection" or doc_type == "Rejection letter":
+            rejection = {"reason": ext.rejectionReason or "", "page": ext.rejectionReasonPage or 1, "claimNumber": ext.claimNumber or "",
+                         "letterDate": ext.letterDate or "", "docUrl": doc_url}
+            case_store.update_case(mask_all({"rejection": rejection}))
+            doc_type = "Rejection letter"
+            message = "Rejection letter read. You can draft a reconsideration request on the Letter page."
+        else:
+            deductions = [{"id": f"d{i}", "label": d.label, "amount": d.amount, "insurerReason": d.insurerReason,
+                           "page": d.page, "docId": doc_id, "docUrl": doc_url} for i, d in enumerate(ext.deductions, 1)]
+            bill = case_store.get_case().get("bill")
+            explained = explain_deductions(deductions, bill) if deductions else []
+            claimed = ext.claimedAmount or (bill or {}).get("total") or 0
+            approved = ext.approvedAmount or 0
+            settlement = {"claimNumber": ext.claimNumber or "", "letterDate": ext.letterDate or "", "billedAmount": (bill or {}).get("total") or claimed,
+                          "claimedAmount": claimed, "approvedAmount": approved, "deductions": explained,
+                          "reconciliation": reconcile(claimed, approved, explained), "letterType": ext.letterType}
+            case_store.update_case(mask_all({"settlement": settlement}))
+            message = f"{len(explained)} deduction(s) found and explained."
 
     else:
         message = "Saved to your case. This document type is analysed in the next phase."

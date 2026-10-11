@@ -3,12 +3,11 @@ from fastapi.responses import Response
 from google.api_core.exceptions import GoogleAPIError
 from google.genai import errors as genai_errors
 
-from app.schemas import AskRequest, AskResponse, PolicyDetailsInput, PolicyFacts, UploadResult
+from app.schemas import PolicyDetailsInput, PolicyFacts, UploadResult
 from app.services import policy_store as store
 from app.services.ocr import PdfTooLongError
 from app.services.policy_details import apply_user_details
 from app.services.policy_ingest import process_upload
-from app.services.policy_qa import answer_question
 
 router = APIRouter(tags=["policy"])
 
@@ -60,11 +59,3 @@ def get_policy_document():
     policy_id, _ = _active_policy()
     return Response(store.load_original(policy_id), media_type="application/pdf",
                     headers={"Content-Disposition": 'inline; filename="policy.pdf"', "Cache-Control": "private, max-age=300"})
-
-
-@router.post("/copilot/ask", response_model=AskResponse)
-def ask(body: AskRequest):
-    try:
-        return answer_question(body.question.strip())
-    except _GOOGLE_ERRORS as exc:
-        raise HTTPException(502, f"A Google service failed while answering: {exc.__class__.__name__}") from exc

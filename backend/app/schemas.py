@@ -119,6 +119,14 @@ class AskRequest(BaseModel):
     question: str = Field(min_length=2, max_length=500)
 
 
+class ChecklistUpdate(BaseModel):
+    status: Literal["collected", "missing", "requested"]
+
+
+class QueryHelpRequest(BaseModel):
+    queryText: str = Field(min_length=10, max_length=3000)
+
+
 class AskResponse(BaseModel):
     steps: list[AgentStep]
     answer: AnswerCard

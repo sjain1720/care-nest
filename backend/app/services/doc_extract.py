@@ -62,6 +62,8 @@ class SettlementOut(BaseModel):
     claimedAmount: float | None = None
     approvedAmount: float | None = None
     deductions: list[DeductionOut] = []
+    rejectionReason: str | None = None
+    rejectionReasonPage: int | None = None
 
 
 BILL_PROMPT = """This PDF is an Indian hospital or pharmacy bill (it may be scanned, photographed or handwritten).
@@ -82,6 +84,7 @@ Extract it as JSON. Rules:
 - letterType: settlement (payment with or without deductions), rejection (claim denied), query (asks for documents), other.
 - claimedAmount, approvedAmount and each deduction amount as plain numbers in rupees.
 - deductions: every deducted / disallowed / non-payable row. insurerReason = the remark exactly as printed, or "-" if none.
+- rejectionReason (rejection letters only): the reason given, copied as printed, and the page it is on.
 - Dates as YYYY-MM-DD. Do NOT copy addresses, phone numbers or ID numbers. Never invent numbers."""
 
 
