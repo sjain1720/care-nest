@@ -24,6 +24,14 @@ def process_case_document(pdf_bytes: bytes, filename: str, doc_type: str) -> Upl
     doc_id = "doc-" + hashlib.sha256(pdf_bytes).hexdigest()[:16]
     pages = len(PdfReader(BytesIO(pdf_bytes)).pages)
     doc_url = f"/api/case/document/{doc_id}"
+
+    # Same file already analysed for this case: reuse the result instead of paying for Gemini again.
+    case = case_store.get_case()
+    seen = next((d for d in case.get("documents", []) if d["id"] == doc_id), None)
+    has_result = {"Hospital bill": "bill", "Settlement letter": "settlement", "Rejection letter": "rejection"}.get(seen["type"]) if seen else None
+    if seen and (has_result is None or case.get(has_result)):
+        return UploadResult(detectedType=seen["type"], pages=pages, reused=True, message="Already analysed – showing the earlier result.")
+
     case_store.save_pdf(doc_id, pdf_bytes)
     message = None
 

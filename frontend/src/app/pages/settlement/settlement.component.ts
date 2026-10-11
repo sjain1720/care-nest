@@ -8,6 +8,7 @@ import { ApiService } from '../../services/api.service';
 import { InrPipe } from '../../shared/inr.pipe';
 import { CitationChipComponent } from '../../shared/citation-chip.component';
 import { TrustPillComponent } from '../../shared/trust-pill.component';
+import { WaterfallComponent, WaterfallStep } from '../../shared/waterfall.component';
 
 // Dark enough for white text (WCAG AA).
 const SEGMENT_COLORS = ['#b42318', '#b45309', '#475569', '#0e7490', '#6d28d9'];
@@ -15,7 +16,7 @@ const SEGMENT_COLORS = ['#b42318', '#b45309', '#475569', '#0e7490', '#6d28d9'];
 @Component({
   selector: 'app-settlement',
   standalone: true,
-  imports: [DatePipe, RouterLink, MatButtonModule, MatIconModule, InrPipe, CitationChipComponent, TrustPillComponent],
+  imports: [DatePipe, RouterLink, MatButtonModule, MatIconModule, InrPipe, CitationChipComponent, TrustPillComponent, WaterfallComponent],
   templateUrl: './settlement.component.html',
   styles: `
     .totals { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
@@ -23,12 +24,6 @@ const SEGMENT_COLORS = ['#b42318', '#b45309', '#475569', '#0e7490', '#6d28d9'];
     .totals .deducted .value { color: var(--cn-bad); }
     @media (max-width: 599px) { .totals { grid-template-columns: 1fr; } }
     .math { margin-top: 12px; }
-    .bar { display: flex; height: 44px; border-radius: 10px; overflow: hidden; margin: 12px 0 8px; }
-    .seg { border: 0; color: #fff; font: inherit; font-size: .8rem; font-weight: 600; cursor: pointer; padding: 0 6px;
-           display: flex; align-items: center; justify-content: center; min-width: 48px; white-space: nowrap; overflow: hidden; }
-    .seg.selected { outline: 3px solid var(--cn-ink); outline-offset: -3px; }
-    .legend { display: flex; flex-wrap: wrap; gap: 6px 16px; font-size: .85rem; }
-    .dot { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 6px; }
     .deduction { border-left: 6px solid; }
     .deduction summary { list-style: none; cursor: pointer; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
     .deduction summary::-webkit-details-marker { display: none; }
@@ -54,6 +49,8 @@ export class SettlementComponent {
   });
 
   totalDeducted = computed(() => this.settlement()?.deductions.reduce((s, d) => s + d.amount, 0) ?? 0);
+  waterfallSteps = computed<WaterfallStep[]>(() =>
+    (this.settlement()?.deductions ?? []).map((d, i) => ({ id: d.id, label: d.label, amount: d.amount, color: this.color(i) })));
   explained = computed(() => this.settlement()?.deductions.filter((d) => d.trust !== 'unknown').reduce((s, d) => s + d.amount, 0) ?? 0);
   arithmeticOk = computed(() => {
     const s = this.settlement();
@@ -62,10 +59,6 @@ export class SettlementComponent {
 
   color(index: number): string {
     return SEGMENT_COLORS[index % SEGMENT_COLORS.length];
-  }
-
-  share(amount: number): number {
-    return this.totalDeducted() ? (amount / this.totalDeducted()) * 100 : 0;
   }
 
   select(id: string): void {

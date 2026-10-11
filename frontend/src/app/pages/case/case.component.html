@@ -52,6 +52,11 @@
       </ul>
       <a mat-stroked-button routerLink="/upload" style="margin-top:8px"><mat-icon>upload_file</mat-icon> Add a document</a>
     </section>
+  } @else if (claimCase() === null) {
+    <section class="card">
+      <h1>We couldn't load your case</h1>
+      <p>The CareNest server didn't respond. Check your connection, or switch to the demo case with the button at the top.</p>
+    </section>
   } @else {
     <p class="muted">Loading your case…</p>
   }

@@ -7,7 +7,11 @@
   </a>
   <span class="tagline">Your health policy, explained</span>
   <span class="spacer"></span>
-  <span class="pill tone-info" title="You are viewing a synthetic demo case">Demo case</span>
+  <button type="button" class="mode" [class.live]="live" (click)="toggleMode()"
+          [title]="live ? 'Using your own documents on the live backend. Click to switch to the demo case.' : 'Showing a synthetic demo case. Click to use your own documents.'">
+    <mat-icon class="icon-sm">{{ live ? 'cloud_done' : 'science' }}</mat-icon>
+    {{ live ? 'Your documents' : partlyLive ? 'Demo (partly live)' : 'Demo case' }}
+  </button>
 </header>
 
 <div class="layout">

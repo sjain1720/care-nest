@@ -42,7 +42,7 @@ export class CaseComponent {
 
   /** Local, editable copy of the checklist (persisted by the backend later). */
   checklist = signal<ChecklistItem[]>([]);
-  claimCase = toSignal(this.api.getCase().pipe(tap((c) => this.checklist.set(c.checklist.map((i) => ({ ...i }))))));
+  claimCase = toSignal(this.api.getCase().pipe(tap((c) => this.checklist.set((c?.checklist ?? []).map((i) => ({ ...i }))))));
 
   claimItems = computed(() => this.checklist().filter((i) => i.group === 'claim'));
   disputeItems = computed(() => this.checklist().filter((i) => i.group === 'dispute'));

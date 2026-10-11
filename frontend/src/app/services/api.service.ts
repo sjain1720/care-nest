@@ -1,6 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable, catchError, concat, concatMap, delay, from, map, of, shareReplay, switchMap, tap } from 'rxjs';
+import { postEventStream } from './sse';
 import {
   AgentStep, AnswerCard, AskEvent, Bill, ChecklistStatus, ClaimCase, LetterDraft, LetterKind, MockQa, MockQuery, PolicyDetailsInput, PolicyFacts,
   QueryEvent, QueryHelp, Settlement, UploadEvent,
@@ -39,6 +40,15 @@ export function saveLiveFeatures(features: Feature[]): void {
   localStorage.setItem(LIVE_KEY, JSON.stringify(features));
 }
 
+/** True when every feature that has a backend is live (the header shows "Your documents"). */
+export function isFullyLive(): boolean {
+  return FEATURES.filter((f) => f.backendReady).every((f) => LIVE.has(f.id));
+}
+
+export function setAllLive(on: boolean): void {
+  saveLiveFeatures(on ? FEATURES.filter((f) => f.backendReady).map((f) => f.id) : []);
+}
+
 /** Values for the upload form; 'auto' lets the backend detect the type from page 1. */
 export const DOC_TYPES = ['auto', 'Policy document', 'Hospital bill', 'Settlement letter', 'Rejection letter', 'Discharge summary', 'Other'] as const;
 export type DocType = (typeof DOC_TYPES)[number];
@@ -64,7 +74,7 @@ export class ApiService {
       : of(mergeDetailsLocally(current, details)); // demo mode: no recompute of waiting-period dates
     return saved$.pipe(tap((facts) => (this.policy$ = of(facts).pipe(shareReplay(1)))));
   }
-  getCase(): Observable<ClaimCase> { return this.case$; }
+  getCase(): Observable<ClaimCase | null> { return this.case$; }
   getBill(): Observable<Bill | null> { return this.bill$; }
   getSettlement(): Observable<Settlement | null> { return this.settlement$; }
   refreshCase(): void {
@@ -88,13 +98,8 @@ export class ApiService {
 
   ask(question: string): Observable<AskEvent> {
     if (isLive('ask')) {
-      // The backend returns the steps it actually ran plus the answer; replay the steps quickly for the progress list.
-      return this.http.post<{ steps: AgentStep[]; answer: AnswerCard }>('/api/copilot/ask', { question }).pipe(
-        switchMap((r) => concat(
-          from(r.steps).pipe(concatMap((step) => of<AskEvent>({ type: 'step', step }).pipe(delay(200)))),
-          of<AskEvent>({ type: 'answer', answer: r.answer }),
-        )),
-      );
+      // Steps arrive as the backend runs them (Server-Sent Events), then the verified answer.
+      return postEventStream<AskEvent>('/api/copilot/ask/stream', { question });
     }
     return this.http.get<MockQa[]>('/mocks/qa.json').pipe(
       map((list) => pickAnswer(list, question)),
@@ -118,6 +123,16 @@ export class ApiService {
     return concat(
       from(steps).pipe(concatMap((label) => of<UploadEvent>({ type: 'step', label }).pipe(delay(STEP_DELAY_MS)))),
       of<UploadEvent>({ type: 'done', detectedType: docType === 'auto' ? guessType(file.name) : docType, pages: 0 }).pipe(delay(STEP_DELAY_MS)),
+    );
+  }
+
+  /** Runs the synthetic demo documents through the real backend pipeline, then refreshes cached data. */
+  loadDemoCase(): Observable<{ loaded: { file: string; type: string; pages: number; reused: boolean }[] }> {
+    return this.http.post<{ loaded: { file: string; type: string; pages: number; reused: boolean }[] }>('/api/demo/load', {}).pipe(
+      tap(() => {
+        this.refreshPolicy();
+        this.refreshCase();
+      }),
     );
   }
 
@@ -146,8 +161,8 @@ export class ApiService {
     return this.get<PolicyFacts>('policy', 'policy.json', '/api/policy').pipe(catchError(() => of(null)), shareReplay(1));
   }
 
-  private loadCase(): Observable<ClaimCase> {
-    return this.get<ClaimCase>('case', 'case.json', '/api/case').pipe(shareReplay(1));
+  private loadCase(): Observable<ClaimCase | null> {
+    return this.get<ClaimCase>('case', 'case.json', '/api/case').pipe(catchError(() => of(null)), shareReplay(1));
   }
 
   private loadOptional<T>(feature: Feature, mockFile: string, apiUrl: string): Observable<T | null> {

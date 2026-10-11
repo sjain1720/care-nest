@@ -2,6 +2,7 @@ import { Component } from '@angular/core';
 import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { MatIconModule } from '@angular/material/icon';
 import { CitationDrawerComponent } from './shared/citation-drawer.component';
+import { FEATURES, isFullyLive, isLive, setAllLive } from './services/api.service';
 
 interface NavItem {
   path: string;
@@ -18,6 +19,14 @@ interface NavItem {
   styleUrl: './app.component.css',
 })
 export class AppComponent {
+  readonly live = isFullyLive();
+  readonly partlyLive = !this.live && FEATURES.some((f) => isLive(f.id));
+
+  toggleMode(): void {
+    setAllLive(!this.live);
+    location.reload();
+  }
+
   readonly mainNav: NavItem[] = [
     { path: '/', label: 'Home', icon: 'home', exact: true },
     { path: '/policy', label: 'My policy', icon: 'policy', exact: true },

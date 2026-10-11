@@ -4,6 +4,24 @@
     <p>Where are you in your hospital journey? Pick one and we'll guide you.</p>
   </div>
 
+  @if (live && policy() === null) {
+    <section class="card">
+      <h2>No documents yet</h2>
+      <p>Upload your policy, bill or insurer letter, or try CareNest on our synthetic demo documents. The demo goes through the
+        <strong>real AI pipeline</strong>: Document AI reads every page, Gemini extracts the facts, and every quote is checked.</p>
+      @if (demoLoading()) {
+        <mat-progress-bar mode="indeterminate" aria-label="Loading the demo case" />
+        <p class="small muted">Reading the policy, bill and settlement letter… this takes about 1–2 minutes the first time.</p>
+      } @else {
+        <div class="row">
+          <button mat-flat-button type="button" (click)="loadDemo()"><mat-icon>auto_awesome</mat-icon> Load the demo case with real AI</button>
+          <a mat-stroked-button routerLink="/upload"><mat-icon>upload_file</mat-icon> Upload my documents</a>
+        </div>
+      }
+      @if (demoError()) { <p class="small" style="color:var(--cn-bad)">{{ demoError() }}</p> }
+    </section>
+  }
+
   @if (claimCase(); as c) {
     @if (settlement()) {
     <section class="card hero" aria-label="Active case">

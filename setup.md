@@ -283,6 +283,29 @@ The agents live in `backend/app/adk_copilot.py`, and their tools in `backend/app
 
 ---
 
+## Phase 5 – Integration and visual polish
+
+No new tools or packages.
+
+### 1. Checks (no Google Cloud needed)
+```bash
+cd backend
+python -m unittest discover -s tests -t .      # Windows: py -3.12 -m unittest discover -s tests -t .
+cd ../frontend && npx ng build
+```
+Expected: `Ran 57 tests ... OK` (on a laptop without the backend packages: `OK (skipped=2)`) and "Application bundle generation complete".
+
+### 2. What's new in the app
+- **Header button:** "Demo case" or "Your documents" ("Demo (partly live)" if only some features are live on `/status`). Clicking it switches every feature and reloads the page.
+- **Ask:** in live mode, the progress steps appear one by one as the backend works.
+- **Home:** in live mode with no documents, **Load the demo case with real AI** runs the demo PDFs through the real pipeline (takes 1–2 minutes the first time) and then opens the settlement breakdown.
+- **Settlement breakdown:** waterfall chart; click a column to open that deduction.
+- **Errors:** a short message at the bottom of the screen if the server can't be reached.
+
+The demo loader finds the PDFs in `backend/static/demo` (inside the container) or in `demo-data/`. If they are missing, run `python demo-data/make_demo_pdfs.py`.
+
+---
+
 ## Troubleshooting
 | Problem | Fix |
 |---|---|

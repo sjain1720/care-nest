@@ -1,5 +1,6 @@
 """Claim Copilot: routes each question to the right specialist (Gemini router, keyword fallback)."""
 import logging
+from collections.abc import Callable
 from typing import Literal
 
 from google.genai import types
@@ -11,6 +12,7 @@ from app.schemas import AgentStep, AskResponse, NextAction
 from app.services.case_qa import answer_case_question
 from app.services.intents import keyword_intent
 from app.services.policy_qa import answer_question
+from app.services.steps import StepLog
 
 log = logging.getLogger(__name__)
 
@@ -45,14 +47,16 @@ def route(question: str) -> tuple[str, str]:
         return keyword_intent(question), "keywords"
 
 
-def answer(question: str) -> AskResponse:
+def answer(question: str, on_step: Callable[[AgentStep], None] | None = None) -> AskResponse:
+    """on_step is called as each step happens, so the API can stream progress."""
+    log = StepLog(on_step)
+    log.add("Claim Copilot", "Understanding your question")
     intent, how = route(question)
-    first = AgentStep(agent="Claim Copilot", label=f"Passing your question to the {_NAMES[intent]}" + (" (keyword match)" if how == "keywords" else ""))
+    log.add("Claim Copilot", f"Passing your question to the {_NAMES[intent]}" + (" (keyword match)" if how == "keywords" else ""))
     if intent in ("policy", "cashless_query"):
-        result = answer_question(question)
+        result = answer_question(question, log=log)
         if intent == "cashless_query":
             result.answer.nextAction = NextAction(label="Open the insurer query helper", route="/case/query")
     else:
-        result = answer_case_question(question, intent)
-    result.steps = [first, *result.steps]
+        result = answer_case_question(question, intent, log=log)
     return result

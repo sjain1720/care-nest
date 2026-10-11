@@ -6,11 +6,12 @@ from pydantic import BaseModel
 
 from app.core.config import get_settings
 from app.core.gcp import gemini
-from app.schemas import AgentStep, AnswerCard, AskResponse, Citation, NextAction
+from app.schemas import AnswerCard, AskResponse, Citation, NextAction
 from app.services import case_store
 from app.services.case_builder import build_case
 from app.services.case_facts import build_case_facts
 from app.services.grounding import quote_in_text
+from app.services.steps import StepLog
 
 _NEXT = {
     "bill": NextAction(label="See the bill check", route="/case/bill"),
@@ -51,21 +52,22 @@ Rules:
 - nextAction: "bill", "settlement", "case" (documents) or "letter" (when they should write to the insurer), else "none"."""
 
 
-def answer_case_question(question: str, intent: str) -> AskResponse:
+def answer_case_question(question: str, intent: str, log: StepLog | None = None) -> AskResponse:
+    log = log or StepLog()
     case_doc = case_store.get_case()
     agent = _AGENT.get(intent, "Claim Assistant")
-    steps = [AgentStep(agent=agent, label="Collecting your bill, settlement and checklist")]
+    log.add(agent, "Collecting your bill, settlement and checklist")
 
     needed = _NEEDS.get(intent)
     if needed and not case_doc.get(needed[0]):
-        return AskResponse(steps=steps, answer=AnswerCard(
+        return AskResponse(steps=log.steps, answer=AnswerCard(
             verdict="cant_confirm", headline=f"Upload {needed[1]} first",
             summary=f"I answer from your own documents, and {needed[1]} hasn't been uploaded yet.",
             citations=[], toConfirm=[], nextAction=_NEXT["upload"]))
 
     case = build_case(case_doc)
     facts = build_case_facts({**case_doc, "checklist": case["checklist"]})
-    steps.append(AgentStep(agent=agent, label=f"Reading {len(facts)} checked facts about your claim"))
+    log.add(agent, f"Reading {len(facts)} checked facts about your claim")
     block = "\n".join(f"[{f['ref']}] {f['text']}" for f in facts)
 
     response = gemini().models.generate_content(
@@ -88,7 +90,7 @@ def answer_case_question(question: str, intent: str) -> AskResponse:
     if not citations and verdict != "cant_confirm":
         verdict, headline = "cant_confirm", "I couldn't confirm this from your documents"
         to_confirm.insert(0, "Ask the insurer or hospital directly and keep their reply in writing.")
-    steps.append(AgentStep(agent="Verifier", label=f"Checked sources: {len(citations)} of {len(out.citations)} quotes found in your documents"))
-    return AskResponse(steps=steps, answer=AnswerCard(
+    log.add("Verifier", f"Checked sources: {len(citations)} of {len(out.citations)} quotes found in your documents")
+    return AskResponse(steps=log.steps, answer=AnswerCard(
         verdict=verdict, headline=headline, summary=out.summary, citations=citations,
         toConfirm=to_confirm[:3], nextAction=_NEXT.get(out.nextAction)))

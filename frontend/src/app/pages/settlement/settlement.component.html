@@ -20,20 +20,9 @@
         }
       </div>
 
-      <div class="bar" role="group" aria-label="Deductions by reason">
-        @for (d of s.deductions; track d.id; let i = $index) {
-          <button type="button" class="seg" [class.selected]="open() === d.id" [style.background]="color(i)"
-                  [style.flex-basis.%]="share(d.amount)" (click)="select(d.id)"
-                  [attr.aria-label]="d.label + ', ' + (d.amount | inr)">
-            {{ d.amount | inr }}
-          </button>
-        }
-      </div>
-      <div class="legend">
-        @for (d of s.deductions; track d.id; let i = $index) {
-          <span><span class="dot" [style.background]="color(i)"></span>{{ d.label }}</span>
-        }
-      </div>
+      <app-waterfall [claimed]="s.claimedAmount" [approved]="s.approvedAmount" [steps]="waterfallSteps()"
+                     [selected]="open()" (select)="select($event)" />
+      <p class="small muted" style="margin:0 0 8px">Tap a coloured bar to see that deduction explained.</p>
       <p class="small" style="margin-bottom:0">
         <strong>{{ explained() | inr }}</strong> is explained by your policy.
         <strong>{{ totalDeducted() - explained() | inr }}</strong> has no reason we could confirm.

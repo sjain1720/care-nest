@@ -8,10 +8,11 @@ from pydantic import BaseModel
 
 from app.core.config import get_settings
 from app.core.gcp import gemini
-from app.schemas import AgentStep, AnswerCard, AskResponse, Citation, NextAction, PolicyFacts, Verdict
+from app.schemas import AnswerCard, AskResponse, Citation, NextAction, PolicyFacts, Verdict
 from app.services import policy_store as store
 from app.services.embeddings import embed_texts
 from app.services.grounding import quote_in_text
+from app.services.steps import StepLog
 from app.services.waiting_periods import parse_date, status
 
 TOP_K = 6
@@ -76,33 +77,34 @@ def _facts_block(facts: PolicyFacts, today: date) -> str:
     return "\n".join(lines)
 
 
-def _no_policy() -> AskResponse:
+def _no_policy(log: StepLog) -> AskResponse:
+    log.add("Claim Copilot", "Looking for your policy")
     return AskResponse(
-        steps=[AgentStep(agent="Claim Copilot", label="Looking for your policy")],
+        steps=log.steps,
         answer=AnswerCard(verdict="cant_confirm", headline="Upload your policy first",
                           summary="I answer from your own policy document, and none has been uploaded yet.",
                           citations=[], toConfirm=[], nextAction=_NEXT["upload"]),
     )
 
 
-def answer_question(question: str, today: date | None = None) -> AskResponse:
+def answer_question(question: str, today: date | None = None, log: StepLog | None = None) -> AskResponse:
+    log = log or StepLog()
     today = today or date.today()
     policy_id = store.get_active_policy_id()
     doc = store.get_policy(policy_id) if policy_id else None
     if not doc or doc.get("status") != "ready":
-        return _no_policy()
+        return _no_policy(log)
     facts = PolicyFacts.model_validate(doc["facts"])
 
+    log.add("Policy Specialist", f"Searching {doc.get('clauseCount', 'all')} clauses in your policy")
     hits = store.search_clauses(policy_id, embed_texts([question], "RETRIEVAL_QUERY")[0], TOP_K)
-    steps = [AgentStep(agent="Claim Copilot", label="Understanding your question"),
-             AgentStep(agent="Policy Specialist", label=f"Searching {doc.get('clauseCount', 'all')} clauses in your policy")]
     seen = []
     for h in hits:
         tag = f"page {h['page']} · {h['label']}"
         if tag not in seen:
             seen.append(tag)
     if seen:
-        steps.append(AgentStep(agent="Policy Specialist", label="Reading " + " and ".join(seen[:2])))
+        log.add("Policy Specialist", "Reading " + " and ".join(seen[:2]))
 
     context = "\n\n".join(f"[C{i}] Page {h['page']} · {h['label']}\n{h['text']}" for i, h in enumerate(hits, 1))
     response = gemini().models.generate_content(
@@ -113,8 +115,8 @@ def answer_question(question: str, today: date | None = None) -> AskResponse:
     out = response.parsed if isinstance(response.parsed, AnswerOut) else AnswerOut.model_validate_json(response.text)
 
     answer, checked = verify_answer(out, hits)
-    steps.append(AgentStep(agent="Verifier", label=f"Checked sources: {checked[0]} of {checked[1]} quotes found in your policy"))
-    return AskResponse(steps=steps, answer=answer)
+    log.add("Verifier", f"Checked sources: {checked[0]} of {checked[1]} quotes found in your policy")
+    return AskResponse(steps=log.steps, answer=answer)
 
 
 def verify_answer(out: AnswerOut, hits: list[dict]) -> tuple[AnswerCard, tuple[int, int]]:

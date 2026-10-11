@@ -1,9 +1,10 @@
-import { Component, inject } from '@angular/core';
+import { Component, inject, signal } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
-import { RouterLink } from '@angular/router';
+import { Router, RouterLink } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
-import { ApiService } from '../../services/api.service';
+import { MatProgressBarModule } from '@angular/material/progress-bar';
+import { ApiService, isLive } from '../../services/api.service';
 import { InrPipe } from '../../shared/inr.pipe';
 
 interface Journey {
@@ -17,7 +18,7 @@ interface Journey {
 @Component({
   selector: 'app-home',
   standalone: true,
-  imports: [RouterLink, MatButtonModule, MatIconModule, InrPipe],
+  imports: [RouterLink, MatButtonModule, MatIconModule, MatProgressBarModule, InrPipe],
   templateUrl: './home.component.html',
   styles: `
     .hero { background: linear-gradient(120deg, #005cbb, #0a7f8a); color: #fff; border: 0; }
@@ -36,9 +37,25 @@ interface Journey {
 })
 export class HomeComponent {
   private api = inject(ApiService);
+  private router = inject(Router);
   policy = toSignal(this.api.getPolicy());
   claimCase = toSignal(this.api.getCase());
   settlement = toSignal(this.api.getSettlement());
+  readonly live = isLive('policy') && isLive('upload');
+  demoLoading = signal(false);
+  demoError = signal<string | null>(null);
+
+  loadDemo(): void {
+    this.demoLoading.set(true);
+    this.demoError.set(null);
+    this.api.loadDemoCase().subscribe({
+      next: () => this.router.navigate(['/case/settlement']),
+      error: (e) => {
+        this.demoLoading.set(false);
+        this.demoError.set(e?.error?.detail ?? 'Loading the demo case failed. Please try again.');
+      },
+    });
+  }
 
   readonly journeys: Journey[] = [
     { icon: 'event_note', title: 'Planning a treatment', text: 'Check if it is covered, the waiting periods and the room limit before admission.', route: '/policy' },

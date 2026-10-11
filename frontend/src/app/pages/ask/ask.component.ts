@@ -76,8 +76,8 @@ export class AskComponent implements OnInit {
           : { ...m, answer: event.answer });
         this.scrollToEnd();
       },
-      error: () => {
-        this.patch(replyId, (m) => ({ ...m, text: 'Sorry, something went wrong. Please try again.' }));
+      error: (e: Error) => {
+        this.patch(replyId, (m) => ({ ...m, text: e?.message || 'Sorry, something went wrong. Please try again.' }));
         this.busy.set(false);
       },
       complete: () => this.busy.set(false),

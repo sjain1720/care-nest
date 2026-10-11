@@ -8,6 +8,9 @@
 .brand { display: flex; align-items: center; gap: 6px; text-decoration: none; color: var(--cn-primary); font-weight: 700; font-size: 1.2rem; }
 .tagline { color: var(--cn-muted); font-size: .9rem; }
 .spacer { flex: 1; }
+.mode { display: inline-flex; align-items: center; gap: 4px; padding: 6px 12px; min-height: 36px; border-radius: 999px; cursor: pointer;
+        font: inherit; font-size: .8rem; font-weight: 600; border: 1px solid #c7d7f0; background: var(--cn-primary-soft); color: var(--cn-primary); }
+.mode.live { background: var(--cn-ok-soft); color: var(--cn-ok); border-color: #b6dfca; }
 
 .layout { display: flex; min-height: calc(100vh - 56px); }
 .content { flex: 1; min-width: 0; }
