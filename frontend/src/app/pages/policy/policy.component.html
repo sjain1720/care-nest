@@ -1,0 +1,103 @@
+<div class="page">
+  @if (policy(); as p) {
+    <div class="page-head">
+      <h1>{{ p.planName }}</h1>
+      <p>{{ p.insurer }} · Policy {{ p.policyNumber }} · {{ p.pageCount }} pages read</p>
+    </div>
+
+    <section class="card">
+      <div class="grid">
+        <div class="stat"><div class="label">Sum insured</div><div class="value">{{ p.sumInsured | inr }}</div><div class="muted small">{{ p.policyType }}</div></div>
+        <div class="stat"><div class="label">Policy start</div><div class="value">{{ p.startDate | date: 'd MMM y' }}</div></div>
+        <div class="stat"><div class="label">Renewal due</div><div class="value">{{ p.renewalDate | date: 'd MMM y' }}</div></div>
+        <div class="stat"><div class="label">Deductible</div><div class="value">{{ p.deductible.label }}</div></div>
+      </div>
+      <h3 style="margin-top:16px">Covered members</h3>
+      <div class="members">
+        @for (m of p.members; track m.name) {
+          <span class="member">{{ m.name }} · {{ m.relation }} · {{ m.age }} yrs</span>
+        }
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Limits that affect what you get paid</h2>
+      <ul class="limits">
+        <li>
+          <strong>Room rent:</strong> {{ p.roomRent.label }}
+          @if (p.roomRent.citation; as c) { <app-citation-chip [citation]="c" /> }
+        </li>
+        <li>
+          <strong>Co-pay:</strong> {{ p.coPay.label }}
+          @if (p.coPay.citation; as c) { <app-citation-chip [citation]="c" /> }
+        </li>
+        @for (s of p.subLimits; track s.label) {
+          <li>
+            <strong>{{ s.label }}:</strong> up to {{ s.amount | inr }} {{ s.unit }}
+            @if (s.citation; as c) { <app-citation-chip [citation]="c" /> }
+          </li>
+        }
+      </ul>
+    </section>
+
+    <h2>Top traps in your policy</h2>
+    <div class="grid">
+      @for (t of p.traps; track t.title) {
+        <article class="card trap">
+          <h3>{{ t.title }}</h3>
+          <p>{{ t.explanation }}</p>
+          <div class="row">
+            <app-trust-pill [trust]="t.trust" />
+            <app-citation-chip [citation]="t.citation" />
+          </div>
+        </article>
+      }
+    </div>
+
+    @if (timeline(); as tl) {
+      <section class="card">
+        <h2>Waiting periods</h2>
+        <p class="muted small">Green = waiting period is over. Amber = still waiting. The line marks today ({{ today | date: 'd MMM y' }}).</p>
+        <div class="timeline">
+          @for (w of tl.rows; track w.id; let first = $first) {
+            <div class="tl-row">
+              <div class="tl-head">
+                <span><strong>{{ w.label }}</strong> · {{ w.duration }}</span>
+                <span [class]="'pill ' + (w.over ? 'tone-ok' : 'tone-warn')">
+                  {{ w.over ? 'Over since' : 'Ends' }} {{ w.endDate | date: 'd MMM y' }}
+                </span>
+              </div>
+              <div class="track" role="img" [attr.aria-label]="w.label + (w.over ? ' is over' : ' ends ' + (w.endDate | date: 'd MMM y'))">
+                <div class="bar" [class.over]="w.over" [style.left.%]="w.offsetPct" [style.width.%]="w.widthPct"></div>
+                <div class="today" [style.left.%]="tl.todayPct">
+                  @if (first) { <span class="today-label">Today</span> }
+                </div>
+              </div>
+              <div class="row small muted" style="margin-top:4px">
+                {{ w.appliesTo }} <app-citation-chip [citation]="w.citation" />
+              </div>
+            </div>
+          }
+        </div>
+        <a mat-stroked-button routerLink="/ask" [queryParams]="{ q: 'Is diabetes treatment covered?' }">Ask about a specific condition</a>
+      </section>
+    }
+
+    @if (p.flags.length) {
+      <section class="card">
+        <h2>Things we noticed in your document</h2>
+        @for (f of p.flags; track $index) {
+          <div class="flag">
+            <mat-icon>{{ flagIcon(f.kind) }}</mat-icon>
+            <div>
+              {{ f.message }}
+              @if (f.citation; as c) { <div><app-citation-chip [citation]="c" /></div> }
+            </div>
+          </div>
+        }
+      </section>
+    }
+  } @else {
+    <p class="muted">Loading your policy…</p>
+  }
+</div>

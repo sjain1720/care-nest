@@ -1,52 +1,33 @@
-import { Component, inject, signal } from '@angular/core';
-import { HttpClient } from '@angular/common/http';
-import { KeyValuePipe } from '@angular/common';
+import { Component } from '@angular/core';
+import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
+import { MatIconModule } from '@angular/material/icon';
+import { CitationDrawerComponent } from './shared/citation-drawer.component';
 
-interface Check {
-  ok: boolean;
-  detail?: unknown;
-  error?: string;
-}
-
-interface DiagResponse {
-  all_ok: boolean;
-  checks: Record<string, Check>;
+interface NavItem {
+  path: string;
+  label: string;
+  icon: string;
+  exact: boolean;
 }
 
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [KeyValuePipe],
+  imports: [RouterOutlet, RouterLink, RouterLinkActive, MatIconModule, CitationDrawerComponent],
   templateUrl: './app.component.html',
   styleUrl: './app.component.css',
 })
 export class AppComponent {
-  private http = inject(HttpClient);
+  readonly mainNav: NavItem[] = [
+    { path: '/', label: 'Home', icon: 'home', exact: true },
+    { path: '/policy', label: 'My policy', icon: 'policy', exact: true },
+    { path: '/case', label: 'My case', icon: 'folder_shared', exact: false },
+    { path: '/ask', label: 'Ask', icon: 'forum', exact: true },
+  ];
 
-  health = signal<string>('checking…');
-  diag = signal<DiagResponse | null>(null);
-  diagLoading = signal(false);
-  diagError = signal<string | null>(null);
-
-  constructor() {
-    this.http.get<{ status: string }>('/api/health').subscribe({
-      next: (r) => this.health.set(r.status),
-      error: () => this.health.set('unreachable'),
-    });
-  }
-
-  runDiag(): void {
-    this.diagLoading.set(true);
-    this.diagError.set(null);
-    this.http.get<DiagResponse>('/api/diag').subscribe({
-      next: (r) => {
-        this.diag.set(r);
-        this.diagLoading.set(false);
-      },
-      error: (e) => {
-        this.diagError.set(e?.message ?? 'Request failed');
-        this.diagLoading.set(false);
-      },
-    });
-  }
+  readonly caseNav: NavItem[] = [
+    { path: '/case/settlement', label: 'Settlement breakdown', icon: 'stacked_bar_chart', exact: true },
+    { path: '/case/letter', label: 'Letter to insurer', icon: 'edit_note', exact: true },
+    { path: '/upload', label: 'Upload documents', icon: 'upload_file', exact: true },
+  ];
 }

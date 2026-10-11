@@ -1,0 +1,121 @@
+<div class="page">
+  @if (settlement(); as s) {
+    <div class="page-head">
+      <h1>Why was {{ totalDeducted() | inr }} deducted?</h1>
+      <p>Settlement letter dated {{ s.letterDate | date: 'd MMM y' }} · Claim {{ s.claimNumber }}</p>
+    </div>
+
+    <section class="card">
+      <div class="totals">
+        <div class="stat"><div class="label">You claimed</div><div class="value amount">{{ s.claimedAmount | inr }}</div></div>
+        <div class="stat"><div class="label">Insurer approved</div><div class="value amount">{{ s.approvedAmount | inr }}</div></div>
+        <div class="stat deducted"><div class="label">Deducted</div><div class="value amount">{{ totalDeducted() | inr }}</div></div>
+      </div>
+      <div class="math row small">
+        @if (arithmeticOk()) {
+          <span class="pill tone-ok"><mat-icon class="icon-sm">calculate</mat-icon>Arithmetic checks out</span>
+          <span class="muted">{{ s.claimedAmount | inr }} − {{ totalDeducted() | inr }} = {{ s.approvedAmount | inr }}</span>
+        } @else {
+          <span class="pill tone-bad"><mat-icon class="icon-sm">calculate</mat-icon>The numbers don't add up – ask the insurer</span>
+        }
+      </div>
+
+      <div class="bar" role="group" aria-label="Deductions by reason">
+        @for (d of s.deductions; track d.id; let i = $index) {
+          <button type="button" class="seg" [class.selected]="open() === d.id" [style.background]="color(i)"
+                  [style.flex-basis.%]="share(d.amount)" (click)="select(d.id)"
+                  [attr.aria-label]="d.label + ', ' + (d.amount | inr)">
+            {{ d.amount | inr }}
+          </button>
+        }
+      </div>
+      <div class="legend">
+        @for (d of s.deductions; track d.id; let i = $index) {
+          <span><span class="dot" [style.background]="color(i)"></span>{{ d.label }}</span>
+        }
+      </div>
+      <p class="small" style="margin-bottom:0">
+        <strong>{{ explained() | inr }}</strong> is explained by your policy.
+        <strong>{{ totalDeducted() - explained() | inr }}</strong> has no reason we could confirm.
+      </p>
+    </section>
+
+    <h2>Each deduction, explained</h2>
+    @for (d of s.deductions; track d.id; let i = $index) {
+      <details class="card deduction" [id]="d.id" [open]="open() === d.id" [style.border-left-color]="color(i)" (toggle)="onToggle(d.id, $event)">
+        <summary>
+          <span class="title">{{ d.label }}</span>
+          <app-trust-pill [trust]="d.trust" />
+          <span class="amount">{{ d.amount | inr }}</span>
+          <mat-icon>{{ open() === d.id ? 'expand_less' : 'expand_more' }}</mat-icon>
+        </summary>
+
+        <div class="section-label">What the insurer said</div>
+        <div class="insurer">“{{ d.insurerReason }}”</div>
+
+        <div class="section-label">What we found</div>
+        <p style="margin:0">{{ d.ourReading }}</p>
+
+        @if (d.calculation.length) {
+          <div class="section-label">Calculation</div>
+          <ul class="plain">
+            @for (line of d.calculation; track $index) { <li>{{ line }}</li> }
+          </ul>
+        }
+
+        <div class="section-label">Sources</div>
+        <div class="row">
+          @for (c of d.citations; track $index) { <app-citation-chip [citation]="c" /> }
+        </div>
+
+        <div class="section-label">Evidence in your documents</div>
+        <ul class="plain">
+          @for (e of d.evidence; track $index) { <li>{{ e }}</li> }
+        </ul>
+
+        <div class="section-label">Questions to ask</div>
+        <ul class="plain questions">
+          @for (q of d.questions; track $index) { <li>{{ q }}</li> }
+        </ul>
+      </details>
+    }
+
+    <section class="card">
+      <h2>What to do next</h2>
+      <ol>
+        <li>Ask the insurer to explain the {{ totalDeducted() - explained() | inr }} with no reason.</li>
+        <li>Ask the hospital whether a room within your limit was available at admission.</li>
+        <li>Send both with the evidence index, and keep the reference number.</li>
+      </ol>
+      <div class="row">
+        <a mat-flat-button routerLink="/case/letter"><mat-icon>edit_note</mat-icon> Draft the letter</a>
+        <a mat-stroked-button routerLink="/case"><mat-icon>checklist</mat-icon> Papers you need</a>
+      </div>
+    </section>
+
+    @if (bill(); as b) {
+      <section class="card">
+        <h2>Your hospital bill</h2>
+        <p class="muted small">{{ b.hospital }} · Bill {{ b.billNumber }} · {{ b.items.length }} items</p>
+        <div class="table-wrap">
+          <table class="data">
+            <thead><tr><th>Item</th><th>Status</th><th class="num">Amount</th></tr></thead>
+            <tbody>
+              @for (item of b.items; track item.id) {
+                <tr>
+                  <td>{{ item.description }}<div class="muted small">Bill page {{ item.page }}@if (item.note) { · {{ item.note }} }</div></td>
+                  <td><span [class]="'pill tone-' + tag(item.tag).tone">{{ tag(item.tag).label }}</span></td>
+                  <td class="num amount">{{ item.amount | inr }}</td>
+                </tr>
+              }
+            </tbody>
+            <tfoot><tr><td colspan="2"><strong>Total</strong></td><td class="num amount">{{ b.total | inr }}</td></tr></tfoot>
+          </table>
+        </div>
+        <p class="muted small">These labels are guidance from your policy. Only the insurer's settlement confirms what is paid.</p>
+      </section>
+    }
+  } @else {
+    <p class="muted">Loading the settlement…</p>
+  }
+</div>

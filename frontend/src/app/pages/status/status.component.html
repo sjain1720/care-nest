@@ -1,0 +1,33 @@
+<div class="page">
+  <div class="page-head">
+    <h1>System status</h1>
+    <p>For the team: checks that the backend and every Google service are reachable.</p>
+  </div>
+
+  <section class="card">
+    <p>
+      Backend:
+      <span [class]="'pill ' + (health() === 'ok' ? 'tone-ok' : health() === 'unreachable' ? 'tone-bad' : 'tone-unknown')">{{ health() }}</span>
+    </p>
+
+    <button mat-flat-button type="button" (click)="runDiag()" [disabled]="diagLoading()">
+      {{ diagLoading() ? 'Checking Google services…' : 'Check Google services' }}
+    </button>
+
+    @if (diagError()) {
+      <p class="error">{{ diagError() }}</p>
+    }
+
+    @if (diag(); as d) {
+      <ul class="checks">
+        @for (item of d.checks | keyvalue; track item.key) {
+          <li>
+            <span [class]="'pill ' + (item.value.ok ? 'tone-ok' : 'tone-bad')">{{ item.value.ok ? 'OK' : 'FAIL' }}</span>
+            <strong>{{ item.key }}</strong>
+            <span class="detail">{{ item.value.ok ? item.value.detail : item.value.error }}</span>
+          </li>
+        }
+      </ul>
+    }
+  </section>
+</div>

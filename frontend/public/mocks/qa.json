@@ -1,0 +1,121 @@
+[
+  {
+    "keywords": ["cataract", "eye", "lens"],
+    "steps": [
+      { "agent": "Claim Copilot", "label": "Understanding your question" },
+      { "agent": "Policy Specialist", "label": "Searching your policy for cataract" },
+      { "agent": "Policy Specialist", "label": "Reading page 9 · Clause 4.2 and page 14 · Clause 4.6" },
+      { "agent": "Policy Specialist", "label": "Checking waiting-period dates for Mohan" },
+      { "agent": "Verifier", "label": "Checking that every statement has a source" }
+    ],
+    "answer": {
+      "verdict": "covered",
+      "headline": "Covered – the waiting period is over",
+      "summary": "Cataract has a 24-month waiting period, which ended on 12 Mar 2026. It is now covered, up to ₹40,000 per eye. Because Mohan is above 61, you pay 10% of the approved amount.",
+      "citations": [
+        { "docId": "policy", "docName": "Policy wording", "page": 9, "clause": "Clause 4.2", "quote": "The listed conditions in Annexure I, including cataract, hernia and joint replacement, are covered only after 24 months of continuous coverage." },
+        { "docId": "policy", "docName": "Policy wording", "page": 14, "clause": "Clause 4.6", "quote": "Expenses for cataract treatment are payable up to ₹40,000 per eye per policy year." },
+        { "docId": "policy", "docName": "Policy wording", "page": 8, "clause": "Clause 3.6", "quote": "For Insured Persons aged 61 years or above at the time of admission, a co-payment of 10% shall apply on every admissible claim." }
+      ],
+      "toConfirm": [
+        "Ask the hospital for a written cost estimate, including the lens, before admission.",
+        "Confirm with the insurer that the ₹40,000 limit covers the lens the doctor suggests."
+      ],
+      "nextAction": { "label": "Check room-rent limits", "route": "/policy" }
+    }
+  },
+  {
+    "keywords": ["room", "rent", "deluxe", "icu", "ward"],
+    "steps": [
+      { "agent": "Claim Copilot", "label": "Understanding your question" },
+      { "agent": "Policy Specialist", "label": "Searching your policy for room limits" },
+      { "agent": "Policy Specialist", "label": "Reading page 7 · Clause 3.2 and page 11 · Clause 5.3" },
+      { "agent": "Verifier", "label": "Checking that every statement has a source" }
+    ],
+    "answer": {
+      "verdict": "partial",
+      "headline": "Limit: ₹5,000 per day for a normal room",
+      "summary": "Your policy pays room rent up to 1% of the sum insured per day (₹5,000). If you choose a costlier room, the insurer also reduces doctor and nursing charges in the same proportion – not just the room rent.",
+      "citations": [
+        { "docId": "policy", "docName": "Policy wording", "page": 7, "clause": "Clause 3.2", "quote": "Room, boarding and nursing expenses are payable up to 1% of the Sum Insured per day for a normal room and up to 2% of the Sum Insured per day for ICU." },
+        { "docId": "policy", "docName": "Policy wording", "page": 11, "clause": "Clause 5.3", "quote": "Where the room category exceeds eligibility, all associated medical expenses shall be payable in the same proportion as the eligible room rent bears to the actual room rent." }
+      ],
+      "toConfirm": ["Ask the hospital for the daily rate of each room type before admission."],
+      "nextAction": { "label": "See how this affected Kamala's claim", "route": "/case/settlement" }
+    }
+  },
+  {
+    "keywords": ["38,000", "38000", "deduct", "deducted", "deduction", "cut", "settlement", "less money"],
+    "steps": [
+      { "agent": "Claim Copilot", "label": "Collecting the bill, policy and settlement letter" },
+      { "agent": "Bill & Settlement Analyst", "label": "Matching 9 bill items to the settlement" },
+      { "agent": "Bill & Settlement Analyst", "label": "Checking the arithmetic: ₹2,46,000 − ₹38,000 = ₹2,08,000" },
+      { "agent": "Policy Specialist", "label": "Finding clauses for each deduction" },
+      { "agent": "Verifier", "label": "Separating explained and unexplained amounts" }
+    ],
+    "answer": {
+      "verdict": "needs_checking",
+      "headline": "₹28,500 is explained by your policy; ₹9,500 is not",
+      "summary": "Two deductions match your policy: the room-rent proportionate cut (₹21,600) and non-payable consumables (₹6,900). The remaining ₹9,500 has no reason or clause in the settlement letter, so you can ask the insurer for an itemised explanation.",
+      "citations": [
+        { "docId": "policy", "docName": "Policy wording", "page": 11, "clause": "Clause 5.3", "quote": "Where the room category exceeds eligibility, all associated medical expenses shall be payable in the same proportion as the eligible room rent bears to the actual room rent." },
+        { "docId": "policy", "docName": "Policy wording", "page": 38, "clause": "Annexure II", "quote": "List I – Items for which coverage is not available: gloves, PPE kit, admission kit, ..." },
+        { "docId": "settlement", "docName": "Settlement letter", "page": 2, "clause": "Deductions table, row 3", "quote": "Other deductions: ₹9,500" }
+      ],
+      "toConfirm": ["Ask the hospital whether a room within your limit was available at admission."],
+      "nextAction": { "label": "See the full breakdown", "route": "/case/settlement" }
+    }
+  },
+  {
+    "keywords": ["diabetes", "sugar", "pre-existing", "preexisting", "ped", "knee"],
+    "steps": [
+      { "agent": "Claim Copilot", "label": "Understanding your question" },
+      { "agent": "Policy Specialist", "label": "Checking declared pre-existing diseases" },
+      { "agent": "Policy Specialist", "label": "Reading page 9 · Clause 4.3" },
+      { "agent": "Verifier", "label": "Checking that every statement has a source" }
+    ],
+    "answer": {
+      "verdict": "not_covered",
+      "headline": "Not covered yet – waiting period ends 12 Mar 2027",
+      "summary": "Mohan's declared diabetes and its complications are pre-existing diseases with a 36-month waiting period. Treatment for them is covered from 12 Mar 2027. Accidents and unrelated illnesses are covered now.",
+      "citations": [
+        { "docId": "policy", "docName": "Policy wording", "page": 9, "clause": "Clause 4.3", "quote": "Expenses related to pre-existing diseases are covered after 36 months of continuous coverage from the first policy commencement date." }
+      ],
+      "toConfirm": ["If Mohan had earlier health insurance without a break, ask the insurer whether that time counts towards the waiting period (portability)."],
+      "nextAction": { "label": "View waiting-period timeline", "route": "/policy" }
+    }
+  },
+  {
+    "keywords": ["document", "documents", "papers", "checklist", "claim form", "submit"],
+    "steps": [
+      { "agent": "Claim Copilot", "label": "Looking at Kamala's reimbursement claim" },
+      { "agent": "Claim Assistant", "label": "Comparing collected papers with the insurer's list" },
+      { "agent": "Verifier", "label": "Checking that every statement has a source" }
+    ],
+    "answer": {
+      "verdict": "info",
+      "headline": "3 documents are still missing",
+      "summary": "To file Kamala's reimbursement claim you still need the payment receipts, the investigation reports and a cancelled cheque. Everything else is collected.",
+      "citations": [
+        { "docId": "policy", "docName": "Policy wording", "page": 22, "clause": "Clause 7.4", "quote": "The following documents shall be submitted for reimbursement claims: claim form, discharge summary, final bill, payment receipts, investigation reports, prescriptions, KYC and bank details." }
+      ],
+      "toConfirm": [],
+      "nextAction": { "label": "Open your checklist", "route": "/case" }
+    }
+  },
+  {
+    "keywords": [],
+    "steps": [
+      { "agent": "Claim Copilot", "label": "Understanding your question" },
+      { "agent": "Policy Specialist", "label": "Searching your documents" },
+      { "agent": "Verifier", "label": "No matching clause found" }
+    ],
+    "answer": {
+      "verdict": "cant_confirm",
+      "headline": "I couldn't find this in your documents",
+      "summary": "None of your uploaded documents answer this clearly. Try asking about coverage, waiting periods, room rent, your bill or your settlement.",
+      "citations": [],
+      "toConfirm": ["If this is important, ask your insurer or TPA directly and keep their reply in writing."]
+    }
+  }
+]

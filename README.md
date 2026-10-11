@@ -22,7 +22,9 @@ backend/
   app/routers/health.py  /api/health and /api/diag (calls every Google service once)
   agents/hello_agent/    ADK test agent on Vertex AI
   scripts/smoke_test.py  Phase 0 connection test
-frontend/                Angular 19 app (status page for now)
+frontend/                Angular 19 + Material 3 app (Phase 1 screens on mock data; /status = service check)
+  public/mocks/          demo-case JSON that follows src/app/models/models.ts (the API contract)
+  src/app/services/api.service.ts   USE_MOCKS switch: mocks now, /api/* later
 infra/gcp-bootstrap.sh   one-time GCP setup (run in Cloud Shell)
 scripts/                 Bash helpers for Cloud Shell: setup, dev, smoke test, deploy
 demo-data/  eval/

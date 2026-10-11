@@ -1,0 +1,73 @@
+<div class="page">
+  @if (claimCase(); as c) {
+    <div class="page-head">
+      <h1>{{ c.title }}</h1>
+      <p>{{ c.patient.name }} · {{ c.hospital }}</p>
+    </div>
+
+    <section class="card">
+      <div class="facts">
+        <div><span>Diagnosis</span>{{ c.diagnosis }}</div>
+        <div><span>Stay</span>{{ c.admissionDate | date: 'd MMM' }} – {{ c.dischargeDate | date: 'd MMM y' }}</div>
+        <div><span>Claim type</span>{{ c.claimType === 'cashless' ? 'Cashless' : 'Reimbursement' }} · {{ c.claimNumber }}</div>
+        <div><span>Status</span><strong>{{ c.stage }}</strong></div>
+      </div>
+      <div class="actions">
+        <a mat-flat-button routerLink="/case/settlement"><mat-icon>stacked_bar_chart</mat-icon> See the deduction breakdown</a>
+        <a mat-stroked-button routerLink="/case/letter"><mat-icon>edit_note</mat-icon> Draft a letter to the insurer</a>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Documents for your claim</h2>
+      <p class="muted small" style="margin:0">Made for a {{ c.claimType }} claim under your policy. Tap a document when you have it.</p>
+      <mat-progress-bar mode="determinate" [value]="progressPct()" aria-label="Documents collected" />
+      <p class="small"><strong>{{ collected() }} of {{ claimItems().length }}</strong> collected</p>
+
+      @for (item of claimItems(); track item.id) {
+        <ng-container *ngTemplateOutlet="row; context: { $implicit: item }" />
+      }
+    </section>
+
+    @if (disputeItems().length) {
+      <section class="card">
+        <h2>Extra papers to challenge the deductions</h2>
+        <p class="muted small" style="margin:0">Only needed if you want the insurer to review the ₹38,000.</p>
+        @for (item of disputeItems(); track item.id) {
+          <ng-container *ngTemplateOutlet="row; context: { $implicit: item }" />
+        }
+      </section>
+    }
+
+    <section class="card">
+      <h2>Uploaded documents</h2>
+      <ul class="docs">
+        @for (d of c.documents; track d.id) {
+          <li>
+            <mat-icon>picture_as_pdf</mat-icon>
+            <div class="spacer"><strong>{{ d.name }}</strong><div class="muted small">{{ d.type }} · {{ d.pages }} pages</div></div>
+            <span class="pill tone-ok"><mat-icon class="icon-sm">check</mat-icon>Read</span>
+          </li>
+        }
+      </ul>
+      <a mat-stroked-button routerLink="/upload" style="margin-top:8px"><mat-icon>upload_file</mat-icon> Add a document</a>
+    </section>
+  } @else {
+    <p class="muted">Loading your case…</p>
+  }
+</div>
+
+<ng-template #row let-item>
+  <div class="check">
+    <button mat-icon-button class="toggle" type="button" (click)="toggle(item.id)" [disabled]="item.status === 'requested'"
+            [attr.aria-label]="(item.status === 'collected' ? 'Mark as missing: ' : 'Mark as collected: ') + item.name">
+      <mat-icon [style.color]="item.status === 'collected' ? 'var(--cn-ok)' : 'var(--cn-muted)'">{{ status(item.status).icon }}</mat-icon>
+    </button>
+    <div class="body">
+      <div class="name">{{ item.name }}</div>
+      <div class="meta"><strong>Get it from:</strong> {{ item.source }}</div>
+      <div class="meta">{{ item.why }}</div>
+    </div>
+    <span [class]="'pill tone-' + status(item.status).tone">{{ status(item.status).label }}</span>
+  </div>
+</ng-template>

@@ -1,0 +1,57 @@
+<div class="page">
+  <div class="page-head no-print">
+    <h1>Letter to the insurer</h1>
+    <p>A factual request for clarification, based on your settlement letter and policy. Check and edit before sending.</p>
+  </div>
+
+  @if (letter(); as l) {
+    <section class="card">
+      <div class="meta">
+        <span>To</span><strong>{{ l.to }}</strong>
+        <span>Subject</span><strong>{{ l.subject }}</strong>
+      </div>
+      <label for="letter-body" class="sr-only">Letter text</label>
+      <textarea id="letter-body" name="body" [(ngModel)]="body" spellcheck="true"></textarea>
+      <div class="print-only">{{ body }}</div>
+
+      <div class="row no-print" style="margin-top:12px">
+        <button mat-flat-button type="button" (click)="print()"><mat-icon>picture_as_pdf</mat-icon> Print / save as PDF</button>
+        <button mat-stroked-button type="button" (click)="copy()"><mat-icon>{{ copied() ? 'check' : 'content_copy' }}</mat-icon> {{ copied() ? 'Copied' : 'Copy text' }}</button>
+        <button mat-stroked-button type="button" (click)="download()"><mat-icon>download</mat-icon> Download .txt</button>
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Evidence index – attach these</h2>
+      <ol>
+        @for (e of l.evidenceIndex; track $index) { <li>{{ e }}</li> }
+      </ol>
+      <a mat-button routerLink="/case" class="no-print">Check which papers you have</a>
+    </section>
+  } @else {
+    <p class="muted">Preparing your letter…</p>
+  }
+
+  @if (claimCase(); as c) {
+    <section class="card no-print">
+      <h2>If the reply doesn't resolve it</h2>
+      <ol class="escalation">
+        @for (step of c.escalation; track step.level) {
+          <li>
+            <strong>{{ step.name }}</strong>
+            <div>{{ step.when }}</div>
+            <div class="muted small">{{ step.howTo }}</div>
+            @if (step.link) {
+              <a [href]="step.link" target="_blank" rel="noopener noreferrer" class="small">{{ step.link }}</a>
+            }
+            @if (step.verify) {
+              <div><span class="pill tone-warn"><mat-icon class="icon-sm">event</mat-icon>Check the current deadline before filing</span></div>
+            }
+          </li>
+        }
+      </ol>
+    </section>
+  }
+
+  <p class="muted small">CareNest does not promise that the insurer will change its decision.</p>
+</div>

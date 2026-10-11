@@ -1,0 +1,37 @@
+{
+  "id": "case-demo-001",
+  "title": "Mother's gallbladder surgery",
+  "patient": { "name": "Kamala Sharma", "relation": "Mother", "age": 58 },
+  "hospital": "City Care Hospital, Pune (demo)",
+  "admissionDate": "2026-08-18",
+  "dischargeDate": "2026-08-22",
+  "diagnosis": "Gallbladder stones – laparoscopic gallbladder removal",
+  "claimType": "reimbursement",
+  "claimNumber": "CLM-2026-0083412",
+  "stage": "Settled with ₹38,000 deducted",
+  "documents": [
+    { "id": "doc-policy", "name": "Policy wording", "type": "Policy document", "pages": 42, "uploadedOn": "2026-09-22" },
+    { "id": "doc-schedule", "name": "Policy schedule", "type": "Policy document", "pages": 3, "uploadedOn": "2026-09-22" },
+    { "id": "doc-bill", "name": "Final itemised bill", "type": "Hospital bill", "pages": 6, "uploadedOn": "2026-09-22" },
+    { "id": "doc-discharge", "name": "Discharge summary", "type": "Discharge summary", "pages": 3, "uploadedOn": "2026-09-22" },
+    { "id": "doc-settlement", "name": "Settlement letter", "type": "Settlement letter", "pages": 2, "uploadedOn": "2026-09-22" }
+  ],
+  "checklist": [
+    { "id": "c1", "group": "claim", "name": "Claim form – Part A (signed by you)", "source": "Insurer website or TPA desk", "why": "Needed for every reimbursement claim", "status": "collected" },
+    { "id": "c2", "group": "claim", "name": "Claim form – Part B (filled by hospital)", "source": "Hospital insurance / TPA desk", "why": "The hospital confirms the treatment details", "status": "collected" },
+    { "id": "c3", "group": "claim", "name": "Discharge summary", "source": "Ward or billing desk at discharge", "why": "Shows the diagnosis and treatment given", "status": "collected" },
+    { "id": "c4", "group": "claim", "name": "Final itemised bill", "source": "Hospital billing desk", "why": "Every charge must be listed separately", "status": "collected" },
+    { "id": "c5", "group": "claim", "name": "Payment receipts", "source": "Hospital billing desk – ask for a receipt for each payment", "why": "Proves what you actually paid", "status": "missing" },
+    { "id": "c6", "group": "claim", "name": "Investigation reports (blood tests, ultrasound)", "source": "Hospital lab and radiology department", "why": "Supports the diagnosis in the discharge summary", "status": "missing" },
+    { "id": "c7", "group": "claim", "name": "Prescriptions and pharmacy bills", "source": "Hospital pharmacy", "why": "Needed to pay for medicines", "status": "collected" },
+    { "id": "c8", "group": "claim", "name": "Cancelled cheque or bank details", "source": "Your bank", "why": "So the insurer can pay you", "status": "missing" },
+    { "id": "c9", "group": "claim", "name": "Photo ID and address proof (KYC)", "source": "Policyholder's PAN / Aadhaar", "why": "Insurer's KYC requirement", "status": "collected" },
+    { "id": "c10", "group": "dispute", "name": "Hospital note on room availability", "source": "Hospital admission desk", "why": "Shows whether a room within your ₹5,000/day limit was available – helps challenge the room-rent cut", "status": "missing" },
+    { "id": "c11", "group": "dispute", "name": "Itemised explanation of the ₹9,500", "source": "Insurer – request it with the letter", "why": "The settlement letter gives no reason for this amount", "status": "requested" }
+  ],
+  "escalation": [
+    { "level": 1, "name": "Insurer's grievance cell", "when": "First step. Write to the insurer with your questions and evidence.", "howTo": "Use the grievance email or form on the insurer's website. Note the reference number.", "verify": true },
+    { "level": 2, "name": "Bima Bharosa (IRDAI)", "when": "If the insurer does not reply in time, or you disagree with the reply.", "howTo": "Register the complaint online on the IRDAI Bima Bharosa portal.", "link": "https://bimabharosa.irdai.gov.in", "verify": true },
+    { "level": 3, "name": "Insurance Ombudsman", "when": "If it is still unresolved. There is a time limit after the insurer's final reply – check it before filing.", "howTo": "File with the Ombudsman office for your area.", "link": "https://www.cioins.co.in", "verify": true }
+  ]
+}

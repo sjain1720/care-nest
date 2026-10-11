@@ -1,0 +1,41 @@
+<div class="page">
+  <div class="page-head">
+    <h1>Upload documents</h1>
+    <p>PDF only, up to 60 pages each. We read every page and keep page numbers so answers can point to the source.</p>
+  </div>
+
+  <label class="drop" [class.over]="dragOver()" (dragover)="onDragOver($event)" (dragleave)="dragOver.set(false)" (drop)="onDrop($event)">
+    <mat-icon>upload_file</mat-icon>
+    <strong>Drop PDFs here or tap to choose</strong>
+    <span class="muted small">We can read:</span>
+    <span class="types">
+      @for (t of acceptedTypes; track t) { <span class="pill tone-info">{{ t }}</span> }
+    </span>
+    <input type="file" accept="application/pdf" multiple class="sr-only" (change)="onPick($event)">
+  </label>
+
+  <p class="muted small">Use synthetic or your own documents only. Files are used to answer your questions and are not shared.</p>
+
+  @for (it of items(); track it.id) {
+    <section class="card">
+      <div class="file-head">
+        <mat-icon>picture_as_pdf</mat-icon>
+        <div class="spacer"><strong>{{ it.name }}</strong><div class="muted small">{{ it.sizeKb }} KB</div></div>
+        @if (it.done) {
+          <span class="pill tone-ok"><mat-icon class="icon-sm">check</mat-icon>{{ it.detectedType }}</span>
+        }
+      </div>
+      @if (it.error) {
+        <p class="error">{{ it.error }}</p>
+      } @else {
+        <app-agent-progress [steps]="it.steps" [running]="!it.done" />
+      }
+      @if (it.done) {
+        <div class="row" style="margin-top:8px">
+          <a mat-stroked-button routerLink="/policy">See policy summary</a>
+          <a mat-stroked-button routerLink="/ask">Ask a question</a>
+        </div>
+      }
+    </section>
+  }
+</div>

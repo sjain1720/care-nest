@@ -1,0 +1,56 @@
+<div class="page">
+  <div class="page-head">
+    <h1>Hello Ravi</h1>
+    <p>Where are you in your hospital journey? Pick one and we'll guide you.</p>
+  </div>
+
+  @if (claimCase(); as c) {
+    <section class="card hero" aria-label="Active case">
+      <div class="small">Active case · {{ c.patient.name }} · {{ c.hospital }}</div>
+      <h1>{{ c.title }}</h1>
+      <p>Claimed {{ settlement()?.claimedAmount | inr }} · Approved {{ settlement()?.approvedAmount | inr }} ·
+        <span class="amount">{{ totalDeducted() | inr }}</span> deducted</p>
+      <a mat-flat-button class="hero-btn" routerLink="/case/settlement">See why it was deducted <mat-icon iconPositionEnd>arrow_forward</mat-icon></a>
+    </section>
+  }
+
+  <h2>Where are you right now?</h2>
+  <div class="grid">
+    @for (j of journeys; track j.title) {
+      <a class="card journey" [routerLink]="j.route" [queryParams]="j.query">
+        <mat-icon>{{ j.icon }}</mat-icon>
+        <h3>{{ j.title }}</h3>
+        <p>{{ j.text }}</p>
+      </a>
+    }
+  </div>
+
+  <section class="card">
+    <h2>Ask a question</h2>
+    <div class="quick">
+      @for (q of quickQuestions; track q) {
+        <a mat-stroked-button routerLink="/ask" [queryParams]="{ q: q }">{{ q }}</a>
+      }
+    </div>
+  </section>
+
+  @if (policy(); as p) {
+    <section class="card">
+      <div class="row">
+        <h2>Your policy</h2>
+        <span class="spacer"></span>
+        <a mat-button routerLink="/policy">View details</a>
+      </div>
+      <div class="grid">
+        <div class="stat"><div class="label">Insurer</div><div class="value">{{ p.planName }}</div><div class="muted small">{{ p.insurer }}</div></div>
+        <div class="stat"><div class="label">Sum insured</div><div class="value">{{ p.sumInsured | inr }}</div><div class="muted small">{{ p.policyType }}</div></div>
+        <div class="stat"><div class="label">Room limit</div><div class="value">{{ p.roomRent.amount | inr }}/day</div></div>
+        <div class="stat"><div class="label">Members</div><div class="value">{{ p.members.length }}</div><div class="muted small">{{ memberNames() }}</div></div>
+      </div>
+    </section>
+  }
+
+  <div class="row">
+    <a mat-stroked-button routerLink="/upload"><mat-icon>upload_file</mat-icon> Upload documents</a>
+  </div>
+</div>

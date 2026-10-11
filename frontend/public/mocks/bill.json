@@ -1,0 +1,17 @@
+{
+  "hospital": "City Care Hospital, Pune (demo)",
+  "billNumber": "CCH/IP/2026/5521",
+  "billDate": "2026-08-22",
+  "total": 246000,
+  "items": [
+    { "id": "b1", "category": "Room", "description": "Room rent – Deluxe single (4 days × ₹7,500)", "amount": 30000, "page": 1, "tag": "needs_clarification", "note": "Above your ₹5,000/day limit" },
+    { "id": "b2", "category": "Nursing", "description": "Nursing charges", "amount": 8800, "page": 1, "tag": "needs_clarification", "note": "Reduced in proportion when the room is above the limit" },
+    { "id": "b3", "category": "Doctor", "description": "Doctor visits and consultations", "amount": 26000, "page": 2, "tag": "needs_clarification", "note": "Reduced in proportion when the room is above the limit" },
+    { "id": "b4", "category": "Surgery", "description": "Surgeon and operation theatre charges", "amount": 95000, "page": 2, "tag": "likely_payable" },
+    { "id": "b5", "category": "Surgery", "description": "Anaesthesia", "amount": 18000, "page": 2, "tag": "likely_payable" },
+    { "id": "b6", "category": "Pharmacy", "description": "Pharmacy and medicines", "amount": 32400, "page": 3, "tag": "likely_payable" },
+    { "id": "b7", "category": "Investigations", "description": "Lab tests and imaging", "amount": 21000, "page": 3, "tag": "likely_payable" },
+    { "id": "b8", "category": "Equipment", "description": "Medical equipment charges", "amount": 7900, "page": 4, "tag": "likely_payable" },
+    { "id": "b9", "category": "Consumables", "description": "Gloves, PPE kit, admission kit", "amount": 6900, "page": 4, "tag": "possibly_non_payable", "note": "On the non-payable list (Annexure II)" }
+  ]
+}

@@ -1,0 +1,118 @@
+{
+  "policyId": "pol-demo-001",
+  "insurer": "Suraksha Health Insurance Co. (demo)",
+  "planName": "Family Shield Gold",
+  "policyNumber": "XXXX-XXXX-4821",
+  "policyType": "Family floater",
+  "sumInsured": 500000,
+  "startDate": "2024-03-12",
+  "renewalDate": "2027-03-11",
+  "pageCount": 42,
+  "members": [
+    { "name": "Ravi Sharma", "relation": "Self", "age": 32 },
+    { "name": "Mohan Sharma", "relation": "Father", "age": 62 },
+    { "name": "Kamala Sharma", "relation": "Mother", "age": 58 }
+  ],
+  "roomRent": {
+    "label": "Up to ₹5,000 per day for a normal room (1% of sum insured); ICU up to 2%",
+    "amount": 5000,
+    "unit": "per day",
+    "citation": { "docId": "policy", "docName": "Policy wording", "page": 7, "clause": "Clause 3.2", "quote": "Room, boarding and nursing expenses are payable up to 1% of the Sum Insured per day for a normal room and up to 2% of the Sum Insured per day for ICU." }
+  },
+  "coPay": {
+    "label": "10% co-pay for members aged 61 or above (applies to Mohan)",
+    "amount": 10,
+    "unit": "%",
+    "citation": { "docId": "policy", "docName": "Policy wording", "page": 8, "clause": "Clause 3.6", "quote": "For Insured Persons aged 61 years or above at the time of admission, a co-payment of 10% shall apply on every admissible claim." }
+  },
+  "deductible": { "label": "No deductible", "amount": 0 },
+  "subLimits": [
+    {
+      "label": "Cataract surgery",
+      "amount": 40000,
+      "unit": "per eye",
+      "citation": { "docId": "policy", "docName": "Policy wording", "page": 14, "clause": "Clause 4.6", "quote": "Expenses for cataract treatment are payable up to ₹40,000 per eye per policy year." }
+    },
+    {
+      "label": "Road ambulance",
+      "amount": 2000,
+      "unit": "per hospitalisation",
+      "citation": { "docId": "policy", "docName": "Policy wording", "page": 14, "clause": "Clause 4.8", "quote": "Road ambulance charges are payable up to ₹2,000 per hospitalisation." }
+    }
+  ],
+  "waitingPeriods": [
+    {
+      "id": "wp-initial",
+      "label": "Initial waiting period",
+      "kind": "initial",
+      "duration": "30 days",
+      "startDate": "2024-03-12",
+      "endDate": "2024-04-11",
+      "appliesTo": "All illnesses (accidents are covered from day 1)",
+      "citation": { "docId": "policy", "docName": "Policy wording", "page": 9, "clause": "Clause 4.1", "quote": "Expenses for any illness contracted within 30 days from the first policy commencement date are excluded, except claims arising due to an accident." }
+    },
+    {
+      "id": "wp-specific",
+      "label": "Specific illnesses (cataract, hernia, joint replacement…)",
+      "kind": "specific",
+      "duration": "24 months",
+      "startDate": "2024-03-12",
+      "endDate": "2026-03-12",
+      "appliesTo": "Conditions listed in Annexure I",
+      "citation": { "docId": "policy", "docName": "Policy wording", "page": 9, "clause": "Clause 4.2", "quote": "The listed conditions in Annexure I, including cataract, hernia and joint replacement, are covered only after 24 months of continuous coverage." }
+    },
+    {
+      "id": "wp-ped",
+      "label": "Pre-existing diseases (declared: diabetes – Mohan)",
+      "kind": "ped",
+      "duration": "36 months",
+      "startDate": "2024-03-12",
+      "endDate": "2027-03-12",
+      "appliesTo": "Conditions declared in the proposal form",
+      "citation": { "docId": "policy", "docName": "Policy wording", "page": 9, "clause": "Clause 4.3", "quote": "Expenses related to pre-existing diseases are covered after 36 months of continuous coverage from the first policy commencement date." }
+    }
+  ],
+  "traps": [
+    {
+      "title": "A room above ₹5,000/day cuts more than the room rent",
+      "explanation": "If you choose a costlier room, the insurer also reduces doctor and nursing charges in the same proportion.",
+      "trust": "supported",
+      "citation": { "docId": "policy", "docName": "Policy wording", "page": 11, "clause": "Clause 5.3", "quote": "Where the room category exceeds eligibility, all associated medical expenses shall be payable in the same proportion as the eligible room rent bears to the actual room rent." }
+    },
+    {
+      "title": "10% co-pay for your father",
+      "explanation": "Mohan is above 61, so you pay 10% of every approved amount for his claims.",
+      "trust": "supported",
+      "citation": { "docId": "policy", "docName": "Policy wording", "page": 8, "clause": "Clause 3.6", "quote": "For Insured Persons aged 61 years or above at the time of admission, a co-payment of 10% shall apply on every admissible claim." }
+    },
+    {
+      "title": "Gloves, PPE kits and admission kits are not paid",
+      "explanation": "Items on the non-payable list are deducted unless you have a consumables add-on. This policy has none.",
+      "trust": "supported",
+      "citation": { "docId": "policy", "docName": "Policy wording", "page": 38, "clause": "Annexure II", "quote": "List I – Items for which coverage is not available: gloves, PPE kit, admission kit, ..." }
+    },
+    {
+      "title": "Cataract is capped at ₹40,000 per eye",
+      "explanation": "Even after the waiting period, the insurer pays at most ₹40,000 per eye.",
+      "trust": "supported",
+      "citation": { "docId": "policy", "docName": "Policy wording", "page": 14, "clause": "Clause 4.6", "quote": "Expenses for cataract treatment are payable up to ₹40,000 per eye per policy year." }
+    },
+    {
+      "title": "Tell the insurer within 48 hours of an emergency admission",
+      "explanation": "Late intimation can lead to questions on the claim. Keep proof of when you informed them.",
+      "trust": "check",
+      "citation": { "docId": "policy", "docName": "Policy wording", "page": 21, "clause": "Clause 7.1", "quote": "In case of emergency hospitalisation, the Company/TPA must be informed within 48 hours of admission." }
+    }
+  ],
+  "flags": [
+    {
+      "kind": "ambiguous",
+      "message": "Clause 5.3 talks about \"associated medical expenses\" but does not fully list them. Ask the insurer which charges are included.",
+      "citation": { "docId": "policy", "docName": "Policy wording", "page": 11, "clause": "Clause 5.3", "quote": "Where the room category exceeds eligibility, all associated medical expenses shall be payable in the same proportion as the eligible room rent bears to the actual room rent." }
+    },
+    {
+      "kind": "missing_pages",
+      "message": "Annexure III (day-care procedures) is mentioned on page 15 but is not in the uploaded file."
+    }
+  ]
+}

@@ -1,34 +1,44 @@
-<main class="page">
-  <h1>CareNest</h1>
-  <p class="tagline">Understand your health policy before, during and after a hospital stay.</p>
+<a class="skip-link" href="#main">Skip to content</a>
 
-  <section class="card">
-    <h2>System status</h2>
-    <p>
-      Backend:
-      <span class="badge" [class.ok]="health() === 'ok'" [class.bad]="health() === 'unreachable'">{{ health() }}</span>
-    </p>
+<header class="topbar no-print">
+  <a routerLink="/" class="brand" aria-label="CareNest home">
+    <mat-icon>health_and_safety</mat-icon>
+    <span>CareNest</span>
+  </a>
+  <span class="tagline">Your health policy, explained</span>
+  <span class="spacer"></span>
+  <span class="pill tone-info" title="You are viewing a synthetic demo case">Demo case</span>
+</header>
 
-    <button type="button" (click)="runDiag()" [disabled]="diagLoading()">
-      {{ diagLoading() ? 'Checking Google services…' : 'Check Google services' }}
-    </button>
-
-    @if (diagError()) {
-      <p class="error">{{ diagError() }}</p>
+<div class="layout">
+  <nav class="sidenav no-print" aria-label="Main">
+    @for (item of mainNav; track item.path) {
+      <a [routerLink]="item.path" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: item.exact }">
+        <mat-icon>{{ item.icon }}</mat-icon><span>{{ item.label }}</span>
+      </a>
     }
-
-    @if (diag(); as d) {
-      <ul class="checks">
-        @for (item of d.checks | keyvalue; track item.key) {
-          <li>
-            <span class="badge" [class.ok]="item.value.ok" [class.bad]="!item.value.ok">
-              {{ item.value.ok ? 'OK' : 'FAIL' }}
-            </span>
-            <strong>{{ item.key }}</strong>
-            <span class="detail">{{ item.value.ok ? item.value.detail : item.value.error }}</span>
-          </li>
-        }
-      </ul>
+    <div class="nav-section">This case</div>
+    @for (item of caseNav; track item.path) {
+      <a [routerLink]="item.path" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: item.exact }">
+        <mat-icon>{{ item.icon }}</mat-icon><span>{{ item.label }}</span>
+      </a>
     }
-  </section>
-</main>
+  </nav>
+
+  <main id="main" class="content">
+    <router-outlet />
+    <footer class="disclaimer no-print">
+      CareNest gives guidance based on your documents. Only your insurer's decision confirms what is paid. This is not medical or legal advice.
+    </footer>
+  </main>
+</div>
+
+<nav class="bottomnav no-print" aria-label="Main">
+  @for (item of mainNav; track item.path) {
+    <a [routerLink]="item.path" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: item.exact }">
+      <mat-icon>{{ item.icon }}</mat-icon><span>{{ item.label }}</span>
+    </a>
+  }
+</nav>
+
+<app-citation-drawer />
