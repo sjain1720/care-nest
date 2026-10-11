@@ -16,6 +16,8 @@ interface UploadItem {
   steps: AgentStep[];
   done: boolean;
   detectedType?: string;
+  pages?: number;
+  message?: string;
   error?: string;
 }
 
@@ -78,10 +80,13 @@ export class UploadComponent {
 
   private process(id: number, file: File): void {
     this.api.uploadDocument(file).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
-      next: (event) => this.patch(id, (it) => event.type === 'step'
+      next: (event) => {
+        if (event.type === 'done' && event.detectedType === 'Policy document') this.api.refreshPolicy();
+        this.patch(id, (it) => event.type === 'step'
         ? { ...it, steps: [...it.steps, { agent: 'Ingestion', label: event.label }] }
-        : { ...it, done: true, detectedType: event.detectedType }),
-      error: () => this.patch(id, (it) => ({ ...it, error: 'Upload failed. Please try again.' })),
+        : { ...it, done: true, detectedType: event.detectedType, pages: event.pages, message: event.message });
+      },
+      error: (e) => this.patch(id, (it) => ({ ...it, error: e?.error?.detail ?? 'Upload failed. Please try again.' })),
     });
   }
 

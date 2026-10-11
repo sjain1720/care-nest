@@ -8,7 +8,7 @@ Single Cloud Run service: Angular UI + FastAPI API (`/api/*`) in one container.
 | GCP project | `project-796a7c44-1092-4e43-ba6` |
 | Region (Cloud Run, Firestore, bucket, Document AI) | `asia-south1` |
 | Gemini location | `global` (Vertex AI, no API key) |
-| Document AI | OCR processor `771975839b0e4376`, PDFs only, max 60 pages, 15 pages per request |
+| Document AI | OCR processor `771975839b0e4376`, PDFs only, max 100 pages, 15 pages per request |
 | Bucket | `gs://project-796a7c44-1092-4e43-ba6-docs` |
 
 ## Folder layout

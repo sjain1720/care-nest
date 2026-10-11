@@ -30,4 +30,18 @@
       </ul>
     }
   </section>
+
+  <section class="card">
+    <h2>Live or demo data</h2>
+    <p class="muted small">Ticked features call the real backend. The rest use the built-in demo data. Saved in this browser only.</p>
+    @for (f of features; track f.id) {
+      <label class="feature" [class.disabled]="!f.backendReady">
+        <input type="checkbox" [checked]="live().has(f.id)" [disabled]="!f.backendReady"
+               (change)="toggle(f.id, $any($event.target).checked)">
+        <span>{{ f.label }}</span>
+        @if (!f.backendReady) { <span class="pill tone-unknown">Later phase</span> }
+      </label>
+    }
+    <button mat-flat-button type="button" (click)="applyLive()" style="margin-top:12px">Save and reload</button>
+  </section>
 </div>

@@ -1,15 +1,16 @@
-import { Component, computed, inject } from '@angular/core';
-import { toSignal } from '@angular/core/rxjs-interop';
+import { Component, computed, inject, signal } from '@angular/core';
+import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { DatePipe } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { ApiService } from '../../services/api.service';
-import { Citation, WaitingPeriod } from '../../models/models';
+import { Citation, PolicyFacts, WaitingPeriod } from '../../models/models';
 import { InrPipe } from '../../shared/inr.pipe';
 import { CitationChipComponent } from '../../shared/citation-chip.component';
 import { TrustPillComponent } from '../../shared/trust-pill.component';
 import { RoomRentSimulatorComponent } from '../../shared/room-rent-simulator.component';
+import { PolicyDetailsFormComponent } from './policy-details-form.component';
 
 interface TimelineRow extends WaitingPeriod {
   offsetPct: number;
@@ -22,7 +23,8 @@ const FLAG_ICONS: Record<string, string> = { missing_pages: 'find_in_page', outd
 @Component({
   selector: 'app-policy',
   standalone: true,
-  imports: [DatePipe, RouterLink, MatButtonModule, MatIconModule, InrPipe, CitationChipComponent, TrustPillComponent, RoomRentSimulatorComponent],
+  imports: [DatePipe, RouterLink, MatButtonModule, MatIconModule, InrPipe, CitationChipComponent, TrustPillComponent,
+            RoomRentSimulatorComponent, PolicyDetailsFormComponent],
   templateUrl: './policy.component.html',
   styles: `
     .members { display: flex; flex-wrap: wrap; gap: 8px; }
@@ -41,16 +43,37 @@ const FLAG_ICONS: Record<string, string> = { missing_pages: 'find_in_page', outd
     .today-label { position: absolute; top: -22px; transform: translateX(-50%); font-size: .7rem; font-weight: 600; white-space: nowrap; }
     .flag { display: flex; gap: 10px; align-items: flex-start; padding: 8px 0; }
     .flag mat-icon { color: var(--cn-warn); flex: none; }
+    .notice { display: flex; gap: 12px; align-items: flex-start; border-left: 4px solid var(--cn-warn); background: var(--cn-warn-soft); }
+    .notice mat-icon { color: var(--cn-warn); flex: none; }
+    .notice p { margin: 4px 0 8px; }
+    .by-you { font-size: .7rem; font-weight: 600; color: var(--cn-primary); }
   `,
 })
 export class PolicyComponent {
   private api = inject(ApiService);
-  policy = toSignal(this.api.getPolicy());
+  /** undefined = loading, null = no policy uploaded yet. */
+  policy = signal<PolicyFacts | null | undefined>(undefined);
+  editing = signal(false);
   readonly today = new Date();
+
+  missingStartDate = computed(() => !!this.policy()?.flags.some((f) => f.code === 'missing_start_date'));
+
+  constructor() {
+    this.api.getPolicy().pipe(takeUntilDestroyed()).subscribe((p) => this.policy.set(p));
+  }
+
+  byYou(field: string): boolean {
+    return !!this.policy()?.userProvided?.includes(field);
+  }
+
+  onSaved(facts: PolicyFacts): void {
+    this.policy.set(facts);
+    this.editing.set(false);
+  }
 
   timeline = computed(() => {
     const p = this.policy();
-    if (!p) return null;
+    if (!p || !p.startDate || !p.waitingPeriods.length) return null;
     const start = Date.parse(p.startDate);
     const end = Math.max(...p.waitingPeriods.map((w) => Date.parse(w.endDate)), this.today.getTime());
     const span = end - start || 1;

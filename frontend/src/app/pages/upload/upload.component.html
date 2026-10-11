@@ -1,7 +1,7 @@
 <div class="page">
   <div class="page-head">
     <h1>Upload documents</h1>
-    <p>PDF only, up to 60 pages each. We read every page and keep page numbers so answers can point to the source.</p>
+    <p>PDF only, up to 100 pages each. We read every page and keep page numbers so answers can point to the source.</p>
   </div>
 
   <label class="drop" [class.over]="dragOver()" (dragover)="onDragOver($event)" (dragleave)="dragOver.set(false)" (drop)="onDrop($event)">
@@ -27,8 +27,13 @@
       </div>
       @if (it.error) {
         <p class="error">{{ it.error }}</p>
+      } @else if (!it.done && !it.steps.length) {
+        <p class="muted small" style="margin:0">Reading every page with Document AI and finding the clauses… this can take up to a minute.</p>
       } @else {
         <app-agent-progress [steps]="it.steps" [running]="!it.done" />
+      }
+      @if (it.done && it.pages) {
+        <p class="small" style="margin:8px 0 0">{{ it.pages }} pages read.@if (it.message) { {{ it.message }} }</p>
       }
       @if (it.done) {
         <div class="row" style="margin-top:8px">

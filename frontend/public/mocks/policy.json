@@ -8,6 +8,10 @@
   "startDate": "2024-03-12",
   "renewalDate": "2027-03-11",
   "pageCount": 42,
+  "productType": "health_indemnity",
+  "productNote": null,
+  "isGroupPolicy": false,
+  "userProvided": ["startDate", "members"],
   "members": [
     { "name": "Ravi Sharma", "relation": "Self", "age": 32 },
     { "name": "Mohan Sharma", "relation": "Father", "age": 62 },

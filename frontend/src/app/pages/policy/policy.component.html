@@ -2,22 +2,55 @@
   @if (policy(); as p) {
     <div class="page-head">
       <h1>{{ p.planName }}</h1>
-      <p>{{ p.insurer }} · Policy {{ p.policyNumber }} · {{ p.pageCount }} pages read</p>
+      <p>{{ p.insurer }} · Policy {{ p.policyNumber }} · {{ p.pageCount }} pages read@if (p.isGroupPolicy) { · Group policy }</p>
     </div>
 
+    @if (p.productNote) {
+      <section class="card notice" role="note">
+        <mat-icon>info</mat-icon>
+        <div><strong>This policy works differently</strong><p>{{ p.productNote }}</p></div>
+      </section>
+    }
+
+    @if (missingStartDate() && !editing()) {
+      <section class="card notice">
+        <mat-icon>event</mat-icon>
+        <div>
+          <strong>Add your policy start date</strong>
+          <p>Your document is the policy wording, which doesn't include your personal details. Add them from your policy schedule so we can work out waiting periods and room limits.</p>
+          <button mat-flat-button type="button" (click)="editing.set(true)">Add policy details</button>
+        </div>
+      </section>
+    }
+
     <section class="card">
-      <div class="grid">
-        <div class="stat"><div class="label">Sum insured</div><div class="value">{{ p.sumInsured | inr }}</div><div class="muted small">{{ p.policyType }}</div></div>
-        <div class="stat"><div class="label">Policy start</div><div class="value">{{ p.startDate | date: 'd MMM y' }}</div></div>
-        <div class="stat"><div class="label">Renewal due</div><div class="value">{{ p.renewalDate | date: 'd MMM y' }}</div></div>
-        <div class="stat"><div class="label">Deductible</div><div class="value">{{ p.deductible.label }}</div></div>
-      </div>
-      <h3 style="margin-top:16px">Covered members</h3>
-      <div class="members">
-        @for (m of p.members; track m.name) {
-          <span class="member">{{ m.name }} · {{ m.relation }} · {{ m.age }} yrs</span>
+      <div class="row">
+        <h2 style="margin:0">Your policy details</h2>
+        <span class="spacer"></span>
+        @if (!editing()) {
+          <button mat-stroked-button type="button" (click)="editing.set(true)"><mat-icon>edit</mat-icon> Add or correct</button>
         }
       </div>
+      @if (editing()) {
+        <div style="margin-top:12px">
+          <app-policy-details-form [policy]="p" (saved)="onSaved($event)" (cancelled)="editing.set(false)" />
+        </div>
+      } @else {
+      <div class="grid" style="margin-top:12px">
+        <div class="stat"><div class="label">Sum insured</div><div class="value">{{ p.sumInsured ? (p.sumInsured | inr) : 'Not found' }}</div><div class="muted small">{{ p.policyType }}</div>@if (byYou('sumInsured')) { <div class="by-you">Entered by you</div> }</div>
+        <div class="stat"><div class="label">Policy start</div><div class="value">{{ p.startDate ? (p.startDate | date: 'd MMM y') : 'Not found' }}</div>@if (byYou('startDate')) { <div class="by-you">Entered by you</div> }</div>
+        <div class="stat"><div class="label">Renewal due</div><div class="value">{{ p.renewalDate ? (p.renewalDate | date: 'd MMM y') : 'Not found' }}</div></div>
+        <div class="stat"><div class="label">Deductible</div><div class="value">{{ p.deductible.label }}</div></div>
+      </div>
+      <h3 style="margin-top:16px">Covered members @if (byYou('members')) { <span class="by-you">· Entered by you</span> }</h3>
+      <div class="members">
+        @for (m of p.members; track m.name) {
+          <span class="member">{{ m.name }} · {{ m.relation }}@if (m.age) { · {{ m.age }} yrs }</span>
+        } @empty {
+          <span class="muted small">No members found in the document.</span>
+        }
+      </div>
+      }
     </section>
 
     <section class="card">
@@ -43,7 +76,12 @@
     <section class="card" id="room-rent">
       <h2>Before admission: check the room you pick</h2>
       <p class="muted small">Choosing a room above your limit cuts more than the room rent. Try a room type to see the effect.</p>
-      <app-room-rent-simulator [limit]="p.roomRent.amount ?? 0" [citations]="roomRentCitations()" />
+      @if (p.roomRent.amount) {
+        <app-room-rent-simulator [limit]="p.roomRent.amount" [citations]="roomRentCitations()" />
+      } @else {
+        <p>We need your room-rent limit per day to run this check.
+          <button mat-button type="button" (click)="editing.set(true)">Add it from your schedule</button></p>
+      }
     </section>
 
     <h2>Top traps in your policy</h2>
@@ -103,6 +141,12 @@
         }
       </section>
     }
+  } @else if (policy() === null) {
+    <section class="card">
+      <h1>No policy yet</h1>
+      <p>Upload your policy PDF and we'll read every page, find the limits and waiting periods, and point to the exact clause.</p>
+      <a mat-flat-button routerLink="/upload">Upload your policy</a>
+    </section>
   } @else {
     <p class="muted">Loading your policy…</p>
   }

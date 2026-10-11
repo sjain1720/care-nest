@@ -2,6 +2,7 @@ import { Component, inject, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { KeyValuePipe } from '@angular/common';
 import { MatButtonModule } from '@angular/material/button';
+import { FEATURES, Feature, isLive, saveLiveFeatures } from '../../services/api.service';
 
 interface Check {
   ok: boolean;
@@ -25,10 +26,29 @@ interface DiagResponse {
     .checks li { padding: 8px 0; border-top: 1px solid var(--cn-border); }
     .detail { display: block; color: var(--cn-muted); font-size: .9rem; margin-top: 4px; word-break: break-word; }
     .error { color: var(--cn-bad); }
+    .feature { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-top: 1px solid var(--cn-border); }
+    .feature input { width: 20px; height: 20px; }
+    .feature.disabled { color: var(--cn-muted); }
   `,
 })
 export class StatusComponent {
   private http = inject(HttpClient);
+
+  readonly features = FEATURES;
+  live = signal<Set<Feature>>(new Set(FEATURES.filter((f) => isLive(f.id)).map((f) => f.id)));
+
+  toggle(id: Feature, on: boolean): void {
+    this.live.update((s) => {
+      const next = new Set(s);
+      if (on) next.add(id); else next.delete(id);
+      return next;
+    });
+  }
+
+  applyLive(): void {
+    saveLiveFeatures([...this.live()]);
+    location.reload();
+  }
 
   health = signal<string>('checking…');
   diag = signal<DiagResponse | null>(null);

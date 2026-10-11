@@ -19,7 +19,7 @@ export interface Citation {
 export interface Member {
   name: string;
   relation: string;
-  age: number;
+  age?: number | null;
 }
 
 export interface LimitFact {
@@ -51,6 +51,19 @@ export interface PolicyFlag {
   kind: 'missing_pages' | 'outdated' | 'ambiguous';
   message: string;
   citation?: Citation;
+  /** Machine-readable reason, e.g. 'missing_start_date'. */
+  code?: string | null;
+}
+
+export type ProductType = 'health_indemnity' | 'travel' | 'hospital_cash' | 'critical_illness' | 'personal_accident' | 'other';
+
+/** Details from the policy schedule the user can type in; a policy wording often lacks them. */
+export interface PolicyDetailsInput {
+  startDate?: string;
+  sumInsured?: number;
+  roomRentPerDay?: number;
+  policyNumber?: string;
+  members?: Member[];
 }
 
 export interface PolicyFacts {
@@ -71,6 +84,11 @@ export interface PolicyFacts {
   waitingPeriods: WaitingPeriod[];
   traps: PolicyTrap[];
   flags: PolicyFlag[];
+  productType: ProductType;
+  productNote?: string | null;
+  isGroupPolicy?: boolean;
+  /** Fields the user entered from their schedule, e.g. ['startDate', 'members']. */
+  userProvided?: string[];
 }
 
 export interface AgentStep {
@@ -193,7 +211,7 @@ export interface LetterDraft {
   evidenceIndex: string[];
 }
 
-export type UploadEvent = { type: 'step'; label: string } | { type: 'done'; detectedType: string; pages: number };
+export type UploadEvent = { type: 'step'; label: string } | { type: 'done'; detectedType: string; pages: number; message?: string };
 
 /** Plain-language help for an insurer/TPA query raised during a cashless admission. */
 export interface QueryHelp {

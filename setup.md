@@ -7,6 +7,7 @@ This file is updated after every phase. Each phase section lists only what that 
 |---|---|
 | Phase 0 – Foundation | Backend (FastAPI) talking to Google Cloud, plus the connection test |
 | Phase 1 – UI/UX shell | The full web app on demo data (no Google Cloud needed) |
+| Phase 2 – Policy understanding | Upload a real policy PDF, get extracted facts and cited answers (needs Google Cloud). Unit tests run without it |
 
 > **Company laptops:** if your network inspects HTTPS traffic, the gcloud CLI may fail with `CERTIFICATE_VERIFY_FAILED`. In that case:
 > - Run the **frontend** locally: npm works on these networks.
@@ -165,6 +166,65 @@ Open **http://localhost:4200**. If that doesn't load, use **http://127.0.0.1:420
 Start the backend (Phase 0, step 6) on port 8000 and the frontend with `npm start`. Calls to `/api/*` are passed from port 4200 to port 8000 by `frontend/proxy.conf.json`.
 
 `/status` then shows the backend and Google service checks.
+
+---
+
+## Phase 2 – Policy understanding
+
+No new tools or packages. `backend/requirements.txt` is unchanged.
+
+### 1. Unit tests (no Google Cloud, no packages needed)
+These test clause splitting, quote checking and waiting-period dates on the demo policy:
+```bash
+cd backend
+python -m unittest discover -s tests -t .      # Windows: py -3.12 -m unittest discover -s tests -t .
+```
+Expected result: `Ran 23 tests ... OK`.
+
+### 2. Run the real pipeline (needs Phase 0: sign-in, `.env`, packages)
+In terminal 1, start the backend (Phase 0, step 6). In terminal 2, from the repo root:
+```bash
+# Upload the demo policy (OCR + clauses + facts; about 30-60 seconds the first time)
+curl -F "file=@demo-data/sample_policy.pdf" http://localhost:8000/api/documents
+
+# Extracted facts
+curl -s http://localhost:8000/api/policy | python -m json.tool
+
+# A cited answer
+curl -s -X POST http://localhost:8000/api/copilot/ask -H "Content-Type: application/json" \
+  -d '{"question": "Is my father'"'"'s cataract surgery covered?"}' | python -m json.tool
+
+# All 12 test questions with accuracy scores
+python eval/run_policy_eval.py http://localhost:8000
+```
+Uploading the same PDF again finishes instantly, because the earlier result is reused.
+
+**Add schedule details.** Most policy PDFs are *wordings* without your personal schedule, so the start date, sum insured, members and room limit may be missing. Add them on `/policy` → **Add or correct**, or with:
+```bash
+curl -s -X PUT http://localhost:8000/api/policy/details -H "Content-Type: application/json" \
+  -d '{"startDate": "2024-03-12", "sumInsured": 500000, "roomRentPerDay": 5000}'
+```
+The waiting-period dates are then recomputed.
+
+**Check many policies at once** (public policy wordings only, never bills):
+```bash
+python eval/run_dataset_check.py http://localhost:8000 "path/to/policies/test data"
+```
+
+### 3. Use live data in the web app
+1. Start the frontend (`npm start`) with the backend running.
+2. Open `/status`. Under **Live or demo data**, tick **My policy**, **Ask** and **Upload documents**, then click **Save and reload**.
+3. On `/upload`, drop `demo-data/sample_policy.pdf`.
+4. On `/policy`, you'll see the real extracted facts. Citation chips open the uploaded PDF at the right page.
+5. On `/ask`, answers come from the backend.
+
+The case, bill, settlement, letter and query pages stay on demo data until later phases. Untick everything to go back to full demo mode.
+
+### 4. ADK Policy Specialist (optional)
+```bash
+bash scripts/adk-web.sh        # or: cd backend/agents && ../.venv/bin/adk web --port 8000
+```
+Pick **policy_agent** in the ADK page and ask "Is cataract covered?". It calls `search_policy` and `waiting_period_status`.
 
 ---
 

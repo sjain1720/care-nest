@@ -33,5 +33,5 @@ def get_settings() -> Settings:
         gemini_location=os.environ.get("GOOGLE_CLOUD_LOCATION", "global"),
         gemini_model=os.environ.get("GEMINI_MODEL", "gemini-2.5-flash"),
         embedding_model=os.environ.get("EMBEDDING_MODEL", "text-embedding-005"),
-        max_policy_pages=int(os.environ.get("MAX_POLICY_PAGES", "60")),
+        max_policy_pages=int(os.environ.get("MAX_POLICY_PAGES", "100")),
     )
