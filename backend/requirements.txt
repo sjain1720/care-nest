@@ -1,0 +1,10 @@
+fastapi>=0.115
+uvicorn[standard]>=0.30
+python-multipart>=0.0.9
+python-dotenv>=1.0
+pypdf>=5.0
+google-genai>=1.0
+google-adk>=1.0
+google-cloud-documentai>=2.30
+google-cloud-firestore>=2.19
+google-cloud-storage>=2.18
