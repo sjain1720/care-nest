@@ -83,9 +83,11 @@
     <section class="card">
       <h2>What to do next</h2>
       <ol>
-        <li>Ask the insurer to explain the {{ totalDeducted() - explained() | inr }} with no reason.</li>
-        <li>Ask the hospital whether a room within your limit was available at admission.</li>
-        <li>Send both with the evidence index, and keep the reference number.</li>
+        @if (totalDeducted() - explained() > 0) {
+          <li>Ask the insurer to explain the {{ totalDeducted() - explained() | inr }} with no reason we could confirm.</li>
+        }
+        <li>Collect the papers listed for each deduction above.</li>
+        <li>Send your questions with the evidence index, and keep the reference number.</li>
       </ol>
       <div class="row">
         <a mat-flat-button routerLink="/case/letter"><mat-icon>edit_note</mat-icon> Draft the letter</a>
@@ -96,25 +98,20 @@
     @if (bill(); as b) {
       <section class="card">
         <h2>Your hospital bill</h2>
-        <p class="muted small">{{ b.hospital }} · Bill {{ b.billNumber }} · {{ b.items.length }} items</p>
-        <div class="table-wrap">
-          <table class="data">
-            <thead><tr><th>Item</th><th>Status</th><th class="num">Amount</th></tr></thead>
-            <tbody>
-              @for (item of b.items; track item.id) {
-                <tr>
-                  <td>{{ item.description }}<div class="muted small">Bill page {{ item.page }}@if (item.note) { · {{ item.note }} }</div></td>
-                  <td><span [class]="'pill tone-' + tag(item.tag).tone">{{ tag(item.tag).label }}</span></td>
-                  <td class="num amount">{{ item.amount | inr }}</td>
-                </tr>
-              }
-            </tbody>
-            <tfoot><tr><td colspan="2"><strong>Total</strong></td><td class="num amount">{{ b.total | inr }}</td></tr></tfoot>
-          </table>
-        </div>
-        <p class="muted small">These labels are guidance from your policy. Only the insurer's settlement confirms what is paid.</p>
+        <p class="muted small" style="margin-top:0">{{ b.hospital }} · {{ b.items.length }} charges · total {{ b.total | inr }}</p>
+        @if (b.estimate; as est) {
+          <p>Before the settlement, our bill check expected about <strong>{{ est.likely | inr }}</strong> not to be paid
+            (range {{ est.low | inr }}–{{ est.high | inr }}). The insurer deducted <strong>{{ totalDeducted() | inr }}</strong>.</p>
+        }
+        <a mat-stroked-button routerLink="/case/bill"><mat-icon>receipt_long</mat-icon> See the full bill check</a>
       </section>
     }
+  } @else if (settlement() === null) {
+    <section class="card">
+      <h1>No settlement letter yet</h1>
+      <p>When the insurer pays your claim, they send a settlement letter listing what was deducted. Upload it and we'll explain every deduction against your policy and bill.</p>
+      <a mat-flat-button routerLink="/upload">Upload the settlement letter</a>
+    </section>
   } @else {
     <p class="muted">Loading the settlement…</p>
   }

@@ -5,19 +5,12 @@ import { RouterLink } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { ApiService } from '../../services/api.service';
-import { BillTag } from '../../models/models';
 import { InrPipe } from '../../shared/inr.pipe';
 import { CitationChipComponent } from '../../shared/citation-chip.component';
 import { TrustPillComponent } from '../../shared/trust-pill.component';
 
 // Dark enough for white text (WCAG AA).
 const SEGMENT_COLORS = ['#b42318', '#b45309', '#475569', '#0e7490', '#6d28d9'];
-
-const TAGS: Record<BillTag, { label: string; tone: string }> = {
-  likely_payable: { label: 'Likely payable', tone: 'ok' },
-  possibly_non_payable: { label: 'Possibly not payable', tone: 'bad' },
-  needs_clarification: { label: 'Needs clarification', tone: 'warn' },
-};
 
 @Component({
   selector: 'app-settlement',
@@ -45,14 +38,20 @@ const TAGS: Record<BillTag, { label: string; tone: string }> = {
     .insurer { background: var(--cn-bg); border-radius: 8px; padding: 8px 12px; font-style: italic; }
     ul.plain { margin: 4px 0; padding-left: 20px; }
     .questions li { margin-bottom: 4px; }
-    .table-wrap { overflow-x: auto; }
   `,
 })
 export class SettlementComponent {
   private api = inject(ApiService);
   settlement = toSignal(this.api.getSettlement());
   bill = toSignal(this.api.getBill());
-  open = signal<string | null>('d-other');
+  /** undefined = nothing chosen yet, so the first unexplained deduction is opened. */
+  private chosen = signal<string | null | undefined>(undefined);
+  open = computed(() => {
+    const chosen = this.chosen();
+    if (chosen !== undefined) return chosen;
+    const ds = this.settlement()?.deductions ?? [];
+    return (ds.find((d) => d.trust === 'unknown') ?? ds[0])?.id ?? null;
+  });
 
   totalDeducted = computed(() => this.settlement()?.deductions.reduce((s, d) => s + d.amount, 0) ?? 0);
   explained = computed(() => this.settlement()?.deductions.filter((d) => d.trust !== 'unknown').reduce((s, d) => s + d.amount, 0) ?? 0);
@@ -69,18 +68,14 @@ export class SettlementComponent {
     return this.totalDeducted() ? (amount / this.totalDeducted()) * 100 : 0;
   }
 
-  tag(t: BillTag) {
-    return TAGS[t];
-  }
-
   select(id: string): void {
-    this.open.set(id);
+    this.chosen.set(id);
     setTimeout(() => document.getElementById(id)?.scrollIntoView({ behavior: 'smooth', block: 'start' }));
   }
 
   onToggle(id: string, event: Event): void {
     const isOpen = (event.target as HTMLDetailsElement).open;
-    if (isOpen) this.open.set(id);
-    else if (this.open() === id) this.open.set(null);
+    if (isOpen) this.chosen.set(id);
+    else if (this.open() === id) this.chosen.set(null);
   }
 }

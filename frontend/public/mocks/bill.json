@@ -3,6 +3,27 @@
   "billNumber": "CCH/IP/2026/5521",
   "billDate": "2026-08-22",
   "total": 246000,
+  "pagesRead": 6,
+  "pagesExpected": 6,
+  "missingPages": [],
+  "checks": [
+    { "kind": "room_over_limit", "severity": "medium", "message": "The room cost ₹7,500 a day; your policy pays up to ₹5,000. Doctor and nursing charges may also be reduced in proportion." }
+  ],
+  "estimate": {
+    "low": 21600,
+    "likely": 28500,
+    "high": 66167,
+    "lines": [
+      "Room rent above your limit: 4 days × (₹7,500 − ₹5,000) = ₹10,000",
+      "Doctor and nursing charges reduced to 67%: about ₹11,600",
+      "If surgery and anaesthesia are also reduced: up to ₹49,267 instead",
+      "Items on the non-payable list: ₹6,900"
+    ],
+    "assumptions": [
+      "Based on your policy terms and this bill only. Only the insurer's settlement confirms what is paid.",
+      "Policies differ on which charges are reduced when the room is above the limit; the range covers both readings."
+    ]
+  },
   "items": [
     { "id": "b1", "category": "Room", "description": "Room rent – Deluxe single (4 days × ₹7,500)", "amount": 30000, "page": 1, "tag": "needs_clarification", "note": "Above your ₹5,000/day limit" },
     { "id": "b2", "category": "Nursing", "description": "Nursing charges", "amount": 8800, "page": 1, "tag": "needs_clarification", "note": "Reduced in proportion when the room is above the limit" },

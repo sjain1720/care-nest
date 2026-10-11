@@ -8,6 +8,7 @@ This file is updated after every phase. Each phase section lists only what that 
 | Phase 0 – Foundation | Backend (FastAPI) talking to Google Cloud, plus the connection test |
 | Phase 1 – UI/UX shell | The full web app on demo data (no Google Cloud needed) |
 | Phase 2 – Policy understanding | Upload a real policy PDF, get extracted facts and cited answers (needs Google Cloud). Unit tests run without it |
+| Phase 3 – Bill and settlement analyser | Upload a bill and a settlement letter: missing pages, arithmetic, room-rent cut, non-payables, estimate, every deduction explained (needs Google Cloud). Unit tests run without it |
 
 > **Company laptops:** if your network inspects HTTPS traffic, the gcloud CLI may fail with `CERTIFICATE_VERIFY_FAILED`. In that case:
 > - Run the **frontend** locally: npm works on these networks.
@@ -225,6 +226,34 @@ The case, bill, settlement, letter and query pages stay on demo data until later
 bash scripts/adk-web.sh        # or: cd backend/agents && ../.venv/bin/adk web --port 8000
 ```
 Pick **policy_agent** in the ADK page and ask "Is cataract covered?". It calls `search_policy` and `waiting_period_status`.
+
+---
+
+## Phase 3 – Bill and settlement analyser
+
+No new tools or packages.
+
+### 1. Unit tests (no Google Cloud needed)
+```bash
+cd backend
+python -m unittest discover -s tests -t .      # Windows: py -3.12 -m unittest discover -s tests -t .
+```
+Expected: `Ran 44 tests ... OK`. These cover the room-rent maths on the demo bill (₹21,600), missing "Page X of N" pages, arithmetic errors, the non-payable list, settlement reconciliation, the checklist, and masking of phone numbers, emails and ID numbers.
+
+### 2. Try it with the demo documents (needs the Phase 2 setup)
+With the backend running, and after uploading the demo policy and adding a room limit of 5000:
+```bash
+curl -s -F "file=@demo-data/hospital_bill.pdf" -F "docType=Hospital bill" http://localhost:8000/api/documents
+curl -s -F "file=@demo-data/settlement_letter.pdf" -F "docType=Settlement letter" http://localhost:8000/api/documents
+curl -s http://localhost:8000/api/case/settlement | python -m json.tool
+```
+In the web app:
+1. On `/status`, tick **My case**, **Hospital bill check** and **Settlement breakdown**.
+2. On `/upload`, pick the type (or **Detect automatically**) and drop the PDFs.
+3. Open `/case/bill` and `/case/settlement`.
+
+### 3. Real bills
+The dataset's medical bills contain **real patient details**. Use them only in your own private project, never in the public demo or the repo. `eval/run_bill_check.py` runs them in bulk and prints no names. See `googleCloudStepsForThisPhase.md` step 3.3.
 
 ---
 

@@ -50,3 +50,18 @@ def ocr_pdf(pdf_bytes: bytes) -> list[dict]:
         for page in doc.pages:
             pages.append({"page": offset + page.page_number, "text": _page_text(doc, page)})
     return pages
+
+
+def ocr_first_page(pdf_bytes: bytes) -> str:
+    """Text of page 1 only – a cheap way to tell what kind of document this is."""
+    writer = PdfWriter()
+    writer.add_page(PdfReader(BytesIO(pdf_bytes)).pages[0])
+    buf = BytesIO()
+    writer.write(buf)
+    result = docai().process_document(
+        request=documentai.ProcessRequest(
+            name=docai_processor_name(),
+            raw_document=documentai.RawDocument(content=buf.getvalue(), mime_type="application/pdf"),
+        )
+    )
+    return result.document.text

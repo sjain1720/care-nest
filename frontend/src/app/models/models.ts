@@ -128,12 +128,34 @@ export interface BillItem {
   note?: string;
 }
 
+export interface BillCheck {
+  kind: string;
+  severity: 'high' | 'medium' | 'info';
+  message: string;
+  page?: number | null;
+}
+
+/** What may not be paid, as a range. Guidance only. */
+export interface BillEstimate {
+  low: number;
+  likely: number;
+  high: number;
+  lines: string[];
+  assumptions: string[];
+}
+
 export interface Bill {
   hospital: string;
   billNumber: string;
   billDate: string;
   total: number;
   items: BillItem[];
+  pagesRead?: number;
+  pagesExpected?: number | null;
+  missingPages?: number[];
+  checks?: BillCheck[];
+  estimate?: BillEstimate;
+  docUrl?: string;
 }
 
 export interface Deduction {
@@ -156,6 +178,7 @@ export interface Settlement {
   claimedAmount: number;
   approvedAmount: number;
   deductions: Deduction[];
+  reconciliation?: { deductedTotal: number; arithmeticOk: boolean; unexplainedGap: number };
 }
 
 export type ChecklistStatus = 'collected' | 'missing' | 'requested';
@@ -176,6 +199,7 @@ export interface CaseDocument {
   type: string;
   pages: number;
   uploadedOn: string;
+  docUrl?: string;
 }
 
 export interface EscalationStep {

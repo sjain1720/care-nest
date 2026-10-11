@@ -1,9 +1,10 @@
 import { Component, DestroyRef, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { FormsModule } from '@angular/forms';
 import { RouterLink } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
-import { ApiService } from '../../services/api.service';
+import { ApiService, DOC_TYPES, DocType } from '../../services/api.service';
 import { AgentProgressComponent } from '../../shared/agent-progress.component';
 import { AgentStep } from '../../models/models';
 
@@ -24,7 +25,7 @@ interface UploadItem {
 @Component({
   selector: 'app-upload',
   standalone: true,
-  imports: [RouterLink, MatButtonModule, MatIconModule, AgentProgressComponent],
+  imports: [FormsModule, RouterLink, MatButtonModule, MatIconModule, AgentProgressComponent],
   templateUrl: './upload.component.html',
   styles: `
     .drop { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 32px 16px; text-align: center;
@@ -35,6 +36,7 @@ interface UploadItem {
     .file-head { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
     .file-head mat-icon { color: #c5221f; }
     .error { color: var(--cn-bad); margin: 0; }
+    .type-select { min-height: 44px; padding: 0 10px; font: inherit; border: 1px solid var(--cn-border); border-radius: 10px; background: #fff; }
   `,
 })
 export class UploadComponent {
@@ -43,6 +45,8 @@ export class UploadComponent {
 
   items = signal<UploadItem[]>([]);
   dragOver = signal(false);
+  docType: DocType = 'auto';
+  readonly docTypes = DOC_TYPES;
   private nextId = 1;
 
   readonly acceptedTypes = ['Policy wording or schedule', 'Hospital bill', 'Discharge summary', 'Settlement or rejection letter'];
@@ -79,9 +83,12 @@ export class UploadComponent {
   }
 
   private process(id: number, file: File): void {
-    this.api.uploadDocument(file).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+    this.api.uploadDocument(file, this.docType).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: (event) => {
-        if (event.type === 'done' && event.detectedType === 'Policy document') this.api.refreshPolicy();
+        if (event.type === 'done') {
+          if (event.detectedType === 'Policy document') this.api.refreshPolicy();
+          else this.api.refreshCase();
+        }
         this.patch(id, (it) => event.type === 'step'
         ? { ...it, steps: [...it.steps, { agent: 'Ingestion', label: event.label }] }
         : { ...it, done: true, detectedType: event.detectedType, pages: event.pages, message: event.message });

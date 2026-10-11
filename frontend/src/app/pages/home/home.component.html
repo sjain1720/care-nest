@@ -5,6 +5,7 @@
   </div>
 
   @if (claimCase(); as c) {
+    @if (settlement()) {
     <section class="card hero" aria-label="Active case">
       <div class="small">Active case · {{ c.patient.name }} · {{ c.hospital }}</div>
       <h1>{{ c.title }}</h1>
@@ -12,6 +13,7 @@
         <span class="amount">{{ totalDeducted() | inr }}</span> deducted</p>
       <a mat-flat-button class="hero-btn" routerLink="/case/settlement">See why it was deducted <mat-icon iconPositionEnd>arrow_forward</mat-icon></a>
     </section>
+    }
   }
 
   <h2>Where are you right now?</h2>

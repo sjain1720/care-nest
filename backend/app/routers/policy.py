@@ -1,4 +1,4 @@
-from fastapi import APIRouter, File, HTTPException, UploadFile
+from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 from fastapi.responses import Response
 from google.api_core.exceptions import GoogleAPIError
 from google.genai import errors as genai_errors
@@ -17,14 +17,15 @@ _GOOGLE_ERRORS = (GoogleAPIError, genai_errors.APIError)
 
 
 @router.post("/documents", response_model=UploadResult)
-def upload_document(file: UploadFile = File(...)):
+def upload_document(file: UploadFile = File(...), docType: str = Form("auto")):
+    """docType: "auto" (detect from page 1) or one of policy_ingest.DOC_TYPES."""
     data = file.file.read(MAX_UPLOAD_BYTES + 1)
     if len(data) > MAX_UPLOAD_BYTES:
         raise HTTPException(413, "This file is larger than 20 MB.")
     if not data.startswith(b"%PDF"):
         raise HTTPException(415, "Only PDF files are supported.")
     try:
-        return process_upload(data, file.filename or "document.pdf")
+        return process_upload(data, file.filename or "document.pdf", docType)
     except PdfTooLongError as exc:
         raise HTTPException(422, str(exc)) from exc
     except _GOOGLE_ERRORS as exc:

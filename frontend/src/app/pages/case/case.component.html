@@ -32,7 +32,7 @@
     @if (disputeItems().length) {
       <section class="card">
         <h2>Extra papers to challenge the deductions</h2>
-        <p class="muted small" style="margin:0">Only needed if you want the insurer to review the ₹38,000.</p>
+        <p class="muted small" style="margin:0">Only needed if you want the insurer to review a deduction.</p>
         @for (item of disputeItems(); track item.id) {
           <ng-container *ngTemplateOutlet="row; context: { $implicit: item }" />
         }

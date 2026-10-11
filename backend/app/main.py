@@ -3,12 +3,13 @@ from pathlib import Path
 from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse
 
-from app.routers import health, policy
+from app.routers import case, health, policy
 
-app = FastAPI(title="CareNest API", version="0.2.0")
+app = FastAPI(title="CareNest API", version="0.3.0")
 
 app.include_router(health.router, prefix="/api")
 app.include_router(policy.router, prefix="/api")
+app.include_router(case.router, prefix="/api")
 
 # In the container the Angular build is copied here; locally Angular runs on :4200 instead.
 STATIC_DIR = Path(__file__).resolve().parent.parent / "static"

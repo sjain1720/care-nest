@@ -4,6 +4,13 @@
     <p>PDF only, up to 100 pages each. We read every page and keep page numbers so answers can point to the source.</p>
   </div>
 
+  <div class="row" style="margin-bottom:12px">
+    <label for="doc-type" class="small"><strong>This document is</strong></label>
+    <select id="doc-type" name="docType" [(ngModel)]="docType" class="type-select">
+      @for (t of docTypes; track t) { <option [value]="t">{{ t === 'auto' ? 'Detect automatically' : t }}</option> }
+    </select>
+  </div>
+
   <label class="drop" [class.over]="dragOver()" (dragover)="onDragOver($event)" (dragleave)="dragOver.set(false)" (drop)="onDrop($event)">
     <mat-icon>upload_file</mat-icon>
     <strong>Drop PDFs here or tap to choose</strong>
@@ -37,8 +44,16 @@
       }
       @if (it.done) {
         <div class="row" style="margin-top:8px">
-          <a mat-stroked-button routerLink="/policy">See policy summary</a>
-          <a mat-stroked-button routerLink="/ask">Ask a question</a>
+          @if (it.detectedType === 'Policy document') {
+            <a mat-stroked-button routerLink="/policy">See policy summary</a>
+            <a mat-stroked-button routerLink="/ask">Ask a question</a>
+          } @else if (it.detectedType === 'Hospital bill') {
+            <a mat-stroked-button routerLink="/case/bill">See the bill check</a>
+          } @else if (it.detectedType === 'Settlement letter') {
+            <a mat-stroked-button routerLink="/case/settlement">See the deductions explained</a>
+          } @else {
+            <a mat-stroked-button routerLink="/case">Open your case</a>
+          }
         </div>
       }
     </section>

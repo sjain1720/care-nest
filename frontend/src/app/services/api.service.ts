@@ -13,9 +13,9 @@ export const FEATURES: { id: Feature; label: string; backendReady: boolean }[] =
   { id: 'policy', label: 'My policy (facts, traps, waiting periods)', backendReady: true },
   { id: 'ask', label: 'Ask (policy questions)', backendReady: true },
   { id: 'upload', label: 'Upload documents', backendReady: true },
-  { id: 'case', label: 'My case and checklist', backendReady: false },
-  { id: 'bill', label: 'Hospital bill', backendReady: false },
-  { id: 'settlement', label: 'Settlement breakdown', backendReady: false },
+  { id: 'case', label: 'My case and checklist', backendReady: true },
+  { id: 'bill', label: 'Hospital bill check', backendReady: true },
+  { id: 'settlement', label: 'Settlement breakdown', backendReady: true },
   { id: 'letter', label: 'Letter to insurer', backendReady: false },
   { id: 'query', label: 'Insurer query helper', backendReady: false },
 ];
@@ -39,17 +39,21 @@ export function saveLiveFeatures(features: Feature[]): void {
   localStorage.setItem(LIVE_KEY, JSON.stringify(features));
 }
 
+/** Values for the upload form; 'auto' lets the backend detect the type from page 1. */
+export const DOC_TYPES = ['auto', 'Policy document', 'Hospital bill', 'Settlement letter', 'Rejection letter', 'Discharge summary', 'Other'] as const;
+export type DocType = (typeof DOC_TYPES)[number];
+
 const STEP_DELAY_MS = 650;
 
 @Injectable({ providedIn: 'root' })
 export class ApiService {
   private http = inject(HttpClient);
 
-  // Live mode: null means "no policy uploaded yet" (404).
+  // Live mode: null means "not uploaded yet" (404).
   private policy$ = this.loadPolicy();
-  private case$ = this.get<ClaimCase>('case', 'case.json', '/api/case').pipe(shareReplay(1));
-  private bill$ = this.get<Bill>('bill', 'bill.json', '/api/case/bill').pipe(shareReplay(1));
-  private settlement$ = this.get<Settlement>('settlement', 'settlement.json', '/api/case/settlement').pipe(shareReplay(1));
+  private case$ = this.loadCase();
+  private bill$ = this.loadOptional<Bill>('bill', 'bill.json', '/api/case/bill');
+  private settlement$ = this.loadOptional<Settlement>('settlement', 'settlement.json', '/api/case/settlement');
 
   getPolicy(): Observable<PolicyFacts | null> { return this.policy$; }
   refreshPolicy(): void { this.policy$ = this.loadPolicy(); }
@@ -61,8 +65,13 @@ export class ApiService {
     return saved$.pipe(tap((facts) => (this.policy$ = of(facts).pipe(shareReplay(1)))));
   }
   getCase(): Observable<ClaimCase> { return this.case$; }
-  getBill(): Observable<Bill> { return this.bill$; }
-  getSettlement(): Observable<Settlement> { return this.settlement$; }
+  getBill(): Observable<Bill | null> { return this.bill$; }
+  getSettlement(): Observable<Settlement | null> { return this.settlement$; }
+  refreshCase(): void {
+    this.case$ = this.loadCase();
+    this.bill$ = this.loadOptional<Bill>('bill', 'bill.json', '/api/case/bill');
+    this.settlement$ = this.loadOptional<Settlement>('settlement', 'settlement.json', '/api/case/settlement');
+  }
   getLetter(): Observable<LetterDraft> { return this.get<LetterDraft>('letter', 'letter.json', '/api/case/letter'); }
 
   ask(question: string): Observable<AskEvent> {
@@ -84,10 +93,11 @@ export class ApiService {
     );
   }
 
-  uploadDocument(file: File): Observable<UploadEvent> {
+  uploadDocument(file: File, docType: DocType = 'auto'): Observable<UploadEvent> {
     if (isLive('upload')) {
       const body = new FormData();
       body.append('file', file);
+      body.append('docType', docType);
       return this.http.post<{ detectedType: string; pages: number; message?: string | null }>('/api/documents', body).pipe(
         map((r): UploadEvent => ({ type: 'done', detectedType: r.detectedType, pages: r.pages, message: r.message ?? undefined })),
       );
@@ -95,7 +105,7 @@ export class ApiService {
     const steps = ['Uploading securely', 'Reading pages with Document AI', 'Finding clauses and amounts', 'Saving to your case'];
     return concat(
       from(steps).pipe(concatMap((label) => of<UploadEvent>({ type: 'step', label }).pipe(delay(STEP_DELAY_MS)))),
-      of<UploadEvent>({ type: 'done', detectedType: guessType(file.name), pages: 0 }).pipe(delay(STEP_DELAY_MS)),
+      of<UploadEvent>({ type: 'done', detectedType: docType === 'auto' ? guessType(file.name) : docType, pages: 0 }).pipe(delay(STEP_DELAY_MS)),
     );
   }
 
@@ -119,6 +129,14 @@ export class ApiService {
 
   private loadPolicy(): Observable<PolicyFacts | null> {
     return this.get<PolicyFacts>('policy', 'policy.json', '/api/policy').pipe(catchError(() => of(null)), shareReplay(1));
+  }
+
+  private loadCase(): Observable<ClaimCase> {
+    return this.get<ClaimCase>('case', 'case.json', '/api/case').pipe(shareReplay(1));
+  }
+
+  private loadOptional<T>(feature: Feature, mockFile: string, apiUrl: string): Observable<T | null> {
+    return this.get<T>(feature, mockFile, apiUrl).pipe(catchError(() => of(null)), shareReplay(1));
   }
 
   private get<T>(feature: Feature, mockFile: string, apiUrl: string): Observable<T> {
