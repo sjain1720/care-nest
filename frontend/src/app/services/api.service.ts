@@ -2,7 +2,7 @@ import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable, concat, concatMap, delay, from, map, of, shareReplay, switchMap } from 'rxjs';
 import {
-  AnswerCard, AskEvent, Bill, ClaimCase, LetterDraft, MockQa, PolicyFacts, Settlement, UploadEvent,
+  AnswerCard, AskEvent, Bill, ClaimCase, LetterDraft, MockQa, MockQuery, PolicyFacts, QueryEvent, QueryHelp, Settlement, UploadEvent,
 } from '../models/models';
 
 /** Flip to false once the backend implements the /api/* endpoints below. */
@@ -52,6 +52,24 @@ export class ApiService {
     return concat(
       from(steps).pipe(concatMap((label) => of<UploadEvent>({ type: 'step', label }).pipe(delay(STEP_DELAY_MS)))),
       of<UploadEvent>({ type: 'done', detectedType: guessType(file.name), pages: 0 }).pipe(delay(STEP_DELAY_MS)),
+    );
+  }
+
+  getSampleQuery(): Observable<string> {
+    return this.http.get<MockQuery>('/mocks/cashless-query.json').pipe(map((m) => m.sampleQuery));
+  }
+
+  explainQuery(queryText: string): Observable<QueryEvent> {
+    if (!USE_MOCKS) {
+      return this.http.post<QueryHelp>('/api/case/query-help', { queryText }).pipe(
+        map((help): QueryEvent => ({ type: 'result', help })),
+      );
+    }
+    return this.http.get<MockQuery>('/mocks/cashless-query.json').pipe(
+      switchMap((m) => concat(
+        from(m.steps).pipe(concatMap((step) => of<QueryEvent>({ type: 'step', step }).pipe(delay(STEP_DELAY_MS)))),
+        of<QueryEvent>({ type: 'result', help: m.help }).pipe(delay(STEP_DELAY_MS)),
+      )),
     );
   }
 

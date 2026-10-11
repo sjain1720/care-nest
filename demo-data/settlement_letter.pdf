@@ -1,0 +1,80 @@
+%PDF-1.4
+1 0 obj
+<< /Type /Catalog /Pages 2 0 R >>
+endobj
+2 0 obj
+<< /Type /Pages /Kids [5 0 R 7 0 R] /Count 2 >>
+endobj
+3 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>
+endobj
+4 0 obj
+<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>
+endobj
+5 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> /Contents 6 0 R >>
+endobj
+6 0 obj
+<< /Length 729 >>
+stream
+BT /F2 8 Tf 50 815 Td (SYNTHETIC DEMO DOCUMENT - NOT A REAL POLICY OR CLAIM) Tj ET
+BT /F1 11 Tf 15 TL 50 780 Td
+/F2 14 Tf (Suraksha Health Insurance Co. \(demo\)) Tj T* T* /F1 11 Tf
+/F2 11 Tf (Claim settlement letter) Tj T* /F1 11 Tf
+T*
+(Date: 20 September 2026) Tj T*
+(Claim number: CLM-2026-0083412) Tj T*
+(Policy number: XXXX-XXXX-4821) Tj T*
+(Patient: Kamala Sharma) Tj T*
+(Hospital: City Care Hospital, Pune \(demo\)) Tj T*
+(Admission: 18 Aug 2026  Discharge: 22 Aug 2026) Tj T*
+T*
+(Amount claimed: Rs. 2,46,000) Tj T*
+(Amount approved: Rs. 2,08,000) Tj T*
+(Total deductions: Rs. 38,000) Tj T*
+T*
+(The deductions are listed on page 2.) Tj T*
+ET
+BT /F1 9 Tf 50 40 Td (Settlement letter CLM-2026-0083412  |  Page 1 of 2) Tj ET
+endstream
+endobj
+7 0 obj
+<< /Type /Page /Parent 2 0 R /MediaBox [0 0 595 842] /Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> /Contents 8 0 R >>
+endobj
+8 0 obj
+<< /Length 704 >>
+stream
+BT /F2 8 Tf 50 815 Td (SYNTHETIC DEMO DOCUMENT - NOT A REAL POLICY OR CLAIM) Tj ET
+BT /F1 11 Tf 15 TL 50 780 Td
+/F2 11 Tf (Deductions) Tj T* /F1 11 Tf
+T*
+(1. Room-rent and proportionate deduction - Rs. 21,600) Tj T*
+(   Remark: Room category exceeds eligibility. Proportionate deduction applied as per policy.) Tj T*
+(2. Non-payable consumables - Rs. 6,900) Tj T*
+(   Remark: Non-medical items not payable as per Annexure II.) Tj T*
+(3. Other deductions: Rs. 9,500) Tj T*
+(   Remark: -) Tj T*
+T*
+(Total deductions: Rs. 38,000) Tj T*
+T*
+(If you disagree with this settlement, you may write to our Grievance Officer.) Tj T*
+ET
+BT /F1 9 Tf 50 40 Td (Settlement letter CLM-2026-0083412  |  Page 2 of 2) Tj ET
+endstream
+endobj
+xref
+0 9
+0000000000 65535 f 
+0000000009 00000 n 
+0000000058 00000 n 
+0000000121 00000 n 
+0000000218 00000 n 
+0000000320 00000 n 
+0000000456 00000 n 
+0000001236 00000 n 
+0000001372 00000 n 
+trailer
+<< /Size 9 /Root 1 0 R >>
+startxref
+2127
+%%EOF

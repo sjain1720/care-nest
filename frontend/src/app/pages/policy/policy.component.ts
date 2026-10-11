@@ -5,10 +5,11 @@ import { RouterLink } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
 import { ApiService } from '../../services/api.service';
-import { WaitingPeriod } from '../../models/models';
+import { Citation, WaitingPeriod } from '../../models/models';
 import { InrPipe } from '../../shared/inr.pipe';
 import { CitationChipComponent } from '../../shared/citation-chip.component';
 import { TrustPillComponent } from '../../shared/trust-pill.component';
+import { RoomRentSimulatorComponent } from '../../shared/room-rent-simulator.component';
 
 interface TimelineRow extends WaitingPeriod {
   offsetPct: number;
@@ -21,7 +22,7 @@ const FLAG_ICONS: Record<string, string> = { missing_pages: 'find_in_page', outd
 @Component({
   selector: 'app-policy',
   standalone: true,
-  imports: [DatePipe, RouterLink, MatButtonModule, MatIconModule, InrPipe, CitationChipComponent, TrustPillComponent],
+  imports: [DatePipe, RouterLink, MatButtonModule, MatIconModule, InrPipe, CitationChipComponent, TrustPillComponent, RoomRentSimulatorComponent],
   templateUrl: './policy.component.html',
   styles: `
     .members { display: flex; flex-wrap: wrap; gap: 8px; }
@@ -65,5 +66,12 @@ export class PolicyComponent {
 
   flagIcon(kind: string): string {
     return FLAG_ICONS[kind] ?? 'flag';
+  }
+
+  roomRentCitations(): Citation[] {
+    const p = this.policy();
+    if (!p) return [];
+    const fromTraps = p.traps.map((t) => t.citation).filter((c) => c.clause === 'Clause 5.3');
+    return [...(p.roomRent.citation ? [p.roomRent.citation] : []), ...fromTraps.slice(0, 1)];
   }
 }

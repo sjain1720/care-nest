@@ -26,6 +26,7 @@ export class AppComponent {
   ];
 
   readonly caseNav: NavItem[] = [
+    { path: '/case/query', label: 'Insurer query helper', icon: 'quiz', exact: true },
     { path: '/case/settlement', label: 'Settlement breakdown', icon: 'stacked_bar_chart', exact: true },
     { path: '/case/letter', label: 'Letter to insurer', icon: 'edit_note', exact: true },
     { path: '/upload', label: 'Upload documents', icon: 'upload_file', exact: true },

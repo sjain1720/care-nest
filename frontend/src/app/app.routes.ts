@@ -8,6 +8,7 @@ export const routes: Routes = [
   { path: 'case', title: 'My case · CareNest', loadComponent: () => import('./pages/case/case.component').then((m) => m.CaseComponent) },
   { path: 'case/settlement', title: 'Settlement breakdown · CareNest', loadComponent: () => import('./pages/settlement/settlement.component').then((m) => m.SettlementComponent) },
   { path: 'case/letter', title: 'Letter to insurer · CareNest', loadComponent: () => import('./pages/letter/letter.component').then((m) => m.LetterComponent) },
+  { path: 'case/query', title: 'Insurer query helper · CareNest', loadComponent: () => import('./pages/query-helper/query-helper.component').then((m) => m.QueryHelperComponent) },
   { path: 'status', title: 'System status · CareNest', loadComponent: () => import('./pages/status/status.component').then((m) => m.StatusComponent) },
   { path: '**', redirectTo: '' },
 ];

@@ -124,9 +124,12 @@ This takes about 3 minutes the first time. Warnings like `npm warn deprecated` o
 
 ### 2. Check that it compiles
 ```bash
-npx ng build --configuration development
+npx ng build --configuration development   # quick check
+npx ng build                               # production build, the same one Cloud Run uses
 ```
 Expected result: `Application bundle generation complete`, with no errors.
+
+The production build is set to not download Google Fonts (`"fonts": false` in `angular.json`), so it also works behind company networks that inspect HTTPS traffic.
 
 ### 3. Start the app
 ```bash
@@ -140,8 +143,9 @@ Open **http://localhost:4200**. If that doesn't load, use **http://127.0.0.1:420
 | Page | What to check |
 |---|---|
 | `/` | The demo case banner shows ₹38,000 deducted, plus the 4 journey cards |
+| `/policy` | Click a "Page 7 · Clause 3.2" chip: the PDF opens at that page. Try the room simulator: a ₹7,500 room gives ₹21,600 extra |
+| `/case/query` | Click "Explain this query": steps appear, then 3 documents and a draft reply |
 | `/ask` | Ask "Is my father's cataract surgery covered?". The agent steps appear one by one, then an answer card with page/clause chips |
-| `/policy` | Limits, top 5 traps, waiting-period timeline |
 | `/case` | Tick documents as collected; the progress bar updates |
 | `/case/settlement` | ₹21,600 + ₹6,900 + ₹9,500 = ₹38,000, and the arithmetic check passes |
 | `/case/letter` | Edit, copy, download or print the letter |
@@ -149,6 +153,11 @@ Open **http://localhost:4200**. If that doesn't load, use **http://127.0.0.1:420
 
 ### 5. Where the demo data lives
 - **Demo data:** `frontend/public/mocks/*.json`. Edit these files to change what the screens show.
+- **Demo PDFs:** `frontend/public/demo/*.pdf`, opened by the citation chips. To regenerate them after editing `demo-data/make_demo_pdfs.py`:
+  ```bash
+  python demo-data/make_demo_pdfs.py        # Windows: py -3.12 demo-data\make_demo_pdfs.py
+  ```
+  This writes the same PDFs to `demo-data/` (used by the connection test and the bucket upload) and to `frontend/public/demo/`.
 - **Data formats (the API contract):** `frontend/src/app/models/models.ts`. The backend must return the same shapes.
 - **Mock/real switch:** `USE_MOCKS` in `frontend/src/app/services/api.service.ts`. Keep it `true` until the backend provides the `/api/*` endpoints.
 

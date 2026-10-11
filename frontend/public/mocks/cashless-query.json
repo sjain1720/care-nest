@@ -1,0 +1,26 @@
+{
+  "sampleQuery": "Query raised by TPA on pre-authorisation request PA-2026-55120 (Kamala Sharma): 1) Please submit the first consultation papers and the duration of the present ailment (gallbladder stones). 2) Please provide the ultrasound report supporting the diagnosis. 3) Please provide a revised cost estimate with room category. Pre-authorisation will be processed on receipt of the above.",
+  "steps": [
+    { "agent": "Claim Copilot", "label": "Reading the insurer's query" },
+    { "agent": "Claim Assistant", "label": "Splitting it into 3 separate requests" },
+    { "agent": "Policy Specialist", "label": "Checking why the insurer asks: pre-existing disease rules (page 9 · Clause 4.3)" },
+    { "agent": "Claim Assistant", "label": "Finding where each document comes from" },
+    { "agent": "Verifier", "label": "Checking the reply makes no promises" }
+  ],
+  "help": {
+    "queryType": "Cashless pre-authorisation query",
+    "plainMeaning": "The insurer has not rejected the cashless request. It is on hold until you send three things: proof of when the gallbladder problem started, the ultrasound report, and an updated cost estimate showing the room type. They ask about the start date to check whether this is a pre-existing disease still in its waiting period.",
+    "urgency": "Reply today. Until the insurer gets these papers, the hospital may ask you for a cash deposit.",
+    "documents": [
+      { "name": "First consultation papers (OPD notes or prescription)", "source": "The doctor or clinic Kamala first visited for stomach pain", "why": "Shows when the problem started" },
+      { "name": "Ultrasound report", "source": "Hospital radiology department (or the earlier diagnostic centre)", "why": "Confirms gallbladder stones" },
+      { "name": "Revised cost estimate with room category", "source": "Hospital TPA / insurance desk", "why": "The insurer checks it against your ₹5,000/day room limit" }
+    ],
+    "draftReply": "To: TPA / Insurance desk\nRe: Query on pre-authorisation PA-2026-55120 – Kamala Sharma\n\nPlease find attached:\n1. First consultation papers dated [date], showing the ailment started on [date].\n2. Ultrasound report dated [date] confirming gallbladder stones.\n3. Revised cost estimate from City Care Hospital, with room category [room type, ₹ per day].\n\nKindly process the pre-authorisation request.\n\nRavi Sharma (son of the patient)\nPhone: [your phone number]",
+    "timelineNote": "Insurers in India have time limits for cashless decisions once all documents are received. Ask the TPA desk for the time limit that applies and keep a note of when you submitted the papers.",
+    "citations": [
+      { "docId": "policy", "docName": "Policy wording", "page": 9, "clause": "Clause 4.3", "quote": "Expenses related to pre-existing diseases are covered after 36 months of continuous coverage from the first policy commencement date." },
+      { "docId": "policy", "docName": "Policy wording", "page": 7, "clause": "Clause 3.2", "quote": "Room, boarding and nursing expenses are payable up to 1% of the Sum Insured per day for a normal room and up to 2% of the Sum Insured per day for ICU." }
+    ]
+  }
+}

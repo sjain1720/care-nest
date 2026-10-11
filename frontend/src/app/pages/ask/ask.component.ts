@@ -22,7 +22,9 @@ import { AnswerCardComponent } from '../../shared/answer-card.component';
     .empty mat-icon { font-size: 48px; width: 48px; height: 48px; color: var(--cn-primary); }
     .prompts { display: flex; flex-wrap: wrap; gap: 8px; justify-content: center; margin-top: 12px; }
     .composer { position: sticky; bottom: 0; display: flex; gap: 8px; padding: 12px 0; background: var(--cn-bg); }
-    .composer input { flex: 1; min-height: 48px; padding: 0 14px; font: inherit; border: 1px solid var(--cn-border); border-radius: 12px; background: #fff; }
+    .composer input { flex: 1; min-width: 0; min-height: 48px; padding: 0 14px; font: inherit; border: 1px solid var(--cn-border); border-radius: 12px; background: #fff; }
+    .composer button { flex: none; }
+    .prompts button { white-space: normal; height: auto; min-height: 40px; padding-top: 6px; padding-bottom: 6px; }
     .composer input:focus { outline: 2px solid var(--cn-primary); border-color: transparent; }
     @media (max-width: 899px) { .composer { bottom: 64px; } }
   `,

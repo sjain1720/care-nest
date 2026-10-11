@@ -40,6 +40,12 @@
       </ul>
     </section>
 
+    <section class="card" id="room-rent">
+      <h2>Before admission: check the room you pick</h2>
+      <p class="muted small">Choosing a room above your limit cuts more than the room rent. Try a room type to see the effect.</p>
+      <app-room-rent-simulator [limit]="p.roomRent.amount ?? 0" [citations]="roomRentCitations()" />
+    </section>
+
     <h2>Top traps in your policy</h2>
     <div class="grid">
       @for (t of p.traps; track t.title) {

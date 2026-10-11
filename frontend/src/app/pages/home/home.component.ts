@@ -41,8 +41,8 @@ export class HomeComponent {
   settlement = toSignal(this.api.getSettlement());
 
   readonly journeys: Journey[] = [
-    { icon: 'event_note', title: 'Planning a treatment', text: 'Check if it is covered, the waiting periods and the room limit before admission.', route: '/ask', query: { q: "Is my father's cataract surgery covered?" } },
-    { icon: 'local_hospital', title: 'In hospital now', text: 'Understand insurer queries, check the running bill and know which papers to collect.', route: '/case' },
+    { icon: 'event_note', title: 'Planning a treatment', text: 'Check if it is covered, the waiting periods and the room limit before admission.', route: '/policy' },
+    { icon: 'local_hospital', title: 'In hospital now', text: 'Understand insurer queries, check the running bill and know which papers to collect.', route: '/case/query' },
     { icon: 'assignment_turned_in', title: 'Discharged, filing a claim', text: 'Get your personal document checklist and a cover letter.', route: '/case' },
     { icon: 'report_problem', title: 'Claim cut or rejected', text: 'See every deduction explained against your policy, and draft a reply.', route: '/case/settlement' },
   ];

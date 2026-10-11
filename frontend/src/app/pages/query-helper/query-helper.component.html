@@ -1,0 +1,57 @@
+<div class="page">
+  <div class="page-head">
+    <h1>Insurer asked a question?</h1>
+    <p>During a cashless admission, the insurer or TPA may put the request on hold with a query. Paste it here and we'll explain it and prepare a reply.</p>
+  </div>
+
+  <section class="card">
+    <label for="query" class="small muted">The insurer's query (a sample is filled in)</label>
+    <textarea id="query" name="query" [(ngModel)]="queryText" [disabled]="busy()"></textarea>
+    <div class="row" style="margin-top:12px">
+      <button mat-flat-button type="button" (click)="explain()" [disabled]="busy() || !queryText.trim()">
+        <mat-icon>auto_awesome</mat-icon> Explain this query
+      </button>
+    </div>
+    @if (steps().length) {
+      <div style="margin-top:12px"><app-agent-progress [steps]="steps()" [running]="busy()" /></div>
+    }
+  </section>
+
+  @if (help(); as h) {
+    <section class="card">
+      <span class="pill tone-info">{{ h.queryType }}</span>
+      <h2 style="margin-top:10px">What it means</h2>
+      <p>{{ h.plainMeaning }}</p>
+      <div class="urgent"><mat-icon class="icon-sm">schedule</mat-icon>{{ h.urgency }}</div>
+      <div class="row" style="margin-top:12px">
+        @for (c of h.citations; track $index) { <app-citation-chip [citation]="c" /> }
+      </div>
+    </section>
+
+    <section class="card">
+      <h2>Send these {{ h.documents.length }} documents</h2>
+      @for (d of h.documents; track d.name; let i = $index) {
+        <div class="doc">
+          <span class="num">{{ i + 1 }}</span>
+          <div>
+            <strong>{{ d.name }}</strong>
+            <div class="meta"><strong>Get it from:</strong> {{ d.source }}</div>
+            <div class="meta">{{ d.why }}</div>
+          </div>
+        </div>
+      }
+    </section>
+
+    <section class="card">
+      <h2>Reply for the hospital's insurance desk</h2>
+      <pre>{{ h.draftReply }}</pre>
+      <div class="row">
+        <button mat-stroked-button type="button" (click)="copyReply()">
+          <mat-icon>{{ copied() ? 'check' : 'content_copy' }}</mat-icon> {{ copied() ? 'Copied' : 'Copy reply' }}
+        </button>
+        <a mat-button routerLink="/case">Track your documents</a>
+      </div>
+      <p class="muted small">{{ h.timelineNote }}</p>
+    </section>
+  }
+</div>

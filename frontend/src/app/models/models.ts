@@ -195,6 +195,26 @@ export interface LetterDraft {
 
 export type UploadEvent = { type: 'step'; label: string } | { type: 'done'; detectedType: string; pages: number };
 
+/** Plain-language help for an insurer/TPA query raised during a cashless admission. */
+export interface QueryHelp {
+  queryType: string;
+  plainMeaning: string;
+  urgency: string;
+  documents: { name: string; source: string; why: string }[];
+  draftReply: string;
+  timelineNote: string;
+  citations: Citation[];
+}
+
+export type QueryEvent = { type: 'step'; step: AgentStep } | { type: 'result'; help: QueryHelp };
+
+/** Mock-only: a sample query and its prepared help. */
+export interface MockQuery {
+  sampleQuery: string;
+  steps: AgentStep[];
+  help: QueryHelp;
+}
+
 /** Mock-only: canned answers picked by keyword match. */
 export interface MockQa {
   keywords: string[];
