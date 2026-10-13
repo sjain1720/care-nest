@@ -1,5 +1,6 @@
 """Claim Copilot: routes each question to the right specialist (Gemini router, keyword fallback)."""
 import logging
+import re
 from collections.abc import Callable
 from typing import Literal
 
@@ -8,7 +9,7 @@ from pydantic import BaseModel
 
 from app.core.config import get_settings
 from app.core.gcp import gemini
-from app.schemas import AgentStep, AskResponse, NextAction
+from app.schemas import AgentStep, AnswerCard, AskResponse, NextAction
 from app.services.case_qa import answer_case_question
 from app.services.intents import keyword_intent
 from app.services.policy_qa import answer_question
@@ -51,6 +52,12 @@ def answer(question: str, on_step: Callable[[AgentStep], None] | None = None) ->
     """on_step is called as each step happens, so the API can stream progress."""
     log = StepLog(on_step)
     log.add("Claim Copilot", "Understanding your question")
+    if re.search(r"\bdefinitely\b.{0,30}\b(approved|paid|covered)\b|\bguarantee\w*\b.{0,30}\b(claim|approval|payout)\b", question, re.I):
+        log.add("Verifier", "An insurer decision is required to confirm approval or payment")
+        return AskResponse(steps=log.steps, answer=AnswerCard(
+            verdict="cant_confirm", headline="Only your insurer can confirm approval",
+            summary="I can explain the terms and evidence in your documents, but cannot guarantee that a claim will be approved or paid.",
+            citations=[], toConfirm=["Ask your insurer for its written decision."], nextAction=None))
     intent, how = route(question)
     log.add("Claim Copilot", f"Passing your question to the {_NAMES[intent]}" + (" (keyword match)" if how == "keywords" else ""))
     if intent in ("policy", "cashless_query"):
