@@ -1,20 +1,58 @@
-# Environment variables and local secrets
+# Secrets / local config
 .env
-.env.*
-!.env.example
-!.env.*.example
+**/.env
+*.key
+*-key.json
+service-account*.json
 
 # Python
-.venv/
-venv/
+backend/.venv/
 __pycache__/
-*.py[cod]
+*.pyc
+.pytest_cache/
 
-# Angular / Node.js
+# Node / Angular
 frontend/node_modules/
 frontend/dist/
 frontend/.angular/
 
-# Local files
+# Local build output
+backend/static/
+
+# Static demo hosting only (production runs on Cloud Run)
+frontend/netlify.toml
+frontend/vercel.json
+frontend/public/_redirects
+
+# Personal notes and plans
+gcp setup service details for phase 0 requirements.txt
+MONOLITH PLAN.html
+
+# OS / editor
 .DS_Store
 *.log
+
+# Credentials and private key material
+application_default_credentials.json
+*service-account*.json
+credentials*.json
+*.pem
+*.key
+.gcp/
+.config/gcloud/
+
+# Source datasets and generated model/evaluation artifacts
+policies-data-set/
+training/*
+!training/README.md
+eval/results/
+tmp/
+
+# Supplied planning documents and cloud setup records (keep local)
+1. CareNest_ feature list.docx
+MONOLITH PLAN.html
+gcp setup service details for phase 0 requirements.txt
+googleCloudStepsForThisPhase.md
+Thumbs.db
+.vscode/*
+!.vscode/extensions.json

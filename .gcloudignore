@@ -1,0 +1,12 @@
+.gcloudignore
+.git
+.gitignore
+#!include:.gitignore
+policies-data-set/
+training/
+*.docx
+MONOLITH PLAN.html
+gcp setup service details for phase 0 requirements.txt
+GCP_ANALYSIS.md
+googleCloudStepsForThisPhase.md
+testcases-*.md

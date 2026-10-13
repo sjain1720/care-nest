@@ -1,3 +1,4 @@
+import os
 from pathlib import Path
 
 from dotenv import load_dotenv
@@ -21,7 +22,7 @@ def explain_term(term: str) -> dict:
 
 root_agent = Agent(
     name="hello_agent",
-    model="gemini-2.5-flash",
+    model=os.environ.get("GEMINI_MODEL", "gemini-3.1-flash-lite"),
     description="Phase 0 test agent for CareNest.",
     instruction=(
         "You explain health-insurance terms in simple English. "

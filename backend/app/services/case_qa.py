@@ -8,6 +8,8 @@ from app.core.config import get_settings
 from app.core.gcp import gemini
 from app.schemas import AnswerCard, AskResponse, Citation, NextAction
 from app.services import case_store
+from app.services import policy_store
+from app.services.embeddings import embed_texts
 from app.services.case_builder import build_case
 from app.services.case_facts import build_case_facts
 from app.services.grounding import quote_in_text
@@ -48,6 +50,8 @@ Rules:
 - headline at most 10 words; summary at most 70 words of simple English; use the exact rupee amounts from the facts.
 - citations: for every statement, the fact ref (e.g. "F3") and a quote copied WORD FOR WORD from that fact (5-30 words).
 - Never say a deduction is wrong or promise money back; say what is unclear and what to ask. No medical advice.
+- For required claim documents, cite the policy requirements when available. Checklist status describes what
+  was collected; it does not by itself establish the insurer's requirements.
 - toConfirm: 0-2 short things to ask the insurer or hospital.
 - nextAction: "bill", "settlement", "case" (documents) or "letter" (when they should write to the insurer), else "none"."""
 
@@ -67,6 +71,17 @@ def answer_case_question(question: str, intent: str, log: StepLog | None = None)
 
     case = build_case(case_doc)
     facts = build_case_facts({**case_doc, "checklist": case["checklist"]})
+    if intent == "documents":
+        policy_id = policy_store.get_active_policy_id()
+        if policy_id:
+            log.add(agent, "Checking claim-document requirements in your policy")
+            query = embed_texts([question], "RETRIEVAL_QUERY")[0]
+            for hit in policy_store.search_clauses(policy_id, query):
+                facts.append({
+                    "ref": f"F{len(facts) + 1}", "text": hit["text"],
+                    "source": {"docId": "policy", "docName": "Policy wording", "page": hit["page"],
+                               "clause": hit["label"], "docUrl": "/api/policy/document"},
+                })
     log.add(agent, f"Reading {len(facts)} checked facts about your claim")
     block = "\n".join(f"[{f['ref']}] {f['text']}" for f in facts)
 

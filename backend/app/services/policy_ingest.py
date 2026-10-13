@@ -6,13 +6,19 @@ from app.services import policy_store as store
 from app.services.case_ingest import process_case_document
 from app.services.clauses import split_into_clauses
 from app.services.embeddings import embed_texts
+from app.services.file_types import PDF, is_image
 from app.services.ocr import ocr_first_page, ocr_pdf
 from app.services.policy_extract import build_policy_facts, extract_policy_facts
 
-DOC_TYPES = ("Policy document", "Hospital bill", "Settlement letter", "Rejection letter", "Discharge summary", "Other")
+DOC_TYPES = ("Policy document", "Hospital bill", "Settlement letter", "Rejection letter", "Insurer reply", "Discharge summary", "Other")
+
+
+class UnsupportedFileError(ValueError):
+    pass
 
 _POLICY_HINTS = ("sum insured", "waiting period", "policy wording", "exclusion", "policyholder", "insured person")
 _OTHER_TYPES = (
+    ("Insurer reply", ("your letter dated", "your email dated", "your mail dated", "with reference to your", "your grievance", "your complaint")),
     ("Settlement letter", ("settlement letter", "amount approved", "claim settled", "approved amount", "amount settled")),
     ("Rejection letter", ("repudiat", "claim is rejected", "claim has been rejected", "denial of claim")),
     ("Discharge summary", ("discharge summary",)),
@@ -30,12 +36,14 @@ def classify(pages: list[dict]) -> str:
     return "Other"
 
 
-def process_upload(pdf_bytes: bytes, filename: str, doc_type: str = "auto") -> UploadResult:
+def process_upload(data: bytes, filename: str, doc_type: str = "auto", mime: str = PDF) -> UploadResult:
     if doc_type not in DOC_TYPES:
-        doc_type = classify([{"page": 1, "text": ocr_first_page(pdf_bytes)}])
+        doc_type = classify([{"page": 1, "text": ocr_first_page(data, mime)}])
     if doc_type != "Policy document":
-        return process_case_document(pdf_bytes, filename, doc_type)
-    return ingest_policy(pdf_bytes, filename)
+        return process_case_document(data, filename, doc_type, mime)
+    if is_image(mime):
+        raise UnsupportedFileError("This looks like a policy document. Upload the policy as a PDF – photos work for bills and letters.")
+    return ingest_policy(data, filename)
 
 
 def ingest_policy(pdf_bytes: bytes, filename: str) -> UploadResult:

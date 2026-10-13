@@ -1,76 +1,311 @@
-<div class="page">
-  <div class="page-head">
-    <h1>Hello Ravi</h1>
-    <p>Where are you in your hospital journey? Pick one and we'll guide you.</p>
-  </div>
+<div class="dash">
+  <!-- Phones: service tiles first, as on travel-app home screens. -->
+  <nav class="m-tiles" [attr.aria-label]="'CareNest services' | t">
+    <div class="big-tiles tone-cycle">
+      @for (s of bigTiles; track s.label) {
+        <a class="big-tile" [routerLink]="s.route" [fragment]="s.fragment">
+          <span class="bt-icon"><mat-icon>{{ s.icon }}</mat-icon></span><span class="bt-label">{{ s.label | t }}</span>
+        </a>
+      }
+    </div>
+    <div class="small-tiles tone-cycle">
+      @for (s of smallTiles; track s.label) {
+        <a class="small-tile" [routerLink]="s.route" [fragment]="s.fragment"><span class="st-icon"><mat-icon>{{ s.icon }}</mat-icon></span><span>{{ s.label | t }}</span></a>
+      }
+    </div>
+  </nav>
+
+  <!-- Banner: a calm welcome with trust points, then the summary card. -->
+  <section class="mmt-hero" [attr.aria-label]="'Summary' | t">
+    <!-- Friendly illustration: a mint circle with leaves, a shield with a plus, and a heart. -->
+    <svg class="hero-mark" viewBox="0 0 300 240" aria-hidden="true">
+      <circle class="il-blob" cx="160" cy="124" r="104" />
+      <path class="il-leaf" d="M58 206 C40 170 52 130 92 116 C98 156 88 188 58 206 Z" />
+      <path class="il-leaf il-leaf2" d="M250 210 C276 176 270 136 236 118 C224 152 228 186 250 210 Z" />
+      <path class="il-leaf il-leaf3" d="M86 214 C92 186 112 170 138 170 C130 196 112 210 86 214 Z" />
+      <path class="m-shield" d="M160 34 L222 56 V112 C222 154 196 182 160 198 C124 182 98 154 98 112 V56 Z" />
+      <path class="il-plus" d="M151 76 h18 v22 h22 v18 h-22 v22 h-18 v-22 h-22 v-18 h22 Z" />
+      <path class="m-heart" d="M84 120 C70 110 64 102 64 93 C64 86 69 81 75 81 C79 81 82 83 84 87 C86 83 89 81 93 81 C99 81 104 86 104 93 C104 102 98 110 84 120 Z" />
+      <path class="il-heart-sm" d="M238 70 C230 64 226 60 226 55 C226 51 229 48 232 48 C235 48 237 50 238 52 C239 50 241 48 244 48 C247 48 250 51 250 55 C250 60 246 64 238 70 Z" />
+      <circle class="il-dot" cx="118" cy="40" r="5" /><circle class="il-dot" cx="262" cy="120" r="4" />
+    </svg>
+    <div class="hero-inner">
+      <div class="hero-intro">
+        <p class="eyebrow"><mat-icon>waving_hand</mat-icon>{{ greeting | t }}, {{ firstName() }}</p>
+        <p class="hero-welcome">{{ 'Welcome to' | t }} <span class="hero-brand">CareNest</span></p>
+        <p class="hero-lead"><span class="lead-1">{{ 'Your health coverage, understood.' | t }}</span><span class="lead-2">{{ 'Your claims, simplified.' | t }}</span></p>
+        <p class="hero-desc">{{ 'Get clear answers about your policy, check waiting periods, understand your coverage and prepare your claims – all in one place.' | t }}</p>
+        <ul class="trust tone-cycle">
+          <li><mat-icon>lock</mat-icon>{{ 'Private to you' | t }}</li>
+          <li><mat-icon>fact_check</mat-icon>{{ 'Every answer shows the page' | t }}</li>
+          <li><mat-icon>volunteer_activism</mat-icon>{{ 'Free help to complain' | t }}</li>
+        </ul>
+      </div>
+
+      <div class="svc-card">
+        <nav class="svc-tabs" [attr.aria-label]="'CareNest services' | t">
+          @for (s of webTabs; track s.label) {
+            <a class="svc-tab" [class.on]="isNext(s)" [routerLink]="s.route" [fragment]="s.fragment" [attr.aria-current]="isNext(s) ? 'step' : null">
+              <mat-icon>{{ s.icon }}</mat-icon><span>{{ s.label | t }}</span>
+            </a>
+          }
+        </nav>
+
+        <div class="svc-title">
+          @if (loading()) {
+            <span class="sk-line w50" role="status" [attr.aria-label]="'Loading your claim…' | t"></span>
+          } @else {
+            <h1>{{ heroTitle() | t }}</h1>
+            @if (claimCase() && (settlement() || rejection() || bill())) { <span class="stage">{{ claimCase()!.stage }}</span> }
+          }
+        </div>
+
+        @if (loading()) {
+          <div class="fields" aria-hidden="true">
+            @for (n of [1, 2, 3, 4, 5]; track n) {
+              <div class="field"><span class="sk-line w40"></span><span class="sk-line big"></span><span class="sk-line w60"></span></div>
+            }
+          </div>
+        } @else if (fields().length) {
+          <div class="fields">
+            @for (f of fields(); track f.label) {
+              <a class="field" [class.wide]="f.wide" [routerLink]="f.route" [fragment]="f.fragment">
+                <span class="f-label">{{ f.label | t }}</span>
+                @if (f.amount !== undefined) {
+                  <strong [class]="'f-value ' + (f.tone ?? '')" [cnCountUp]="f.amount" [attr.aria-label]="f.value"></strong>
+                } @else {
+                  <strong [class]="'f-value ' + (f.tone ?? '')">{{ f.value }}</strong>
+                }
+                <span class="f-sub">{{ f.sub | t }}</span>
+                @if (f.donut !== undefined) {
+                  <svg class="donut" viewBox="0 0 36 36" role="img" [attr.aria-label]="f.donut + '% ' + ('paid' | t)">
+                    <circle cx="18" cy="18" r="15" class="d-track" />
+                    <circle cx="18" cy="18" r="15" class="d-fill" [attr.stroke-dasharray]="ring" [attr.stroke-dashoffset]="ring * (1 - f.donut / 100)" />
+                    <text x="18" y="21" text-anchor="middle">{{ f.donut }}%</text>
+                  </svg>
+                }
+              </a>
+            }
+          </div>
+        } @else {
+          <p class="muted">{{ "Add your policy, hospital bill or insurer's letter. We explain it simply and show you the exact page." | t }}</p>
+        }
+
+        @if (claimCase()) {
+          <div class="steps-row" id="journey">
+            <span class="steps-label"><strong>{{ 'Your claim steps' | t }}</strong><span>{{ doneCount() }} {{ 'of' | t }} {{ steps().length }} {{ 'steps done' | t }}</span></span>
+            <ol class="step-chips">
+              @for (s of steps(); track s.label; let i = $index) {
+                <li>
+                  <a [class]="'chip' + (s.done ? ' done' : '') + (i === currentStep() ? ' now' : '')" [routerLink]="s.route" [fragment]="s.fragment" [queryParams]="s.query"
+                     [attr.aria-current]="i === currentStep() ? 'step' : null">
+                    <span class="chip-top">@if (s.done) { <mat-icon>check_circle</mat-icon> }{{ s.label | t }}</span>
+                    <span class="chip-sub">{{ (s.done ? 'Done' : i === currentStep() ? 'Next' : 'To do') | t }}</span>
+                  </a>
+                </li>
+              }
+            </ol>
+          </div>
+        }
+
+        <!-- Wide screens: the search bar sits beside the main button; the status strip moves below the banner. Phones keep the strip (their bar is under the header). -->
+        <div class="strip-in-hero"><ng-container *ngTemplateOutlet="nextStrip" /></div>
+
+        <div class="cta-row">
+          <app-chat-bar class="hero-search" [inline]="true" />
+          <a class="big-cta" [routerLink]="cta().route" [fragment]="cta().fragment" [queryParams]="cta().query">{{ cta().label | t }}<mat-icon>arrow_forward</mat-icon></a>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <div class="page dash-body">
+
+  <div class="strip-below"><ng-container *ngTemplateOutlet="nextStrip" /></div>
+
+  <ng-template #nextStrip>
+    @if (next(); as n) {
+      <div [class]="'next-strip ns-' + n.tone" role="status">
+        <mat-icon class="ns-icon">{{ n.icon }}</mat-icon>
+        <span class="ns-text"><strong>{{ n.title | t }}</strong> <span>{{ n.text | t }}</span></span>
+      </div>
+    }
+  </ng-template>
+  @if (showWelcome()) {
+    <section class="card welcome" aria-labelledby="welcome-title">
+      <div class="row">
+        <h2 id="welcome-title" style="margin:0"><mat-icon class="h-icon">waving_hand</mat-icon> {{ 'Welcome to CareNest' | t }}</h2>
+        <span class="spacer"></span>
+        <button mat-button type="button" (click)="dismissWelcome()">{{ 'Got it' | t }}</button>
+      </div>
+      <p class="muted small">{{ 'Three steps. It takes about two minutes.' | t }}</p>
+      <ol class="welcome-steps">
+        <li [class.done]="!!policy()">
+          <span class="w-num">@if (policy()) { <mat-icon>check</mat-icon> } @else { 1 }</span>
+          <span><strong>Add your documents</strong><span class="muted small">Policy first, then the hospital bill and the insurer's letter.</span></span>
+          @if (!policy()) { <a mat-stroked-button class="btn-sky" routerLink="/upload">Add documents</a> }
+        </li>
+        <li>
+          <span class="w-num">2</span>
+          <span><strong>Follow "What to do now"</strong><span class="muted small">Every page tells you the next step for your situation.</span></span>
+        </li>
+        <li>
+          <span class="w-num">3</span>
+          <span><strong>Ask anything</strong><span class="muted small">Use the Ask bar or the Ask button. Answers show the exact page.</span></span>
+          <button mat-stroked-button class="btn-violet" type="button" (click)="ask('')">Try it</button>
+        </li>
+      </ol>
+    </section>
+  }
 
   @if (live && policy() === null) {
     <section class="card">
       <h2>No documents yet</h2>
-      <p>Upload your policy, bill or insurer letter, or try CareNest on our synthetic demo documents. The demo goes through the
+      <p>Add your policy, bill or insurer letter, or try CareNest on our synthetic demo documents. The demo goes through the
         <strong>real AI pipeline</strong>: Document AI reads every page, Gemini extracts the facts, and every quote is checked.</p>
       @if (demoLoading()) {
-        <mat-progress-bar mode="indeterminate" aria-label="Loading the demo case" />
+        <mat-progress-bar mode="indeterminate" [attr.aria-label]="'Loading the demo case' | t" />
         <p class="small muted">Reading the policy, bill and settlement letter… this takes about 1–2 minutes the first time.</p>
       } @else {
         <div class="row">
-          <button mat-flat-button type="button" (click)="loadDemo()"><mat-icon>auto_awesome</mat-icon> Load the demo case with real AI</button>
-          <a mat-stroked-button routerLink="/upload"><mat-icon>upload_file</mat-icon> Upload my documents</a>
+          <button mat-flat-button class="btn-violet" type="button" (click)="loadDemo()"><mat-icon>auto_awesome</mat-icon> Load the demo case with real AI</button>
+          <a mat-stroked-button class="btn-sky" routerLink="/upload"><mat-icon>upload_file</mat-icon> Add documents</a>
         </div>
       }
       @if (demoError()) { <p class="small" style="color:var(--cn-bad)">{{ demoError() }}</p> }
     </section>
   }
 
-  @if (claimCase(); as c) {
-    @if (settlement()) {
-    <section class="card hero" aria-label="Active case">
-      <div class="small">Active case · {{ c.patient.name }} · {{ c.hospital }}</div>
-      <h1>{{ c.title }}</h1>
-      <p>Claimed {{ settlement()?.claimedAmount | inr }} · Approved {{ settlement()?.approvedAmount | inr }} ·
-        <span class="amount">{{ totalDeducted() | inr }}</span> deducted</p>
-      <a mat-flat-button class="hero-btn" routerLink="/case/settlement">See why it was deducted <mat-icon iconPositionEnd>arrow_forward</mat-icon></a>
-    </section>
-    }
+  <!-- Key numbers: each tile opens the exact section -->
+  @if (policy(); as p) {
+    <app-coverage-estimate [compact]="true" />
+    <div class="kpis tone-cycle">
+      <a class="card kpi" routerLink="/policy" fragment="room-rent">
+        <span class="kpi-icon"><mat-icon>bed</mat-icon></span>
+        <span class="kpi-label">{{ 'Room limit' | t }}</span>
+        <span class="kpi-value">{{ p.roomRent.amount ? (p.roomRent.amount | inr) + '/day' : ('Add it' | t) }}</span>
+        <span class="kpi-sub">{{ 'Pick a room within this' | t }}</span>
+      </a>
+      @if (nextWait(); as w) {
+        <a class="card kpi" routerLink="/policy" fragment="waiting-periods">
+          <span class="kpi-icon"><mat-icon>hourglass_bottom</mat-icon></span>
+          <span class="kpi-label">{{ 'Next cover starts' | t }}</span>
+          <span class="kpi-value">{{ w.endDate | date: 'd MMM y' }}</span>
+          <span class="kpi-sub">{{ w.left }}</span>
+        </a>
+      } @else {
+        <a class="card kpi" routerLink="/policy" fragment="details">
+          <span class="kpi-icon"><mat-icon>groups</mat-icon></span>
+          <span class="kpi-label">{{ 'People covered' | t }}</span>
+          <span class="kpi-value">{{ p.members.length }}</span>
+          <span class="kpi-sub">{{ memberNames() }}</span>
+        </a>
+      }
+    </div>
   }
 
-  <h2>Where are you right now?</h2>
-  <div class="grid">
-    @for (j of journeys; track j.title) {
-      <a class="card journey" [routerLink]="j.route" [queryParams]="j.query">
-        <mat-icon>{{ j.icon }}</mat-icon>
-        <h3>{{ j.title }}</h3>
-        <p>{{ j.text }}</p>
-      </a>
+  <!-- Claim diary as a horizontal timeline (hidden until something is in it) -->
+  @if (recentDiary().length) {
+    <section class="card diary-strip" aria-labelledby="diary-title">
+      <div class="row">
+        <h2 id="diary-title" style="margin:0"><mat-icon class="h-icon">history_edu</mat-icon> {{ 'Your claim diary' | t }}</h2>
+        <span class="spacer"></span>
+        <a mat-button routerLink="/case" fragment="diary">{{ 'See all' | t }}</a>
+      </div>
+      <ol class="timeline">
+        @for (e of recentDiary(); track e.id) {
+          <li [class]="'tl-' + e.kind">
+            <span class="tl-dot" aria-hidden="true"></span>
+            <span class="tl-date">{{ e.date | date: 'd MMM' }}</span>
+            <span class="tl-text">{{ diaryText(e) }}</span>
+          </li>
+        }
+      </ol>
+    </section>
+  }
+
+  <div class="cols" [class.single]="!tabs().length">
+    <div class="col-main">
+      @if (attention().length) {
+        <section class="card">
+          <h2><mat-icon class="h-icon">flag</mat-icon> {{ 'What to do now' | t }}</h2>
+          <div class="attn-list">
+            @for (a of attention(); track a.title) {
+              <a class="attn" [class]="'attn tone-border-' + a.tone" [routerLink]="a.route" [fragment]="a.fragment" [queryParams]="a.query">
+                <span [class]="'attn-icon tone-' + a.tone"><mat-icon>{{ a.icon }}</mat-icon></span>
+                <span class="attn-text"><strong>{{ a.title | t }}</strong><span>{{ a.text | t }}</span></span>
+                <mat-icon class="chev">chevron_right</mat-icon>
+              </a>
+            }
+          </div>
+        </section>
+      }
+    </div>
+
+    <!-- Waiting times and people covered in one tabbed card, so the dashboard stays short. -->
+    @if (tabs().length) {
+    <section class="card col-side tabs-card" [attr.aria-label]="'Your cover' | t">
+      <div class="tabs" role="tablist">
+        @for (tb of tabs(); track tb.id) {
+          <button type="button" role="tab" [id]="'tab-' + tb.id" [attr.aria-selected]="activeTab() === tb.id" [attr.aria-controls]="'panel-' + tb.id"
+                  [tabindex]="activeTab() === tb.id ? 0 : -1" [class.on]="activeTab() === tb.id" (click)="tab.set(tb.id)" (keydown)="onTabKey($event)"
+                  [attr.aria-label]="tb.label | t" [title]="tb.label | t">
+            <mat-icon>{{ tb.icon }}</mat-icon><span aria-hidden="true">{{ tb.short | t }}</span>
+          </button>
+        }
+      </div>
+
+      <div class="tab-panel" role="tabpanel" [id]="'panel-' + activeTab()" [attr.aria-labelledby]="'tab-' + activeTab()">
+        @switch (activeTab()) {
+          @case ('waits') {
+            @for (w of waits(); track w.id) {
+              <div class="wait">
+                <div class="wait-head"><span>{{ w.label }}</span><span [class]="'pill ' + (w.over ? 'tone-ok' : 'tone-warn')">{{ w.over ? ('Covered now' | t) : w.left }}</span></div>
+                <div class="wait-track"><span [class.over]="w.over" [style.width.%]="w.pct"></span></div>
+              </div>
+            }
+            <a mat-button routerLink="/policy" fragment="waiting-periods">{{ 'See all waiting times' | t }}</a>
+          }
+          @case ('people') {
+            <div class="family">
+              @for (m of policy()?.members ?? []; track m.name) {
+                <a class="person" routerLink="/policy" fragment="details">
+                  <span class="avatar">{{ initials(m.name) }}</span>
+                  <span><strong>{{ m.name.split(' ')[0] }}</strong><span class="muted small">{{ m.relation }}@if (m.age) { · {{ m.age }} }</span></span>
+                </a>
+              }
+            </div>
+          }
+        }
+      </div>
+    </section>
     }
   </div>
 
-  <section class="card">
-    <h2>Ask a question</h2>
-    <div class="quick">
-      @for (q of quickQuestions; track q) {
-        <a mat-stroked-button routerLink="/ask" [queryParams]="{ q: q }">{{ q }}</a>
-      }
+  <!-- Swipeable tips, like the offers row on travel sites -->
+  <section class="tips" aria-labelledby="tips-title">
+    <div class="row">
+      <h2 id="tips-title" style="margin:0"><mat-icon class="h-icon">lightbulb</mat-icon> {{ 'Tips for your claim' | t }}</h2>
+      <span class="spacer"></span>
+      <button type="button" class="tip-nav" (click)="scrollTips(tipRow, -1)" [attr.aria-label]="'Previous tips' | t"><mat-icon>chevron_left</mat-icon></button>
+      <button type="button" class="tip-nav" (click)="scrollTips(tipRow, 1)" [attr.aria-label]="'More tips' | t"><mat-icon>chevron_right</mat-icon></button>
     </div>
+    <ul class="tip-row tone-cycle" #tipRow>
+      @for (tip of tips; track tip.title) {
+        <li class="tip">
+          <span class="tip-icon"><mat-icon>{{ tip.icon }}</mat-icon></span>
+          <strong>{{ tip.title | t }}</strong>
+          <p>{{ tip.text | t }}</p>
+          @if (tip.ask) {
+            <button type="button" class="tip-go" (click)="ask(tip.ask)">{{ tip.action! | t }} <mat-icon>arrow_forward</mat-icon></button>
+          } @else if (tip.route) {
+            <a class="tip-go" [routerLink]="tip.route" [fragment]="tip.fragment">{{ tip.action! | t }} <mat-icon>arrow_forward</mat-icon></a>
+          }
+        </li>
+      }
+    </ul>
   </section>
 
-  @if (policy(); as p) {
-    <section class="card">
-      <div class="row">
-        <h2>Your policy</h2>
-        <span class="spacer"></span>
-        <a mat-button routerLink="/policy">View details</a>
-      </div>
-      <div class="grid">
-        <div class="stat"><div class="label">Insurer</div><div class="value">{{ p.planName }}</div><div class="muted small">{{ p.insurer }}</div></div>
-        <div class="stat"><div class="label">Sum insured</div><div class="value">{{ p.sumInsured | inr }}</div><div class="muted small">{{ p.policyType }}</div></div>
-        <div class="stat"><div class="label">Room limit</div><div class="value">{{ p.roomRent.amount | inr }}/day</div></div>
-        <div class="stat"><div class="label">Members</div><div class="value">{{ p.members.length }}</div><div class="muted small">{{ memberNames() }}</div></div>
-      </div>
-    </section>
-  }
-
-  <div class="row">
-    <a mat-stroked-button routerLink="/upload"><mat-icon>upload_file</mat-icon> Upload documents</a>
+  <p class="guest-note"><mat-icon>info</mat-icon><span>{{ 'No account needed. Each visitor gets a separate guest session: uploaded documents are private and kept apart from other visitors, and are deleted after 7 days. The demo case is fictional.' | t }}</span></p>
   </div>
 </div>

@@ -2,9 +2,7 @@
 without their own documents. Files that were already processed are reused, so repeat clicks cost nothing."""
 from pathlib import Path
 
-from app.schemas import PolicyFacts
 from app.services import policy_store
-from app.services.policy_details import apply_user_details
 from app.services.policy_ingest import process_upload
 
 _APP = Path(__file__).resolve().parents[1]
@@ -28,13 +26,12 @@ def _demo_dir() -> Path:
 
 
 def load_demo_case() -> list[dict]:
+    """Loads the demo into this guest's session; the schedule details go into the session, not the shared policy."""
     folder = _demo_dir()
     results = []
     for name, doc_type in _FILES:
         r = process_upload((folder / name).read_bytes(), name, doc_type)
         if doc_type == "Policy document" and r.policyId:
-            doc = policy_store.get_policy(r.policyId)
-            facts = PolicyFacts.model_validate(apply_user_details(doc.get("baseFacts") or doc["facts"], DEMO_DETAILS))
-            policy_store.save_policy(r.policyId, {"userDetails": DEMO_DETAILS, "facts": facts.model_dump()})
+            policy_store.save_session_details(DEMO_DETAILS)
         results.append({"file": name, "type": r.detectedType, "pages": r.pages, "reused": r.reused, "message": r.message})
     return results

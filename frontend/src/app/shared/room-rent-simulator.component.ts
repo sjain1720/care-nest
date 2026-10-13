@@ -4,6 +4,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { Citation } from '../models/models';
 import { InrPipe } from './inr.pipe';
 import { CitationChipComponent } from './citation-chip.component';
+import { TranslatePipe } from './translate.pipe';
 
 interface RoomOption {
   label: string;
@@ -14,38 +15,38 @@ interface RoomOption {
 @Component({
   selector: 'app-room-rent-simulator',
   standalone: true,
-  imports: [FormsModule, MatButtonModule, InrPipe, CitationChipComponent],
+  imports: [FormsModule, MatButtonModule, InrPipe, CitationChipComponent, TranslatePipe],
   template: `
-    <div class="presets" role="group" aria-label="Room type">
+    <div class="presets" role="group" [attr.aria-label]="'Room type' | t">
       @for (o of options; track o.label) {
         <button type="button" mat-stroked-button [class.chosen]="rate() === o.rate" (click)="rate.set(o.rate)">
-          {{ o.label }} · {{ o.rate | inr }}
+          {{ o.label | t }} · {{ o.rate | inr }}
         </button>
       }
     </div>
 
     <div class="fields">
-      <label>Room rate per day (₹)
+      <label>{{ 'Room rate per day (₹)' | t }}
         <input type="number" min="0" step="500" [ngModel]="rate()" (ngModelChange)="rate.set(toNumber($event))">
       </label>
-      <label>Days in hospital
+      <label>{{ 'Days in hospital' | t }}
         <input type="number" min="1" max="60" [ngModel]="days()" (ngModelChange)="days.set(toNumber($event))">
       </label>
-      <label>Doctor + nursing charges (₹)
+      <label>{{ 'Doctor + nursing charges (₹)' | t }}
         <input type="number" min="0" step="1000" [ngModel]="associated()" (ngModelChange)="associated.set(toNumber($event))">
       </label>
     </div>
 
     <div class="result" [class.ok]="!result().over" aria-live="polite">
       @if (result().over) {
-        <div class="big">You may pay about <strong>{{ result().total | inr }}</strong> extra</div>
+        <div class="big">{{ 'You may pay about' | t }} <strong>{{ result().total | inr }}</strong> {{ 'extra' | t }}</div>
         <ul>
           <li>Room rent above your limit: {{ days() }} days × {{ rate() - limit() | inr }} = <strong>{{ result().roomCut | inr }}</strong></li>
           <li>Doctor and nursing cut by {{ result().cutPct }}%: {{ associated() | inr }} × {{ result().cutPct }}% = <strong>{{ result().associatedCut | inr }}</strong></li>
         </ul>
         <p class="small">A room at or below {{ limit() | inr }}/day avoids both cuts.</p>
       } @else {
-        <div class="big">Within your limit – no room-rent cut</div>
+        <div class="big">{{ 'Within your limit – no room-rent cut' | t }}</div>
         <p class="small">Your policy pays room rent up to {{ limit() | inr }} per day.</p>
       }
     </div>
@@ -53,7 +54,7 @@ interface RoomOption {
     <div class="row">
       @for (c of citations(); track $index) { <app-citation-chip [citation]="c" /> }
     </div>
-    <p class="muted small">Estimate only. Insurers may treat ICU, packages and some charges differently – confirm with the insurer before admission.</p>
+    <p class="muted small">{{ 'Estimate only. Insurers may treat ICU, packages and some charges differently – confirm with the insurer before admission.' | t }}</p>
   `,
   styles: `
     .presets { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }

@@ -1,107 +1,120 @@
 <div class="page">
+  @if (journey.lastReply(); as r) {
+    <a class="card reply-banner" routerLink="/case/reply">
+      <mat-icon>mark_email_read</mat-icon>
+      <span class="grow"><strong>The insurer replied on {{ r.date | date: 'd MMM' }}: {{ outcomeLabel(r.outcome).toLowerCase() }}</strong>@if (r.newApprovedAmount) { – they now pay {{ r.newApprovedAmount | inr }} }</span>
+      <mat-icon>chevron_right</mat-icon>
+    </a>
+  }
   @if (settlement(); as s) {
     <div class="page-head">
-      <h1>Why was {{ totalDeducted() | inr }} deducted?</h1>
-      <p>Settlement letter dated {{ s.letterDate | date: 'd MMM y' }} · Claim {{ s.claimNumber }}</p>
+      <h1>@if (totalDeducted()) { {{ 'Why' | t }} {{ totalDeducted() | inr }} {{ 'was cut from your claim' | t }} } @else { {{ 'The insurer paid your claim in full' | t }} }</h1>
+      <p>{{ "From the insurer's letter of" | t }} {{ s.letterDate | date: 'd MMM y' }} · {{ 'Claim' | t }} {{ s.claimNumber }}</p>
     </div>
 
+    <div class="split-layout">
+    <div class="left">
     <section class="card">
       <div class="totals">
-        <div class="stat"><div class="label">You claimed</div><div class="value amount">{{ s.claimedAmount | inr }}</div></div>
-        <div class="stat"><div class="label">Insurer approved</div><div class="value amount">{{ s.approvedAmount | inr }}</div></div>
-        <div class="stat deducted"><div class="label">Deducted</div><div class="value amount">{{ totalDeducted() | inr }}</div></div>
+        <div class="stat"><div class="label">{{ 'You claimed' | t }}</div><div class="value amount">{{ s.claimedAmount | inr }}</div></div>
+        <div class="stat"><div class="label">{{ 'Insurer paid' | t }}</div><div class="value amount">{{ s.approvedAmount | inr }}</div></div>
+        <div class="stat deducted"><div class="label">{{ 'Cut' | t }}</div><div class="value amount">{{ totalDeducted() | inr }}</div></div>
       </div>
       <div class="math row small">
         @if (arithmeticOk()) {
-          <span class="pill tone-ok"><mat-icon class="icon-sm">calculate</mat-icon>Arithmetic checks out</span>
+          <span class="pill tone-ok"><mat-icon class="icon-sm">calculate</mat-icon>{{ 'The numbers add up' | t }}</span>
           <span class="muted">{{ s.claimedAmount | inr }} − {{ totalDeducted() | inr }} = {{ s.approvedAmount | inr }}</span>
         } @else {
-          <span class="pill tone-bad"><mat-icon class="icon-sm">calculate</mat-icon>The numbers don't add up – ask the insurer</span>
+          <span class="pill tone-bad"><mat-icon class="icon-sm">calculate</mat-icon>{{ "The numbers don't add up. Ask the insurer." | t }}</span>
         }
       </div>
 
       <app-waterfall [claimed]="s.claimedAmount" [approved]="s.approvedAmount" [steps]="waterfallSteps()"
                      [selected]="open()" (select)="select($event)" />
-      <p class="small muted" style="margin:0 0 8px">Tap a coloured bar to see that deduction explained.</p>
+      <p class="small muted" style="margin:0 0 8px">{{ 'Tap a cut to see why it happened.' | t }}</p>
       <p class="small" style="margin-bottom:0">
-        <strong>{{ explained() | inr }}</strong> is explained by your policy.
-        <strong>{{ totalDeducted() - explained() | inr }}</strong> has no reason we could confirm.
+        <strong>{{ explained() | inr }}</strong> {{ 'of the cut matches your policy rules.' | t }}
+        @if (totalDeducted() - explained() > 0) { <strong>{{ totalDeducted() - explained() | inr }}</strong> {{ 'has no clear reason.' | t }} }
       </p>
     </section>
 
-    <h2>Each deduction, explained</h2>
+    <app-next-steps [steps]="nextSteps()" />
+    </div>
+
+    <div class="right">
+    <h2>{{ 'Each cut, explained' | t }}</h2>
     @for (d of s.deductions; track d.id; let i = $index) {
       <details class="card deduction" [id]="d.id" [open]="open() === d.id" [style.border-left-color]="color(i)" (toggle)="onToggle(d.id, $event)">
         <summary>
-          <span class="title">{{ d.label }}</span>
+          <span class="title">{{ plain(d) | t }}@if (plain(d) !== d.label) { <span class="insurer-name">{{ 'Insurer calls it:' | t }} “{{ d.label }}”</span> }</span>
           <app-trust-pill [trust]="d.trust" />
           <span class="amount">{{ d.amount | inr }}</span>
           <mat-icon>{{ open() === d.id ? 'expand_less' : 'expand_more' }}</mat-icon>
         </summary>
 
-        <div class="section-label">What the insurer said</div>
-        <div class="insurer">“{{ d.insurerReason }}”</div>
+        <div class="section-label">{{ "The insurer's reason" | t }}</div>
+        <div class="insurer">{{ d.insurerReason }}</div>
 
-        <div class="section-label">What we found</div>
-        <p style="margin:0">{{ d.ourReading }}</p>
+        <div class="section-label">{{ 'What this means' | t }}</div>
+        <p style="margin:0"><app-gloss [text]="d.ourReading" /></p>
 
         @if (d.calculation.length) {
-          <div class="section-label">Calculation</div>
+          <div class="section-label">{{ 'How it adds up' | t }}</div>
           <ul class="plain">
             @for (line of d.calculation; track $index) { <li>{{ line }}</li> }
           </ul>
         }
 
-        <div class="section-label">Sources</div>
+        <div class="section-label">{{ 'Where we found this' | t }}</div>
         <div class="row">
           @for (c of d.citations; track $index) { <app-citation-chip [citation]="c" /> }
         </div>
 
-        <div class="section-label">Evidence in your documents</div>
+        <div class="section-label">{{ 'Proof in your papers' | t }}</div>
         <ul class="plain">
           @for (e of d.evidence; track $index) { <li>{{ e }}</li> }
         </ul>
 
-        <div class="section-label">Questions to ask</div>
+        <div class="section-label">{{ 'What to ask the insurer' | t }}</div>
         <ul class="plain questions">
           @for (q of d.questions; track $index) { <li>{{ q }}</li> }
         </ul>
       </details>
     }
 
-    <section class="card">
-      <h2>What to do next</h2>
-      <ol>
-        @if (totalDeducted() - explained() > 0) {
-          <li>Ask the insurer to explain the {{ totalDeducted() - explained() | inr }} with no reason we could confirm.</li>
-        }
-        <li>Collect the papers listed for each deduction above.</li>
-        <li>Send your questions with the evidence index, and keep the reference number.</li>
-      </ol>
-      <div class="row">
-        <a mat-flat-button routerLink="/case/letter"><mat-icon>edit_note</mat-icon> Draft the letter</a>
-        <a mat-stroked-button routerLink="/case"><mat-icon>checklist</mat-icon> Papers you need</a>
-      </div>
-    </section>
-
     @if (bill(); as b) {
       <section class="card">
-        <h2>Your hospital bill</h2>
-        <p class="muted small" style="margin-top:0">{{ b.hospital }} · {{ b.items.length }} charges · total {{ b.total | inr }}</p>
+        <h2>{{ 'Your hospital bill' | t }}</h2>
+        <p class="muted small" style="margin-top:0">{{ b.hospital }} · {{ b.items.length }} {{ 'charges' | t }} · {{ 'total' | t }} {{ b.total | inr }}</p>
         @if (b.estimate; as est) {
-          <p>Before the settlement, our bill check expected about <strong>{{ est.likely | inr }}</strong> not to be paid
-            (range {{ est.low | inr }}–{{ est.high | inr }}). The insurer deducted <strong>{{ totalDeducted() | inr }}</strong>.</p>
+          <p>{{ 'Our bill check expected the insurer to cut about' | t }} <strong>{{ est.likely | inr }}</strong>.
+            {{ 'The insurer cut' | t }} <strong>{{ totalDeducted() | inr }}</strong>.</p>
+          <p class="muted small">{{ 'The cut could have been anywhere from' | t }} {{ est.low | inr }} {{ 'to' | t }} {{ est.high | inr }}, {{ 'depending on how the insurer applies the room-rent rule.' | t }}</p>
         }
-        <a mat-stroked-button routerLink="/case/bill"><mat-icon>receipt_long</mat-icon> See the full bill check</a>
+        <a mat-stroked-button class="btn-sky" routerLink="/case/bill"><mat-icon>receipt_long</mat-icon> {{ 'See the full bill check' | t }}</a>
       </section>
     }
-  } @else if (settlement() === null) {
+    </div>
+    </div>
+  } @else if (rejection()) {
+    <div class="page-head">
+      <h1>{{ 'The insurer refused your claim' | t }}</h1>
+      <p>@if (rejection()!.letterDate) { From their letter of {{ rejection()!.letterDate | date: 'd MMM y' }}. }You can ask them to look again.</p>
+    </div>
     <section class="card">
-      <h1>No settlement letter yet</h1>
-      <p>When the insurer pays your claim, they send a settlement letter listing what was deducted. Upload it and we'll explain every deduction against your policy and bill.</p>
-      <a mat-flat-button routerLink="/upload">Upload the settlement letter</a>
+      <div class="section-label">{{ "The insurer's reason" | t }}</div>
+      <div class="insurer">{{ rejection()!.reason || ('The letter gives no clear reason. Ask them for one.' | t) }}</div>
+      @if (rejection()!.docUrl) {
+        <a mat-button [href]="rejection()!.docUrl + (rejection()!.page ? '#page=' + rejection()!.page : '')" target="_blank" rel="noopener" style="margin-top:8px">
+          <mat-icon>open_in_new</mat-icon> {{ 'Open their letter' | t }}@if (rejection()!.page) { ({{ 'page' | t }} {{ rejection()!.page }}) }
+        </a>
+      }
     </section>
+    <app-next-steps [steps]="refusalSteps()" />
+  } @else if (settlement() === null) {
+    <app-empty-state icon="mark_email_unread" title="No letter from the insurer yet" action="Add the insurer's letter"
+      text="When the insurer decides, it sends a letter: what it paid and what it cut, or why it refused. Upload that letter. We explain it in plain words." />
   } @else {
-    <p class="muted">Loading the settlement…</p>
+    <app-skeleton label="Loading the insurer's letter…" [count]="3" />
   }
 </div>

@@ -10,18 +10,19 @@
     ],
     "answer": {
       "verdict": "covered",
-      "headline": "Covered – the waiting period is over",
-      "summary": "Cataract has a 24-month waiting period, which ended on 12 Mar 2026. It is now covered, up to ₹40,000 per eye. Because Mohan is above 61, you pay 10% of the approved amount.",
+      "headline": "Yes, cataract surgery is covered now",
+      "summary": "You had to wait 2 years before cataract was covered. That wait ended on 12 Mar 2026. The insurer pays up to ₹40,000 per eye. Mohan is over 61, so you pay 10% of the bill yourself (this is called co-pay).",
       "citations": [
         { "docId": "policy", "docName": "Policy wording", "page": 9, "clause": "Clause 4.2", "quote": "The listed conditions in Annexure I, including cataract, hernia and joint replacement, are covered only after 24 months of continuous coverage." },
         { "docId": "policy", "docName": "Policy wording", "page": 14, "clause": "Clause 4.6", "quote": "Expenses for cataract treatment are payable up to ₹40,000 per eye per policy year." },
         { "docId": "policy", "docName": "Policy wording", "page": 8, "clause": "Clause 3.6", "quote": "For Insured Persons aged 61 years or above at the time of admission, a co-payment of 10% shall apply on every admissible claim." }
       ],
       "toConfirm": [
-        "Ask the hospital for a written cost estimate, including the lens, before admission.",
-        "Confirm with the insurer that the ₹40,000 limit covers the lens the doctor suggests."
+        "Ask the hospital for a written cost estimate, including the lens.",
+        "Ask the insurer if ₹40,000 covers the lens your doctor suggests.",
+        "Pick a room within ₹5,000 a day, so nothing else gets cut."
       ],
-      "nextAction": { "label": "Check room-rent limits", "route": "/policy" }
+      "nextAction": { "label": "Check room cost", "route": "/policy" }
     }
   },
   {
@@ -34,13 +35,13 @@
     ],
     "answer": {
       "verdict": "partial",
-      "headline": "Limit: ₹5,000 per day for a normal room",
-      "summary": "Your policy pays room rent up to 1% of the sum insured per day (₹5,000). If you choose a costlier room, the insurer also reduces doctor and nursing charges in the same proportion – not just the room rent.",
+      "headline": "Your room limit is ₹5,000 a day",
+      "summary": "The insurer pays up to ₹5,000 a day for a normal room. If your room costs more, it doesn't just cut the extra room rent. It also cuts the doctor and nursing charges by the same share. So a costly room can cost you a lot more.",
       "citations": [
         { "docId": "policy", "docName": "Policy wording", "page": 7, "clause": "Clause 3.2", "quote": "Room, boarding and nursing expenses are payable up to 1% of the Sum Insured per day for a normal room and up to 2% of the Sum Insured per day for ICU." },
         { "docId": "policy", "docName": "Policy wording", "page": 11, "clause": "Clause 5.3", "quote": "Where the room category exceeds eligibility, all associated medical expenses shall be payable in the same proportion as the eligible room rent bears to the actual room rent." }
       ],
-      "toConfirm": ["Ask the hospital for the daily rate of each room type before admission."],
+      "toConfirm": ["Ask the hospital the daily rate of each room before you are admitted.", "Choose a room that costs ₹5,000 a day or less."],
       "nextAction": { "label": "See how this affected Kamala's claim", "route": "/case/settlement" }
     }
   },
@@ -55,15 +56,15 @@
     ],
     "answer": {
       "verdict": "needs_checking",
-      "headline": "₹28,500 is explained by your policy; ₹9,500 is not",
-      "summary": "Two deductions match your policy: the room-rent proportionate cut (₹21,600) and non-payable consumables (₹6,900). The remaining ₹9,500 has no reason or clause in the settlement letter, so you can ask the insurer for an itemised explanation.",
+      "headline": "₹28,500 follows your policy rules. ₹9,500 has no reason.",
+      "summary": "Two cuts follow your policy. ₹21,600 was cut because Kamala's room cost more than the ₹5,000 limit. ₹6,900 was for gloves and kits, which your policy never pays for. The last ₹9,500 has no reason in the insurer's letter. You can ask them to explain it.",
       "citations": [
         { "docId": "policy", "docName": "Policy wording", "page": 11, "clause": "Clause 5.3", "quote": "Where the room category exceeds eligibility, all associated medical expenses shall be payable in the same proportion as the eligible room rent bears to the actual room rent." },
         { "docId": "policy", "docName": "Policy wording", "page": 38, "clause": "Annexure II", "quote": "List I – Items for which coverage is not available: gloves, PPE kit, admission kit, ..." },
-        { "docId": "settlement", "docName": "Settlement letter", "page": 2, "clause": "Deductions table, row 3", "quote": "Other deductions: ₹9,500" }
+        { "docId": "settlement", "docName": "Insurer's payment letter", "page": 2, "clause": "Cuts table, row 3", "quote": "Other deductions: ₹9,500" }
       ],
-      "toConfirm": ["Ask the hospital whether a room within your limit was available at admission."],
-      "nextAction": { "label": "See the full breakdown", "route": "/case/settlement" }
+      "toConfirm": ["Ask the insurer to list what the ₹9,500 is for.", "Ask the hospital if a cheaper room was free when Kamala was admitted.", "Send both answers with your letter. We can write it for you."],
+      "nextAction": { "label": "Write the letter", "route": "/case/letter" }
     }
   },
   {
@@ -76,13 +77,13 @@
     ],
     "answer": {
       "verdict": "not_covered",
-      "headline": "Not covered yet – waiting period ends 12 Mar 2027",
-      "summary": "Mohan's declared diabetes and its complications are pre-existing diseases with a 36-month waiting period. Treatment for them is covered from 12 Mar 2027. Accidents and unrelated illnesses are covered now.",
+      "headline": "Not covered yet. Cover starts 12 Mar 2027.",
+      "summary": "Mohan told the insurer he had diabetes when he joined. Illnesses you had before joining are covered only after 3 years. So diabetes treatment is covered from 12 Mar 2027. Accidents and other illnesses are covered now.",
       "citations": [
         { "docId": "policy", "docName": "Policy wording", "page": 9, "clause": "Clause 4.3", "quote": "Expenses related to pre-existing diseases are covered after 36 months of continuous coverage from the first policy commencement date." }
       ],
-      "toConfirm": ["If Mohan had earlier health insurance without a break, ask the insurer whether that time counts towards the waiting period (portability)."],
-      "nextAction": { "label": "View waiting-period timeline", "route": "/policy" }
+      "toConfirm": ["Did Mohan have health insurance before, with no break? Ask the insurer if that time counts."],
+      "nextAction": { "label": "See waiting times", "route": "/policy" }
     }
   },
   {
@@ -94,13 +95,33 @@
     ],
     "answer": {
       "verdict": "info",
-      "headline": "3 documents are still missing",
-      "summary": "To file Kamala's reimbursement claim you still need the payment receipts, the investigation reports and a cancelled cheque. Everything else is collected.",
+      "headline": "You still need 3 papers",
+      "summary": "To claim for Kamala's stay, you still need: the payment receipts, the test reports, and a cancelled cheque. You have everything else.",
       "citations": [
         { "docId": "policy", "docName": "Policy wording", "page": 22, "clause": "Clause 7.4", "quote": "The following documents shall be submitted for reimbursement claims: claim form, discharge summary, final bill, payment receipts, investigation reports, prescriptions, KYC and bank details." }
       ],
-      "toConfirm": [],
-      "nextAction": { "label": "Open your checklist", "route": "/case" }
+      "toConfirm": ["Ask the hospital billing desk for the payment receipts and test reports.", "Get a cancelled cheque from your bank chequebook.", "Tick each paper on your list when you have it."],
+      "nextAction": { "label": "Open your list", "route": "/case" }
+    }
+  },
+  {
+    "keywords": ["pay", "bill", "charges", "charge", "out of pocket", "myself", "not be paid"],
+    "steps": [
+      { "agent": "Claim Copilot", "label": "Understanding your question" },
+      { "agent": "Bill & Settlement Analyst", "label": "Checking 9 charges on the hospital bill" },
+      { "agent": "Bill & Settlement Analyst", "label": "Comparing the room cost with your ₹5,000 limit" },
+      { "agent": "Verifier", "label": "Checking that every statement has a source" }
+    ],
+    "answer": {
+      "verdict": "partial",
+      "headline": "Keep about ₹28,500 ready",
+      "summary": "Your bill is ₹2,46,000. Most of it should be paid. But Kamala's room cost ₹7,500 a day, above your ₹5,000 limit. So the insurer will likely cut room, doctor and nursing charges. Gloves and kits (₹6,900) are never paid. You may pay ₹21,600 to ₹66,167 yourself. ₹28,500 is most likely.",
+      "citations": [
+        { "docId": "bill", "docName": "Hospital bill", "page": 1, "clause": "Bill page 1", "quote": "Room rent – Deluxe single (4 days × ₹7,500)" },
+        { "docId": "bill", "docName": "Hospital bill", "page": 4, "clause": "Bill page 4", "quote": "Gloves, PPE kit, admission kit" }
+      ],
+      "toConfirm": ["Ask the hospital for a note if no cheaper room was free.", "Keep every payment receipt for your claim.", "Upload the insurer's letter when it arrives."],
+      "nextAction": { "label": "See the bill check", "route": "/case/bill" }
     }
   },
   {
@@ -112,10 +133,10 @@
     ],
     "answer": {
       "verdict": "cant_confirm",
-      "headline": "I couldn't find this in your documents",
-      "summary": "None of your uploaded documents answer this clearly. Try asking about coverage, waiting periods, room rent, your bill or your settlement.",
+      "headline": "I couldn't find this in your papers",
+      "summary": "Your uploaded papers don't answer this clearly. Try asking about what's covered, waiting times, room cost, your bill or why money was cut.",
       "citations": [],
-      "toConfirm": ["If this is important, ask your insurer or TPA directly and keep their reply in writing."]
+      "toConfirm": ["Ask your insurer directly, and keep their reply in writing."]
     }
   }
 ]

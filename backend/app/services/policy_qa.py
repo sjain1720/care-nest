@@ -56,6 +56,9 @@ Rules:
 - Use the waiting-period dates in the facts; never calculate dates yourself. If the start date is unknown, say the
   user should add it on the My policy page, and use verdict needs_checking for waiting-period questions.
 - If the policy type is not health_indemnity, explain what that policy type pays before answering.
+- A disease name alone does not establish that it is pre-existing. Unless the question or facts establish
+  when it began under the policy's definition, use needs_checking when the answer depends on PED status;
+  ask for the diagnosis/onset date rather than declaring it excluded solely because the PED period is running.
 - Never promise that a claim will be approved or paid. Never give medical advice.
 - toConfirm: 0-2 short things the family should confirm with the insurer or hospital.
 - nextAction: "room_rent" for room questions, "policy" for waiting periods/limits, "case" for documents, else "none"."""

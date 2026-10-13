@@ -9,11 +9,12 @@ from google.genai import types
 
 from app import agent_tools as t
 from app.core.config import get_settings
+from app.services.plain_language import STYLE
 
 MODEL = get_settings().gemini_model
-RULES = ("Use simple English. Base every statement on tool results and give the page/clause or bill page when you have it. "
+RULES = ("Base every statement on tool results and give the page/clause or bill page when you have it. "
          "If the tools don't answer the question, say you can't confirm it. Never promise approval or a payout, never say "
-         "the insurer is wrong, and never give medical advice.")
+         "the insurer is wrong, and never give medical advice. End with 1-3 numbered next steps." + STYLE)
 
 policy_specialist = Agent(
     name="policy_specialist", model=MODEL,

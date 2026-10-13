@@ -1,44 +1,158 @@
-import { Component } from '@angular/core';
-import { RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
+import { Component, DestroyRef, HostListener, computed, inject, signal } from '@angular/core';
+import { NgTemplateOutlet, ViewportScroller } from '@angular/common';
+import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
+import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { MatIconModule } from '@angular/material/icon';
+import { filter, map } from 'rxjs';
 import { CitationDrawerComponent } from './shared/citation-drawer.component';
-import { FEATURES, isFullyLive, isLive, setAllLive } from './services/api.service';
+import { ChatBarComponent } from './shared/chat-bar.component';
+import { CLAIM_TOOLS } from './shared/claim-tools';
+import { scrollToSection } from './shared/scroll';
+import { TranslatePipe } from './shared/translate.pipe';
+import { FEATURES, isFullyLive, isLive } from './services/api.service';
+import { ChatService } from './services/chat.service';
+import { JourneyService } from './services/journey.service';
+import { SettingsService } from './services/settings.service';
+import { ThemeService } from './services/theme.service';
 
 interface NavItem {
   path: string;
   label: string;
+  /** Label for the phone tab bar, where space is tight. */
+  short?: string;
   icon: string;
   exact: boolean;
+  /** One line under the label in the menu. */
+  desc?: string;
+}
+
+const SIZE_LABELS = { sm: '94%', md: '100%', lg: '113%', xl: '125%' } as const;
+/** Scroll distance after which the header swaps its text links for the full icon row. */
+const SCROLL_REVEAL_PX = 120;
+const HINT_KEY = 'carenest.helperHidden';
+
+function sessionHint(): boolean {
+  try {
+    return !sessionStorage.getItem(HINT_KEY);
+  } catch {
+    return true;
+  }
 }
 
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [RouterOutlet, RouterLink, RouterLinkActive, MatIconModule, CitationDrawerComponent],
+  imports: [RouterOutlet, RouterLink, RouterLinkActive, NgTemplateOutlet, MatIconModule, CitationDrawerComponent, ChatBarComponent, TranslatePipe],
   templateUrl: './app.component.html',
   styleUrl: './app.component.css',
 })
 export class AppComponent {
+  readonly theme = inject(ThemeService);
+  readonly settings = inject(SettingsService);
+  readonly journey = inject(JourneyService);
+  readonly chat = inject(ChatService);
+  private translate = new TranslatePipe();
   readonly live = isFullyLive();
   readonly partlyLive = !this.live && FEATURES.some((f) => isLive(f.id));
+  readonly menuOpen = signal(false);
+  readonly scrolled = signal(false);
 
-  toggleMode(): void {
-    setAllLive(!this.live);
-    location.reload();
+  private path = toSignal(
+    inject(Router).events.pipe(filter((e): e is NavigationEnd => e instanceof NavigationEnd), map((e) => e.urlAfterRedirects.split(/[?#]/)[0])),
+    { initialValue: '/' },
+  );
+  readonly onClaimSubpage = computed(() => CLAIM_TOOLS.some((n) => n.path === this.path()));
+  readonly onAskPage = computed(() => this.path() === '/ask');
+  readonly onHome = computed(() => this.path() === '/');
+  /** Claim progress shows on the dashboard and the claim pages only, not on Ask, Add documents, My policy or settings. */
+  readonly showProgress = computed(() => this.onHome() || this.path() === '/case' || (this.onClaimSubpage() && this.path() !== '/upload'));
+  /** Home › Section › Page, for the slim banner on inner pages. */
+  readonly crumbs = computed<{ label: string; path: string; icon: string }[]>(() => {
+    const p = this.path();
+    const home = { label: 'Dashboard', path: '/', icon: 'dashboard' };
+    const main = this.mainNav.find((n) => n.path === p && p !== '/');
+    if (main) return [home, { label: main.label, path: p, icon: main.icon }];
+    const sub = CLAIM_TOOLS.find((n) => n.path === p);
+    if (sub) return [home, { label: 'My claim', path: '/case', icon: 'folder_shared' }, { label: sub.label, path: p, icon: sub.icon }];
+    if (p === '/status') return [home, { label: 'Demo and live settings', path: p, icon: 'tune' }];
+    return [];
+  });
+  /** The corner helper's greeting shows until hidden for this visit. */
+  readonly helperHint = signal(sessionHint());
+  /** Nessi's bubble alternates "Hey, I am Nessi" and "Ask me anything". */
+  readonly nessiLine = signal(0);
+  readonly sizeLabel = computed(() => SIZE_LABELS[this.settings.textSize()]);
+  readonly journeyLabel = computed(() => {
+    this.settings.lang();
+    const t = (s: string) => this.translate.transform(s);
+    const current = this.journey.current();
+    if (!current) return t('All done');
+    return `${this.journey.doneCount()} ${t('of')} ${this.journey.steps().length} ${t('steps done')} · ${t('Next')}: ${t(current.todo)}`;
+  });
+  /** The header chip is narrow at laptop widths, so it shows "4/8 · next step" (steps done, as everywhere else). */
+  readonly journeyShort = computed(() => {
+    this.settings.lang();
+    const current = this.journey.current();
+    if (!current) return this.translate.transform('All done');
+    return `${this.journey.doneCount()}/${this.journey.steps().length} · ${this.translate.transform(current.todo)}`;
+  });
+
+  constructor() {
+    // Router jumps to #section must clear the sticky header (and on phones the chat bar docked under it).
+    inject(ViewportScroller).setOffset(() => {
+      const header = document.querySelector('.topbar')?.getBoundingClientRect().bottom ?? 64;
+      const dock = innerWidth < 900 ? document.querySelector('app-chat-bar .dock')?.getBoundingClientRect().bottom ?? 0 : 0;
+      return [0, Math.max(header, dock) + 12];
+    });
+    // Links with #section (dashboard, search) scroll there once the page's data has rendered.
+    inject(Router).events.pipe(filter((e): e is NavigationEnd => e instanceof NavigationEnd), takeUntilDestroyed(inject(DestroyRef)))
+      .subscribe((e) => {
+        this.menuOpen.set(false);
+        const fragment = e.urlAfterRedirects.split('#')[1];
+        if (fragment) scrollToSection(decodeURIComponent(fragment));
+      });
+    const lines = setInterval(() => this.nessiLine.set(1 - this.nessiLine()), 3000);
+    inject(DestroyRef).onDestroy(() => clearInterval(lines));
+  }
+
+  @HostListener('document:keydown.escape')
+  onEscape(): void {
+    this.menuOpen.set(false);
+  }
+
+  @HostListener('window:scroll')
+  onScroll(): void {
+    const past = scrollY > SCROLL_REVEAL_PX;
+    if (past !== this.scrolled()) this.scrolled.set(past);
+  }
+
+  openHelper(): void {
+    this.hideHint();
+    this.chat.openPanel();
+  }
+
+  hideHint(): void {
+    this.helperHint.set(false);
+    try { sessionStorage.setItem(HINT_KEY, '1'); } catch { /* private mode */ }
+  }
+
+  /** Centre tab on phones: opens or closes the chat (the Ask page already shows it). */
+  toggleAsk(): void {
+    this.menuOpen.set(false);
+    if (this.onAskPage()) return;
+    if (this.chat.panelOpen()) this.chat.closePanel();
+    else this.chat.openPanel();
   }
 
   readonly mainNav: NavItem[] = [
-    { path: '/', label: 'Home', icon: 'home', exact: true },
-    { path: '/policy', label: 'My policy', icon: 'policy', exact: true },
-    { path: '/case', label: 'My case', icon: 'folder_shared', exact: false },
-    { path: '/ask', label: 'Ask', icon: 'forum', exact: true },
+    { path: '/', label: 'Dashboard', short: 'Home', icon: 'dashboard', exact: true, desc: 'Your claim at a glance' },
+    { path: '/policy', label: 'My policy', short: 'Policy', icon: 'policy', exact: true, desc: 'Cover, limits, waiting times' },
+    { path: '/case', label: 'My claim', short: 'Claim', icon: 'folder_shared', exact: false, desc: 'Papers, diary, your files' },
+    { path: '/ask', label: 'Ask', icon: 'forum', exact: true, desc: 'Answers from your own papers' },
   ];
-
-  readonly caseNav: NavItem[] = [
-    { path: '/case/query', label: 'Insurer query helper', icon: 'quiz', exact: true },
-    { path: '/case/bill', label: 'Bill check', icon: 'receipt_long', exact: true },
-    { path: '/case/settlement', label: 'Settlement breakdown', icon: 'stacked_bar_chart', exact: true },
-    { path: '/case/letter', label: 'Letter to insurer', icon: 'edit_note', exact: true },
-    { path: '/upload', label: 'Upload documents', icon: 'upload_file', exact: true },
-  ];
+  /** Phone tab bar: Home, Policy | centre Ask | Claim, More. */
+  readonly tabsLeft = this.mainNav.slice(0, 2);
+  readonly tabsRight = this.mainNav.slice(2, 3);
+  /** The menu only lists pages that aren't already in the header or the phone tab bar. */
+  readonly menuPages = CLAIM_TOOLS;
 }

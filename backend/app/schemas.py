@@ -6,6 +6,9 @@ from pydantic import BaseModel, Field
 Verdict = Literal["covered", "partial", "not_covered", "needs_checking", "cant_confirm", "info"]
 Trust = Literal["supported", "check", "unknown"]
 ProductType = Literal["health_indemnity", "travel", "hospital_cash", "critical_illness", "personal_accident", "other"]
+BillCategory = Literal["room", "icu", "nursing", "doctor", "surgery", "anaesthesia", "procedure", "pharmacy", "consumables",
+                       "implants", "investigations", "equipment", "food", "admin", "other"]
+_ISO_DATE = r"^\d{4}-\d{2}-\d{2}$"
 
 POLICY_DOC_URL = "/api/policy/document"
 
@@ -113,10 +116,14 @@ class AnswerCard(BaseModel):
     citations: list[Citation]
     toConfirm: list[str]
     nextAction: NextAction | None = None
+    secondaryAction: NextAction | None = None
+    # True when the answer comes from general insurance knowledge, not the user's own documents.
+    general: bool = False
 
 
 class AskRequest(BaseModel):
     question: str = Field(min_length=2, max_length=500)
+    language: Literal["en", "hi"] = "en"
 
 
 class ChecklistUpdate(BaseModel):
@@ -125,6 +132,54 @@ class ChecklistUpdate(BaseModel):
 
 class QueryHelpRequest(BaseModel):
     queryText: str = Field(min_length=10, max_length=3000)
+
+
+class TimelineEventIn(BaseModel):
+    """Something the family did: sent the claim or a letter, answered a query, filed a complaint, or closed the claim."""
+    kind: Literal["claim_sent", "letter_sent", "query_answered", "complaint_filed", "closed"]
+    date: str = Field(pattern=r"^\d{4}-\d{2}-\d{2}$")
+    letterKind: Literal["clarification", "reconsideration", "grievance", "cover_letter"] | None = None
+    level: int | None = Field(default=None, ge=1, le=3)
+    reference: str | None = Field(default=None, max_length=60)
+    note: str | None = Field(default=None, max_length=300)
+
+
+class ReplyRequest(BaseModel):
+    """The insurer's reply, pasted from an email or letter."""
+    text: str = Field(min_length=20, max_length=6000)
+
+
+class BillReviewItem(BaseModel):
+    description: str = Field(min_length=1, max_length=200)
+    category: BillCategory
+    amount: float = Field(ge=0, le=100_000_000)
+    rate: float | None = Field(default=None, ge=0, le=100_000_000)
+    qty: float | None = Field(default=None, ge=0, le=10_000)
+    page: int = Field(default=1, ge=1, le=500)
+    date: str | None = Field(default=None, pattern=_ISO_DATE)
+
+
+class BillReviewIn(BaseModel):
+    """What the family checked or corrected from the bill reading, before anything is worked out from it."""
+    hospital: str | None = Field(default=None, max_length=120)
+    billNumber: str | None = Field(default=None, max_length=60)
+    billDate: str | None = Field(default=None, pattern=_ISO_DATE)
+    patientName: str | None = Field(default=None, max_length=60)
+    admissionDate: str | None = Field(default=None, pattern=_ISO_DATE)
+    dischargeDate: str | None = Field(default=None, pattern=_ISO_DATE)
+    statedTotal: float | None = Field(default=None, ge=0, le=100_000_000)
+    items: list[BillReviewItem] = Field(max_length=400)
+
+
+class PastClaimIn(BaseModel):
+    """A claim made before using CareNest, typed in from the insurer's payment letter."""
+    date: str = Field(pattern=r"^\d{4}-\d{2}-\d{2}$")
+    approvedAmount: float = Field(ge=0, le=100_000_000)
+    claimedAmount: float | None = Field(default=None, gt=0, le=100_000_000)
+    title: str | None = Field(default=None, max_length=80)
+    patient: str | None = Field(default=None, max_length=60)
+    hospital: str | None = Field(default=None, max_length=80)
+    claimNumber: str | None = Field(default=None, max_length=40)
 
 
 class AskResponse(BaseModel):

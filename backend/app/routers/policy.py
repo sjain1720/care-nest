@@ -5,9 +5,10 @@ from google.genai import errors as genai_errors
 
 from app.schemas import PolicyDetailsInput, PolicyFacts, UploadResult
 from app.services import policy_store as store
+from app.services.file_types import detect_mime, is_image
 from app.services.ocr import PdfTooLongError
 from app.services.policy_details import apply_user_details
-from app.services.policy_ingest import process_upload
+from app.services.policy_ingest import UnsupportedFileError, process_upload
 
 router = APIRouter(tags=["policy"])
 
@@ -17,26 +18,28 @@ _GOOGLE_ERRORS = (GoogleAPIError, genai_errors.APIError)
 
 @router.post("/documents", response_model=UploadResult)
 def upload_document(file: UploadFile = File(...), docType: str = Form("auto")):
-    """docType: "auto" (detect from page 1) or one of policy_ingest.DOC_TYPES."""
+    """A PDF, or a photo (JPEG, PNG, WebP) of a bill or letter. docType: "auto" (detect from page 1) or one of policy_ingest.DOC_TYPES."""
     data = file.file.read(MAX_UPLOAD_BYTES + 1)
     if len(data) > MAX_UPLOAD_BYTES:
         raise HTTPException(413, "This file is larger than 20 MB.")
-    if not data.startswith(b"%PDF"):
-        raise HTTPException(415, "Only PDF files are supported.")
+    mime = detect_mime(data)
+    if mime is None:
+        raise HTTPException(415, "Upload a PDF, or a photo (JPG, PNG or WebP).")
+    if is_image(mime) and docType == "Policy document":
+        raise HTTPException(415, "Upload the policy as a PDF. Photos work for bills and letters.")
     try:
-        return process_upload(data, file.filename or "document.pdf", docType)
-    except PdfTooLongError as exc:
+        return process_upload(data, file.filename or "document", docType, mime)
+    except (PdfTooLongError, UnsupportedFileError) as exc:
         raise HTTPException(422, str(exc)) from exc
     except _GOOGLE_ERRORS as exc:
         raise HTTPException(502, f"A Google service failed while reading the file: {exc.__class__.__name__}") from exc
 
 
 def _active_policy() -> tuple[str, dict]:
-    policy_id = store.get_active_policy_id()
-    doc = store.get_policy(policy_id) if policy_id else None
-    if not doc or doc.get("status") != "ready":
+    active = store.get_active_policy()
+    if not active:
         raise HTTPException(404, "No policy has been uploaded yet.")
-    return policy_id, doc
+    return active
 
 
 @router.get("/policy", response_model=PolicyFacts)
@@ -46,11 +49,11 @@ def get_policy():
 
 @router.put("/policy/details", response_model=PolicyFacts)
 def update_policy_details(body: PolicyDetailsInput):
-    """Saves schedule details the user typed in and recomputes the facts from the document's own facts."""
-    policy_id, doc = _active_policy()
+    """Saves schedule details this guest typed in (in their own session) and recomputes the facts from the document's facts."""
+    _, doc = _active_policy()
     details = body.model_dump(exclude_none=True)
     facts = PolicyFacts.model_validate(apply_user_details(doc.get("baseFacts") or doc["facts"], details))
-    store.save_policy(policy_id, {"userDetails": details, "facts": facts.model_dump()})
+    store.save_session_details(details)
     return facts
 
 

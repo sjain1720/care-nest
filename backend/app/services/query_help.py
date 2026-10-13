@@ -8,6 +8,7 @@ from app.schemas import Citation
 from app.services import policy_store
 from app.services.embeddings import embed_texts
 from app.services.grounding import quote_in_text
+from app.services.plain_language import STYLE
 from app.services.privacy import mask_all
 
 
@@ -43,7 +44,7 @@ Help them respond quickly. Use simple English.
 - timelineNote: one sentence telling them to ask the TPA desk which time limit applies and to note when they sent the papers.
   Do not state specific regulatory deadlines.
 - citations: policy clause refs [C1].. that explain why the insurer asks, each with a WORD FOR WORD quote (8-30 words).
-Never promise approval. No medical advice."""
+Never promise approval. No medical advice.""" + STYLE
 
 
 def explain_query(query_text: str) -> dict:

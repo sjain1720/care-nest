@@ -128,7 +128,7 @@ class CaseTests(unittest.TestCase):
         self.assertEqual(by_id["c3"]["status"], "missing")
         self.assertIn("3", by_id["c4b"]["name"])
         self.assertEqual(by_id["x-d1"]["group"], "dispute")
-        self.assertEqual(case["stage"], "Settled with ₹9,500 deducted")
+        self.assertEqual(case["stage"], "Paid, with ₹9,500 cut")
 
     def test_empty_case(self):
         case = build_case({})

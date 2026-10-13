@@ -8,7 +8,7 @@ REGION="asia-south1"
 SERVICE="carenest"
 SA="ppm-runner@${PROJECT}.iam.gserviceaccount.com"
 
-ENV_VARS="GCP_PROJECT_ID=${PROJECT},GCS_BUCKET=${PROJECT}-docs,DOCAI_LOCATION=asia-south1,DOCAI_PROCESSOR_ID=771975839b0e4376,FIRESTORE_DB=(default),GEMINI_MODEL=gemini-2.5-flash,EMBEDDING_MODEL=text-embedding-005,MAX_POLICY_PAGES=100,GOOGLE_GENAI_USE_VERTEXAI=TRUE,GOOGLE_CLOUD_PROJECT=${PROJECT},GOOGLE_CLOUD_LOCATION=global"
+ENV_VARS="GCP_PROJECT_ID=${PROJECT},GCS_BUCKET=${PROJECT}-docs,DOCAI_LOCATION=asia-south1,DOCAI_PROCESSOR_ID=771975839b0e4376,FIRESTORE_DB=(default),GEMINI_MODEL=gemini-3.1-flash-lite,EMBEDDING_MODEL=text-embedding-005,MAX_POLICY_PAGES=100,GOOGLE_GENAI_USE_VERTEXAI=TRUE,GOOGLE_CLOUD_PROJECT=${PROJECT},GOOGLE_CLOUD_LOCATION=global"
 
 cd "$ROOT"
 gcloud run deploy "$SERVICE" \
@@ -18,6 +18,8 @@ gcloud run deploy "$SERVICE" \
   --service-account "$SA" \
   --min-instances 0 \
   --max-instances 2 \
+  --timeout 300 \
+  --concurrency 8 \
   --memory 1Gi \
   --set-env-vars "$ENV_VARS" \
   --allow-unauthenticated

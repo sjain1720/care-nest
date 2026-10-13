@@ -1,24 +1,26 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable, catchError, concat, concatMap, delay, from, map, of, shareReplay, switchMap, tap } from 'rxjs';
+import { Observable, BehaviorSubject, catchError, concat, concatMap, delay, from, map, of, shareReplay, switchMap, tap } from 'rxjs';
 import { postEventStream } from './sse';
+import { SettingsService } from './settings.service';
 import {
-  AgentStep, AnswerCard, AskEvent, Bill, ChecklistStatus, ClaimCase, LetterDraft, LetterKind, MockQa, MockQuery, PolicyDetailsInput, PolicyFacts,
-  QueryEvent, QueryHelp, Settlement, UploadEvent,
+  AgentStep, AnswerCard, AskEvent, Bill, BillItem, BillReview, ChecklistStatus, ClaimCase, ClaimStatus, ClaimSummary, LetterDraft, LetterKind,
+  MockQa, MockQuery, PastClaimInput, PolicyDetailsInput, PolicyFacts, QueryEvent, QueryHelp, Settlement, TimelineEvent, TimelineEventInput, UploadEvent,
 } from '../models/models';
+import { diaryStage, guessReply, sortedTimeline, todayIso } from '../shared/claim-diary';
 
 export type Feature = 'policy' | 'ask' | 'upload' | 'case' | 'bill' | 'settlement' | 'letter' | 'query';
 
 /** Which features have a real backend yet. Only these can be switched to live data on /status. */
 export const FEATURES: { id: Feature; label: string; backendReady: boolean }[] = [
-  { id: 'policy', label: 'My policy (facts, traps, waiting periods)', backendReady: true },
-  { id: 'ask', label: 'Ask (Claim Copilot: policy, bill, settlement, documents)', backendReady: true },
-  { id: 'upload', label: 'Upload documents', backendReady: true },
-  { id: 'case', label: 'My case and checklist', backendReady: true },
-  { id: 'bill', label: 'Hospital bill check', backendReady: true },
-  { id: 'settlement', label: 'Settlement breakdown', backendReady: true },
-  { id: 'letter', label: 'Letter to insurer', backendReady: true },
-  { id: 'query', label: 'Insurer query helper', backendReady: true },
+  { id: 'policy', label: 'My policy', backendReady: true },
+  { id: 'ask', label: 'Ask CareNest', backendReady: true },
+  { id: 'upload', label: 'Add documents', backendReady: true },
+  { id: 'case', label: 'My claim and papers checklist', backendReady: true },
+  { id: 'bill', label: 'Check my bill', backendReady: true },
+  { id: 'settlement', label: 'Why money was cut', backendReady: true },
+  { id: 'letter', label: 'Write to the insurer', backendReady: true },
+  { id: 'query', label: "Insurer's question", backendReady: true },
 ];
 
 const LIVE_KEY = 'carenest.live';
@@ -50,56 +52,264 @@ export function setAllLive(on: boolean): void {
 }
 
 /** Values for the upload form; 'auto' lets the backend detect the type from page 1. */
-export const DOC_TYPES = ['auto', 'Policy document', 'Hospital bill', 'Settlement letter', 'Rejection letter', 'Discharge summary', 'Other'] as const;
+export const DOC_TYPES = ['auto', 'Policy document', 'Hospital bill', 'Settlement letter', 'Rejection letter', 'Insurer reply', 'Discharge summary', 'Other'] as const;
 export type DocType = (typeof DOC_TYPES)[number];
 
 const STEP_DELAY_MS = 650;
+const DEMO_DIARY_KEY = 'carenest.timeline';
+const DEMO_TICKS_KEY = 'carenest.checklist';
+const DEMO_CLAIMS_KEY = 'carenest.claims';
+const DEMO_BILL_REVIEW_KEY = 'carenest.billReview';
+const LETTER_DRAFT_PREFIX = 'carenest.letter.';
+/** Demo mode: the sample claim's id while a new, empty claim is open. */
+export const DEMO_CLAIM_ID = 'cl-demo0001';
+
+interface DemoClaims {
+  added: ClaimSummary[];
+  removed: string[];
+  /** A new, empty claim is open; the sample claim's diary, ticks and bill check wait in `stash`. */
+  fresh?: boolean;
+  stash?: { timeline: TimelineEvent[]; checklist: Record<string, ChecklistStatus>; billReview?: BillReview | null };
+}
+
+function readDemo<T>(key: string, fallback: T): T {
+  try {
+    return (JSON.parse(localStorage.getItem(key) ?? 'null') as T) ?? fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+function writeDemo(key: string, value: unknown): void {
+  try { localStorage.setItem(key, JSON.stringify(value)); } catch { /* private mode */ }
+}
+
+function removeDemo(key: string): void {
+  try { localStorage.removeItem(key); } catch { /* private mode */ }
+}
+
+function readDemoDiary(): TimelineEvent[] {
+  return readDemo<TimelineEvent[]>(DEMO_DIARY_KEY, []);
+}
+
+function writeDemoDiary(events: TimelineEvent[]): void {
+  writeDemo(DEMO_DIARY_KEY, events);
+}
+
+function readDemoClaims(): DemoClaims {
+  return readDemo<DemoClaims>(DEMO_CLAIMS_KEY, { added: [], removed: [] });
+}
+
+function clearLetterDrafts(): void {
+  try {
+    for (const key of Object.keys(localStorage)) {
+      if (key.startsWith(LETTER_DRAFT_PREFIX)) localStorage.removeItem(key);
+    }
+  } catch { /* private mode */ }
+}
+
+function randomHex(bytes: number): string {
+  return Array.from(crypto.getRandomValues(new Uint8Array(bytes)), (b) => b.toString(16).padStart(2, '0')).join('');
+}
+
+function newEventId(): string {
+  return 'ev-' + randomHex(4);
+}
+
+/** A stream that re-emits whenever its source is swapped (refresh after an upload, or a saved change). */
+function resource<T>(first: Observable<T>): { stream: Observable<T>; set: (next: Observable<T>) => void } {
+  const source = new BehaviorSubject<Observable<T>>(first);
+  return { stream: source.pipe(switchMap((o) => o), shareReplay(1)), set: (next) => source.next(next) };
+}
 
 @Injectable({ providedIn: 'root' })
 export class ApiService {
   private http = inject(HttpClient);
+  private settings = inject(SettingsService);
 
   // Live mode: null means "not uploaded yet" (404).
-  private policy$ = this.loadPolicy();
-  private case$ = this.loadCase();
-  private bill$ = this.loadOptional<Bill>('bill', 'bill.json', '/api/case/bill');
-  private settlement$ = this.loadOptional<Settlement>('settlement', 'settlement.json', '/api/case/settlement');
+  private policy = resource(this.loadPolicy());
+  private claim = resource(this.loadCase());
+  private bill = resource(this.loadBill());
+  private settlement = resource(this.loadOptional<Settlement>('settlement', 'settlement.json', '/api/case/settlement'));
+  private claims = resource(this.loadClaims());
 
-  getPolicy(): Observable<PolicyFacts | null> { return this.policy$; }
-  refreshPolicy(): void { this.policy$ = this.loadPolicy(); }
+  getPolicy(): Observable<PolicyFacts | null> { return this.policy.stream; }
+  refreshPolicy(): void { this.policy.set(this.loadPolicy()); }
+
+  /** Every claim: the current one first, then earlier ones, newest first. */
+  getClaims(): Observable<ClaimSummary[] | null> { return this.claims.stream; }
+
+  /** Keeps the current claim in the list and starts an empty one. In demo mode the sample claim is put aside in this browser. */
+  startNewClaim(): Observable<ClaimSummary[] | null> {
+    if (isLive('case')) {
+      return this.http.post<ClaimSummary[]>('/api/claims/new', {}).pipe(tap((list) => this.switchedClaim(list)));
+    }
+    const demo = readDemoClaims();
+    if (!demo.fresh) {
+      writeDemo(DEMO_CLAIMS_KEY, { ...demo, fresh: true, stash: {
+        timeline: readDemoDiary(), checklist: readDemo(DEMO_TICKS_KEY, {}), billReview: readDemo<BillReview | null>(DEMO_BILL_REVIEW_KEY, null) } });
+    }
+    writeDemoDiary([]);
+    writeDemo(DEMO_TICKS_KEY, {});
+    removeDemo(DEMO_BILL_REVIEW_KEY);
+    return this.demoSwitched();
+  }
+
+  /** Makes an earlier claim the current one; the current one moves into the list. Demo mode can only reopen the sample claim. */
+  openClaim(id: string): Observable<ClaimSummary[] | null> {
+    if (isLive('case')) {
+      return this.http.post<ClaimSummary[]>(`/api/claims/${encodeURIComponent(id)}/open`, {}).pipe(tap((list) => this.switchedClaim(list)));
+    }
+    const { fresh, stash, ...demo } = readDemoClaims();
+    if (fresh && id === DEMO_CLAIM_ID) {
+      writeDemoDiary(stash?.timeline ?? []);
+      writeDemo(DEMO_TICKS_KEY, stash?.checklist ?? {});
+      if (stash?.billReview) writeDemo(DEMO_BILL_REVIEW_KEY, stash.billReview);
+      writeDemo(DEMO_CLAIMS_KEY, demo);
+    }
+    return this.demoSwitched();
+  }
+
+  /** Adds a claim made before CareNest. Demo mode keeps it in this browser. */
+  addPastClaim(input: PastClaimInput): Observable<ClaimSummary[] | null> {
+    if (isLive('case')) {
+      return this.http.post<ClaimSummary[]>('/api/claims/past', input).pipe(tap((list) => this.claims.set(of(list))));
+    }
+    const demo = readDemoClaims();
+    writeDemo(DEMO_CLAIMS_KEY, { ...demo, added: [...demo.added, pastClaimSummary(input)] });
+    return this.reloadClaims();
+  }
+
+  /** Deletes an earlier claim (never the current one). Demo mode keeps the change in this browser. */
+  deleteClaim(id: string): Observable<ClaimSummary[] | null> {
+    if (isLive('case')) {
+      return this.http.delete<ClaimSummary[]>(`/api/claims/${encodeURIComponent(id)}`).pipe(tap((list) => this.claims.set(of(list))));
+    }
+    const demo = readDemoClaims();
+    writeDemo(DEMO_CLAIMS_KEY, { ...demo, added: demo.added.filter((c) => c.id !== id), removed: [...demo.removed, id] });
+    return this.reloadClaims();
+  }
+
+  private switchedClaim(list: ClaimSummary[]): void {
+    clearLetterDrafts(); // drafts belong to the claim they were written for
+    this.claims.set(of(list));
+    this.reloadClaimData();
+  }
+
+  private demoSwitched(): Observable<ClaimSummary[] | null> {
+    clearLetterDrafts();
+    this.reloadClaimData();
+    return this.reloadClaims();
+  }
 
   savePolicyDetails(details: PolicyDetailsInput, current: PolicyFacts): Observable<PolicyFacts> {
     const saved$ = isLive('policy')
       ? this.http.put<PolicyFacts>('/api/policy/details', details)
       : of(mergeDetailsLocally(current, details)); // demo mode: no recompute of waiting-period dates
-    return saved$.pipe(tap((facts) => (this.policy$ = of(facts).pipe(shareReplay(1)))));
+    return saved$.pipe(tap((facts) => this.policy.set(of(facts))));
   }
-  getCase(): Observable<ClaimCase | null> { return this.case$; }
-  getBill(): Observable<Bill | null> { return this.bill$; }
-  getSettlement(): Observable<Settlement | null> { return this.settlement$; }
+  getCase(): Observable<ClaimCase | null> { return this.claim.stream; }
+  getBill(): Observable<Bill | null> { return this.bill.stream; }
+
+  /**
+   * Saves what the family checked or corrected on the bill. Live: the backend re-runs every check on it.
+   * Demo: kept in this browser and shown on the sample bill (its checks stay as they were).
+   */
+  reviewBill(review: BillReview): Observable<Bill | null> {
+    if (isLive('bill')) {
+      return this.http.put<Bill>('/api/case/bill', review).pipe(tap((b) => {
+        this.bill.set(of(b));
+        this.claim.set(this.loadCase());
+        this.claims.set(this.loadClaims());
+      }));
+    }
+    writeDemo(DEMO_BILL_REVIEW_KEY, review);
+    const next = this.loadBill();
+    this.bill.set(next);
+    this.claim.set(this.loadCase());
+    return next;
+  }
+  getSettlement(): Observable<Settlement | null> { return this.settlement.stream; }
   refreshCase(): void {
-    this.case$ = this.loadCase();
-    this.bill$ = this.loadOptional<Bill>('bill', 'bill.json', '/api/case/bill');
-    this.settlement$ = this.loadOptional<Settlement>('settlement', 'settlement.json', '/api/case/settlement');
+    this.reloadClaimData();
+    this.claims.set(this.loadClaims());
+  }
+
+  private reloadClaimData(): void {
+    this.claim.set(this.loadCase());
+    this.bill.set(this.loadBill());
+    this.settlement.set(this.loadOptional<Settlement>('settlement', 'settlement.json', '/api/case/settlement'));
+  }
+
+  /** A saved change to the current claim can change its line in the claims list too. */
+  private caseSaved(c: ClaimCase): void {
+    this.claim.set(of(c));
+    this.claims.set(this.loadClaims());
   }
   getLetter(kind: LetterKind = 'clarification'): Observable<LetterDraft> {
     return isLive('letter')
       ? this.http.get<LetterDraft>('/api/case/letter', { params: { kind } })
-      : this.http.get<LetterDraft>('/mocks/letter.json');
+      : this.http.get<Record<LetterKind, LetterDraft>>('/mocks/letter.json').pipe(map((all) => all[kind]));
   }
 
-  /** Saves a checklist tick. Demo mode keeps it in the page only. */
+  /** Saves a checklist tick. Demo mode keeps it in this browser. */
   updateChecklistItem(id: string, status: ChecklistStatus): Observable<ClaimCase | null> {
-    if (!isLive('case')) return of(null);
-    return this.http.patch<ClaimCase>(`/api/case/checklist/${encodeURIComponent(id)}`, { status }).pipe(
-      tap((c) => (this.case$ = of(c).pipe(shareReplay(1)))),
-    );
+    if (!isLive('case')) {
+      const ticks = readDemo<Record<string, ChecklistStatus>>(DEMO_TICKS_KEY, {});
+      writeDemo(DEMO_TICKS_KEY, { ...ticks, [id]: status });
+      return this.reloadCase();
+    }
+    return this.http.patch<ClaimCase>(`/api/case/checklist/${encodeURIComponent(id)}`, { status }).pipe(tap((c) => this.caseSaved(c)));
+  }
+
+  /** Claim diary: "I sent it", "I filed a complaint", "close my claim". Demo mode keeps it in this browser. */
+  addTimelineEvent(input: TimelineEventInput): Observable<ClaimCase | null> {
+    if (isLive('case')) {
+      return this.http.post<ClaimCase>('/api/case/timeline', input).pipe(tap((c) => this.caseSaved(c)));
+    }
+    writeDemoDiary([...readDemoDiary(), { id: newEventId(), ...input }]);
+    return this.reloadCase();
+  }
+
+  removeTimelineEvent(id: string): Observable<ClaimCase | null> {
+    if (isLive('case')) {
+      return this.http.delete<ClaimCase>(`/api/case/timeline/${encodeURIComponent(id)}`).pipe(tap((c) => this.caseSaved(c)));
+    }
+    writeDemoDiary(readDemoDiary().filter((e) => e.id !== id));
+    return this.reloadCase();
+  }
+
+  /** Reads the insurer's reply (pasted text) and adds it to the diary. */
+  submitReply(text: string): Observable<ClaimCase | null> {
+    if (isLive('case')) {
+      return this.http.post<ClaimCase>('/api/case/reply', { text }).pipe(tap((c) => this.caseSaved(c)));
+    }
+    writeDemoDiary([...readDemoDiary(), { id: newEventId(), kind: 'reply', date: todayIso(), source: 'demo', ...guessReply(text) }]);
+    return this.reloadCase().pipe(delay(STEP_DELAY_MS));
+  }
+
+  private reloadCase(): Observable<ClaimCase | null> {
+    const next = this.loadCase();
+    this.claim.set(next);
+    this.claims.set(this.loadClaims());
+    return next;
+  }
+
+  private reloadClaims(): Observable<ClaimSummary[] | null> {
+    const next = this.loadClaims();
+    this.claims.set(next);
+    return next;
+  }
+
+  getSampleReply(): Observable<string> {
+    return this.http.get<{ sampleReply: string }>('/mocks/reply.json').pipe(map((m) => m.sampleReply), catchError(() => of('')));
   }
 
   ask(question: string): Observable<AskEvent> {
     if (isLive('ask')) {
       // Steps arrive as the backend runs them (Server-Sent Events), then the verified answer.
-      return postEventStream<AskEvent>('/api/copilot/ask/stream', { question });
+      return postEventStream<AskEvent>('/api/copilot/ask/stream', { question, language: this.settings.lang() });
     }
     return this.http.get<MockQa[]>('/mocks/qa.json').pipe(
       map((list) => pickAnswer(list, question)),
@@ -162,16 +372,98 @@ export class ApiService {
   }
 
   private loadCase(): Observable<ClaimCase | null> {
-    return this.get<ClaimCase>('case', 'case.json', '/api/case').pipe(catchError(() => of(null)), shareReplay(1));
+    const case$ = this.get<ClaimCase>('case', 'case.json', '/api/case');
+    return (isLive('case') ? case$ : case$.pipe(map((c) => withDemoDiary(c)))).pipe(catchError(() => of(null)), shareReplay(1));
+  }
+
+  private loadBill(): Observable<Bill | null> {
+    const bill$ = this.loadOptional<Bill>('bill', 'bill.json', '/api/case/bill');
+    return isLive('bill') ? bill$ : bill$.pipe(map((b) => (b ? withDemoReview(b) : b)), shareReplay(1));
+  }
+
+  private loadClaims(): Observable<ClaimSummary[] | null> {
+    const claims$ = this.get<ClaimSummary[]>('case', 'claims.json', '/api/claims');
+    return (isLive('case') ? claims$ : claims$.pipe(map(withDemoClaims))).pipe(catchError(() => of(null)), shareReplay(1));
   }
 
   private loadOptional<T>(feature: Feature, mockFile: string, apiUrl: string): Observable<T | null> {
+    if (!isLive(feature) && readDemoClaims().fresh) return of(null); // the new demo claim has no bill or letter yet
     return this.get<T>(feature, mockFile, apiUrl).pipe(catchError(() => of(null)), shareReplay(1));
   }
 
   private get<T>(feature: Feature, mockFile: string, apiUrl: string): Observable<T> {
     return this.http.get<T>(isLive(feature) ? apiUrl : `/mocks/${mockFile}`);
   }
+}
+
+function withDemoDiary(sample: ClaimCase): ClaimCase {
+  const fresh = !!readDemoClaims().fresh;
+  const review = fresh ? null : readDemo<BillReview | null>(DEMO_BILL_REVIEW_KEY, null);
+  const base = fresh ? blankCase(sample) : sample;
+  const c = review ? {
+    ...base, patient: { ...base.patient, name: review.patientName || base.patient.name },
+    admissionDate: review.admissionDate || base.admissionDate, dischargeDate: review.dischargeDate || base.dischargeDate,
+  } : base;
+  const timeline = sortedTimeline([...(c.timeline ?? []), ...readDemoDiary()]);
+  const ticks = readDemo<Record<string, ChecklistStatus>>(DEMO_TICKS_KEY, {});
+  const checklist = c.checklist.map((i) => (ticks[i.id] ? { ...i, status: ticks[i.id] } : i));
+  // The sample case already has the insurer's payment letter, so it counts as decided.
+  return { ...c, checklist, timeline, stage: diaryStage(timeline, !fresh) ?? c.stage };
+}
+
+/** What a new claim looks like before anything is added (same as the backend's empty case). */
+function blankCase(sample: ClaimCase): ClaimCase {
+  return {
+    ...sample, title: 'Your hospital claim', patient: { name: 'Patient', relation: '' }, hospital: 'Hospital not added yet',
+    admissionDate: '', dischargeDate: '', diagnosis: 'Not read yet – add the discharge summary', claimType: 'reimbursement',
+    claimNumber: '', stage: 'Add your hospital bill to start', documents: [], timeline: [], rejection: null,
+    checklist: sample.checklist.filter((i) => i.group === 'claim' && i.id !== 'c4b').map((i) => ({ ...i, status: 'missing' })),
+  };
+}
+
+/** Demo: the sample bill with the details the family checked in this browser (labels on unchanged lines are kept). */
+function withDemoReview(b: Bill): Bill {
+  const review = readDemoClaims().fresh ? null : readDemo<BillReview | null>(DEMO_BILL_REVIEW_KEY, null);
+  if (!review) return b;
+  const items = review.items.map((it, n): BillItem => {
+    const before = b.items.find((o) => o.description === it.description);
+    return { id: `b${n + 1}`, category: it.category, description: it.description, amount: it.amount, page: it.page,
+      tag: before?.tag ?? 'needs_clarification', note: before ? before.note : 'Added by you. The full checks run on your own documents.' };
+  });
+  return { ...b, hospital: review.hospital || b.hospital, billNumber: review.billNumber ?? b.billNumber, billDate: review.billDate || b.billDate,
+    total: review.statedTotal ?? b.total, items, reviewed: true };
+}
+
+/** Same rule as the backend's claim_status(). */
+function claimStatus(claimed: number | null, approved: number | null): ClaimStatus {
+  if (approved === null) return 'in_progress';
+  if (approved <= 0) return 'refused';
+  return claimed && approved < claimed ? 'part_paid' : 'paid';
+}
+
+function pastClaimSummary(p: PastClaimInput): ClaimSummary {
+  const claimed = p.claimedAmount ?? null;
+  return {
+    id: 'cl-' + randomHex(4), source: 'manual', current: false, closed: true,
+    title: p.title || 'Hospital claim', patient: p.patient ?? '', hospital: p.hospital ?? '', date: p.date, claimNumber: p.claimNumber ?? '',
+    claimedAmount: claimed, approvedAmount: p.approvedAmount, status: claimStatus(claimed, p.approvedAmount),
+  };
+}
+
+/** Demo list: the mock claims plus changes made in this browser; the demo diary can raise or close the sample claim. */
+function withDemoClaims(list: ClaimSummary[]): ClaimSummary[] {
+  const { added, removed, fresh, stash } = readDemoClaims();
+  const diary = sortedTimeline(fresh ? stash?.timeline : readDemoDiary());
+  const raised = diary.filter((e) => e.kind === 'reply' && e.outcome === 'paid_more' && e.newApprovedAmount).at(-1)?.newApprovedAmount;
+  const sample = list.filter((c) => c.current).map((c): ClaimSummary => {
+    const approved = raised ?? c.approvedAmount;
+    return { ...c, approvedAmount: approved, status: claimStatus(c.claimedAmount, approved), closed: diary.at(-1)?.kind === 'closed',
+      ...(fresh ? { id: DEMO_CLAIM_ID, current: false } : {}) };
+  });
+  const earlier = [...(fresh ? sample : []), ...list.filter((c) => !c.current && !removed.includes(c.id)), ...added]
+    .sort((a, b) => b.date.localeCompare(a.date));
+  // Demo uploads aren't saved, so the new demo claim stays empty and isn't listed.
+  return fresh ? earlier : [...sample, ...earlier];
 }
 
 function mergeDetailsLocally(p: PolicyFacts, d: PolicyDetailsInput): PolicyFacts {
@@ -208,5 +500,6 @@ function guessType(fileName: string): string {
   if (n.includes('settle')) return 'Settlement letter';
   if (n.includes('discharge')) return 'Discharge summary';
   if (n.includes('reject') || n.includes('repudiat')) return 'Rejection letter';
+  if (n.includes('reply') || n.includes('response')) return 'Insurer reply';
   return 'Policy document';
 }

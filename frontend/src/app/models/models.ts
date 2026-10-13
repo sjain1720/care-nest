@@ -103,6 +103,9 @@ export interface AnswerCard {
   citations: Citation[];
   toConfirm: string[];
   nextAction?: { label: string; route: string };
+  secondaryAction?: { label: string; route: string } | null;
+  /** From general insurance knowledge, not from the user's own documents. */
+  general?: boolean;
 }
 
 /** Streamed by /api/copilot/ask: progress steps first, then one answer. */
@@ -156,6 +159,34 @@ export interface Bill {
   checks?: BillCheck[];
   estimate?: BillEstimate;
   docUrl?: string;
+  /** false until the family has checked (or corrected) what was read from the bill. */
+  reviewed?: boolean;
+  /** Lines on the bill whose amount couldn't be read. */
+  unreadableLines?: number;
+}
+
+export type BillCategory = 'room' | 'icu' | 'nursing' | 'doctor' | 'surgery' | 'anaesthesia' | 'procedure' | 'pharmacy' | 'consumables'
+  | 'implants' | 'investigations' | 'equipment' | 'food' | 'admin' | 'other';
+
+export interface BillReviewItem {
+  description: string;
+  category: BillCategory;
+  amount: number;
+  rate?: number;
+  qty?: number;
+  page: number;
+}
+
+/** PUT /api/case/bill: what the family checked or corrected; every bill check is re-run on it. */
+export interface BillReview {
+  hospital?: string;
+  billNumber?: string;
+  billDate?: string;
+  patientName?: string;
+  admissionDate?: string;
+  dischargeDate?: string;
+  statedTotal?: number;
+  items: BillReviewItem[];
 }
 
 export interface Deduction {
@@ -225,7 +256,77 @@ export interface ClaimCase {
   documents: CaseDocument[];
   checklist: ChecklistItem[];
   escalation: EscalationStep[];
+  /** Claim diary, oldest first. */
+  timeline?: TimelineEvent[];
+  rejection?: Rejection | null;
 }
+
+export interface Rejection {
+  reason: string;
+  page?: number | null;
+  letterDate?: string | null;
+  docUrl?: string | null;
+}
+
+export type ClaimStatus = 'in_progress' | 'paid' | 'part_paid' | 'refused';
+
+/** One line in the list of claims (GET /api/claims), newest first after the current claim. */
+export interface ClaimSummary {
+  id: string;
+  /** 'carenest' = kept here with its files and can be opened again; 'manual' = typed in from a past payment letter. */
+  source: 'carenest' | 'manual';
+  title: string;
+  patient: string;
+  hospital: string;
+  /** YYYY-MM-DD, the discharge date when known. Decides the policy year the claim counts in. */
+  date: string;
+  claimNumber: string;
+  claimedAmount: number | null;
+  /** null while the insurer hasn't decided; 0 if refused. */
+  approvedAmount: number | null;
+  status: ClaimStatus;
+  closed: boolean;
+  /** The claim shown on the My claim page. */
+  current: boolean;
+}
+
+/** A past claim typed in from the insurer's payment letter. */
+export interface PastClaimInput {
+  date: string;
+  approvedAmount: number;
+  claimedAmount?: number;
+  title?: string;
+  patient?: string;
+  hospital?: string;
+  claimNumber?: string;
+}
+
+export type TimelineKind = 'claim_sent' | 'letter_sent' | 'query_answered' | 'complaint_filed' | 'reply' | 'closed';
+
+/** What the insurer's reply means for the family. */
+export type ReplyOutcome = 'paid_more' | 'explained' | 'no_change' | 'asks_for_papers' | 'rejected' | 'unclear';
+
+export interface TimelineEvent {
+  id: string;
+  kind: TimelineKind;
+  /** YYYY-MM-DD */
+  date: string;
+  letterKind?: LetterKind;
+  /** Complaint level: 1 insurer, 2 Bima Bharosa, 3 Ombudsman. */
+  level?: number;
+  reference?: string;
+  note?: string;
+  outcome?: ReplyOutcome;
+  summary?: string;
+  newApprovedAmount?: number;
+  papersAsked?: string[];
+  /** The reply's key sentence, word for word. */
+  quote?: string;
+  source?: 'pasted' | 'pdf' | 'demo';
+  docUrl?: string;
+}
+
+export type TimelineEventInput = Pick<TimelineEvent, 'kind' | 'date' | 'letterKind' | 'level' | 'reference' | 'note'>;
 
 export type LetterKind = 'clarification' | 'reconsideration' | 'grievance' | 'cover_letter';
 

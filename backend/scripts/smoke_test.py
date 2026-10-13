@@ -3,7 +3,8 @@ import sys
 from pathlib import Path
 
 from app.core.config import get_settings
-from app.core.gcp import bucket, db, gemini
+from app.core.gcp import db, gemini
+from app.services.connectivity import check_storage
 from app.services.ocr import ocr_pdf
 
 
@@ -16,6 +17,14 @@ def run(name, fn):
         return False
 
 
+def check_embeddings():
+    from app.services.embeddings import EMBED_DIM, embed_texts
+    vectors = embed_texts(["Room rent is capped at 1% of sum insured"], "RETRIEVAL_QUERY")
+    if len(vectors) != 1 or len(vectors[0]) != EMBED_DIM:
+        raise ValueError(f"Expected one {EMBED_DIM}-dimensional embedding")
+    return f"{EMBED_DIM} dimensions"
+
+
 def main():
     s = get_settings()
     print(f"Project {s.project_id} | Gemini location {s.gemini_location} | Document AI {s.docai_location}\n")
@@ -23,10 +32,10 @@ def main():
     results = [
         run("Gemini", lambda: gemini().models.generate_content(
             model=s.gemini_model, contents="Explain co-payment in one simple line.").text.strip()),
-        run("Embeddings", lambda: f"{len(gemini().models.embed_content(model=s.embedding_model, contents='Room rent is capped at 1% of sum insured').embeddings[0].values)} dimensions"),
+        run("Embeddings", check_embeddings),
         run("Firestore", lambda: (db().collection("healthcheck").document("ping").set({"ok": True}),
                                   db().collection("healthcheck").document("ping").get().to_dict())[1]),
-        run("Cloud Storage", lambda: f"bucket exists = {bucket().exists()}"),
+        run("Cloud Storage", check_storage),
     ]
 
     if len(sys.argv) > 1:

@@ -5,33 +5,36 @@
   "hospital": "City Care Hospital, Pune (demo)",
   "admissionDate": "2026-08-18",
   "dischargeDate": "2026-08-22",
-  "diagnosis": "Gallbladder stones – laparoscopic gallbladder removal",
+  "diagnosis": "Gallbladder stones – keyhole surgery to remove the gallbladder",
   "claimType": "reimbursement",
   "claimNumber": "CLM-2026-0083412",
-  "stage": "Settled with ₹38,000 deducted",
+  "stage": "Paid, with ₹38,000 cut",
+  "timeline": [
+    { "id": "sample-claim-sent", "kind": "claim_sent", "date": "2026-08-27", "reference": "CLM-2026-0083412" }
+  ],
   "documents": [
-    { "id": "doc-policy", "name": "Policy wording", "type": "Policy document", "pages": 42, "uploadedOn": "2026-09-22" },
-    { "id": "doc-schedule", "name": "Policy schedule", "type": "Policy document", "pages": 3, "uploadedOn": "2026-09-22" },
-    { "id": "doc-bill", "name": "Final itemised bill", "type": "Hospital bill", "pages": 6, "uploadedOn": "2026-09-22" },
+    { "id": "doc-policy", "name": "Policy rule book", "type": "Policy document", "pages": 42, "uploadedOn": "2026-09-22", "docUrl": "/demo/sample_policy.pdf" },
+    { "id": "doc-schedule", "name": "Policy schedule (your details)", "type": "Policy document", "pages": 3, "uploadedOn": "2026-09-22" },
+    { "id": "doc-bill", "name": "Final hospital bill", "type": "Hospital bill", "pages": 6, "uploadedOn": "2026-09-22", "docUrl": "/demo/hospital_bill.pdf" },
     { "id": "doc-discharge", "name": "Discharge summary", "type": "Discharge summary", "pages": 3, "uploadedOn": "2026-09-22" },
-    { "id": "doc-settlement", "name": "Settlement letter", "type": "Settlement letter", "pages": 2, "uploadedOn": "2026-09-22" }
+    { "id": "doc-settlement", "name": "Insurer's payment letter", "type": "Settlement letter", "pages": 2, "uploadedOn": "2026-09-22", "docUrl": "/demo/settlement_letter.pdf" }
   ],
   "checklist": [
-    { "id": "c1", "group": "claim", "name": "Claim form – Part A (signed by you)", "source": "Insurer website or TPA desk", "why": "Needed for every reimbursement claim", "status": "collected" },
-    { "id": "c2", "group": "claim", "name": "Claim form – Part B (filled by hospital)", "source": "Hospital insurance / TPA desk", "why": "The hospital confirms the treatment details", "status": "collected" },
-    { "id": "c3", "group": "claim", "name": "Discharge summary", "source": "Ward or billing desk at discharge", "why": "Shows the diagnosis and treatment given", "status": "collected" },
-    { "id": "c4", "group": "claim", "name": "Final itemised bill", "source": "Hospital billing desk", "why": "Every charge must be listed separately", "status": "collected" },
+    { "id": "c1", "group": "claim", "name": "Claim form, part A (you sign it)", "source": "Insurer's website or the hospital's insurance desk", "why": "Needed for every claim where you paid first", "status": "collected" },
+    { "id": "c2", "group": "claim", "name": "Claim form, part B (the hospital fills it)", "source": "Hospital insurance desk", "why": "The hospital confirms what treatment was given", "status": "collected" },
+    { "id": "c3", "group": "claim", "name": "Discharge summary", "source": "Ward or billing desk when you leave", "why": "Shows the illness and the treatment given", "status": "collected" },
+    { "id": "c4", "group": "claim", "name": "Final hospital bill, with every charge listed", "source": "Hospital billing desk", "why": "Every charge must be shown separately", "status": "collected" },
     { "id": "c5", "group": "claim", "name": "Payment receipts", "source": "Hospital billing desk – ask for a receipt for each payment", "why": "Proves what you actually paid", "status": "missing" },
-    { "id": "c6", "group": "claim", "name": "Investigation reports (blood tests, ultrasound)", "source": "Hospital lab and radiology department", "why": "Supports the diagnosis in the discharge summary", "status": "missing" },
-    { "id": "c7", "group": "claim", "name": "Prescriptions and pharmacy bills", "source": "Hospital pharmacy", "why": "Needed to pay for medicines", "status": "collected" },
+    { "id": "c6", "group": "claim", "name": "Test reports (blood tests, ultrasound)", "source": "Hospital lab and scan department", "why": "Supports what the doctor found", "status": "missing" },
+    { "id": "c7", "group": "claim", "name": "Prescriptions and medicine bills", "source": "Hospital pharmacy", "why": "Needed to pay for medicines", "status": "collected" },
     { "id": "c8", "group": "claim", "name": "Cancelled cheque or bank details", "source": "Your bank", "why": "So the insurer can pay you", "status": "missing" },
-    { "id": "c9", "group": "claim", "name": "Photo ID and address proof (KYC)", "source": "Policyholder's PAN / Aadhaar", "why": "Insurer's KYC requirement", "status": "collected" },
-    { "id": "c10", "group": "dispute", "name": "Hospital note on room availability", "source": "Hospital admission desk", "why": "Shows whether a room within your ₹5,000/day limit was available – helps challenge the room-rent cut", "status": "missing" },
-    { "id": "c11", "group": "dispute", "name": "Itemised explanation of the ₹9,500", "source": "Insurer – request it with the letter", "why": "The settlement letter gives no reason for this amount", "status": "requested" }
+    { "id": "c9", "group": "claim", "name": "Photo ID and address proof", "source": "PAN or Aadhaar of the person who holds the policy", "why": "The insurer must check who you are", "status": "collected" },
+    { "id": "c10", "group": "dispute", "name": "Hospital note saying no cheaper room was free", "source": "Hospital admission desk", "why": "If no room within ₹5,000 a day was free, the insurer may pay more", "status": "missing" },
+    { "id": "c11", "group": "dispute", "name": "A list of what the ₹9,500 cut is for", "source": "The insurer – ask for it in your letter", "why": "The insurer's letter gives no reason for this amount", "status": "requested" }
   ],
   "escalation": [
-    { "level": 1, "name": "Insurer's grievance cell", "when": "First step. Write to the insurer with your questions and evidence.", "howTo": "Use the grievance email or form on the insurer's website. Note the reference number.", "verify": true },
-    { "level": 2, "name": "Bima Bharosa (IRDAI)", "when": "If the insurer does not reply in time, or you disagree with the reply.", "howTo": "Register the complaint online on the IRDAI Bima Bharosa portal.", "link": "https://bimabharosa.irdai.gov.in", "verify": true },
-    { "level": 3, "name": "Insurance Ombudsman", "when": "If it is still unresolved. There is a time limit after the insurer's final reply – check it before filing.", "howTo": "File with the Ombudsman office for your area.", "link": "https://www.cioins.co.in", "verify": true }
+    { "level": 1, "name": "The insurer's complaints team", "when": "First step. Write to the insurer with your questions and papers.", "howTo": "Use the complaint email or form on the insurer's website. Note the reference number.", "verify": true },
+    { "level": 2, "name": "Bima Bharosa (the insurance regulator's complaint site)", "when": "If the insurer doesn't reply in time, or you disagree with the reply.", "howTo": "Register the complaint online on the Bima Bharosa website.", "link": "https://bimabharosa.irdai.gov.in", "verify": true },
+    { "level": 3, "name": "Insurance Ombudsman (free, independent judge)", "when": "If it is still not solved. There is a time limit after the insurer's final reply – check it first.", "howTo": "File with the Ombudsman office for your area.", "link": "https://www.cioins.co.in", "verify": true }
   ]
 }

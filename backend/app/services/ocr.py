@@ -52,16 +52,18 @@ def ocr_pdf(pdf_bytes: bytes) -> list[dict]:
     return pages
 
 
-def ocr_first_page(pdf_bytes: bytes) -> str:
-    """Text of page 1 only – a cheap way to tell what kind of document this is."""
-    writer = PdfWriter()
-    writer.add_page(PdfReader(BytesIO(pdf_bytes)).pages[0])
-    buf = BytesIO()
-    writer.write(buf)
+def ocr_first_page(data: bytes, mime: str = "application/pdf") -> str:
+    """Text of page 1 only (or of the whole photo) – a cheap way to tell what kind of document this is."""
+    if mime == "application/pdf":
+        writer = PdfWriter()
+        writer.add_page(PdfReader(BytesIO(data)).pages[0])
+        buf = BytesIO()
+        writer.write(buf)
+        data = buf.getvalue()
     result = docai().process_document(
         request=documentai.ProcessRequest(
             name=docai_processor_name(),
-            raw_document=documentai.RawDocument(content=buf.getvalue(), mime_type="application/pdf"),
+            raw_document=documentai.RawDocument(content=data, mime_type=mime),
         )
     )
     return result.document.text

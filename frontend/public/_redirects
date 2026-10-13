@@ -1,0 +1,4 @@
+# Netlify: every page route loads the Angular app (real files such as /mocks and /demo are served first).
+# Live mode: remove the # below and put your Cloud Run URL, so /api calls reach the backend.
+# /api/*  https://YOUR-CLOUD-RUN-URL/api/:splat  200
+/*  /index.html  200

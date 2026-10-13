@@ -10,7 +10,7 @@
       "label": "Room-rent and proportionate deduction",
       "amount": 21600,
       "insurerReason": "Room category exceeds eligibility. Proportionate deduction applied as per policy.",
-      "ourReading": "Kamala stayed in a ₹7,500/day room; the limit is ₹5,000/day, so only two-thirds is eligible. The insurer cut ₹10,000 from room rent and one-third (₹11,600) from nursing and doctor charges. The arithmetic matches the clause.",
+      "ourReading": "Kamala's room cost ₹7,500 a day. Your limit is ₹5,000 a day. So the insurer paid only two-thirds of the room and of the doctor and nursing charges. That is ₹10,000 less for the room and ₹11,600 less for doctors and nurses. The maths matches your policy rule.",
       "trust": "supported",
       "calculation": [
         "Room rent: 4 days × (₹7,500 − ₹5,000) = ₹10,000",
@@ -22,35 +22,35 @@
         { "docId": "policy", "docName": "Policy wording", "page": 11, "clause": "Clause 5.3", "quote": "Where the room category exceeds eligibility, all associated medical expenses shall be payable in the same proportion as the eligible room rent bears to the actual room rent." }
       ],
       "evidence": ["Final bill page 1: \"Deluxe single – ₹7,500 per day × 4 days\""],
-      "questions": ["Was a room within ₹5,000/day available when Kamala was admitted? If not, ask the hospital for a written note and ask the insurer to reconsider."]
+      "questions": ["Was a room within ₹5,000 a day free when Kamala was admitted? If not, get a written note from the hospital and ask the insurer to look again."]
     },
     {
       "id": "d-consumables",
       "label": "Non-payable consumables",
       "amount": 6900,
       "insurerReason": "Non-medical items not payable as per Annexure II.",
-      "ourReading": "Gloves, PPE kit and admission kit (₹6,900 on bill page 4) are on the policy's non-payable list, and this policy has no consumables add-on. This deduction looks consistent with the policy.",
+      "ourReading": "Gloves, PPE kit and admission kit cost ₹6,900 (bill page 4). Your policy never pays for these items, and you don't have the extra cover that would. So this cut follows your policy.",
       "trust": "supported",
       "calculation": ["Bill page 4 consumables: ₹6,900"],
       "citations": [
         { "docId": "policy", "docName": "Policy wording", "page": 38, "clause": "Annexure II", "quote": "List I – Items for which coverage is not available: gloves, PPE kit, admission kit, ..." }
       ],
       "evidence": ["Final bill page 4: \"Gloves, PPE kit, admission kit – ₹6,900\""],
-      "questions": ["Check that no medicine was wrongly grouped under consumables."]
+      "questions": ["Check that no medicine was wrongly counted as gloves or kits."]
     },
     {
       "id": "d-other",
       "label": "Other deductions (no reason given)",
       "amount": 9500,
       "insurerReason": "\"Other deductions\" – no reason or clause stated.",
-      "ourReading": "The settlement letter shows ₹9,500 without a reason or clause. We could not match it to any bill line or policy rule. You can ask the insurer for an itemised explanation.",
+      "ourReading": "The insurer's letter cuts ₹9,500 but gives no reason. We found nothing in your bill or policy that explains it. Ask the insurer to list what it is for.",
       "trust": "unknown",
       "calculation": [],
       "citations": [
-        { "docId": "settlement", "docName": "Settlement letter", "page": 2, "clause": "Deductions table, row 3", "quote": "Other deductions: ₹9,500" }
+        { "docId": "settlement", "docName": "Insurer's payment letter", "page": 2, "clause": "Cuts table, row 3", "quote": "Other deductions: ₹9,500" }
       ],
-      "evidence": ["Settlement letter page 2: \"Other deductions – ₹9,500\" with no remark"],
-      "questions": ["Which bill items make up the ₹9,500?", "Which policy clause supports this deduction?"]
+      "evidence": ["Insurer's payment letter, page 2: \"Other deductions – ₹9,500\" with no reason"],
+      "questions": ["Which items on the bill make up the ₹9,500?", "Which rule in my policy allows this cut?"]
     }
   ]
 }

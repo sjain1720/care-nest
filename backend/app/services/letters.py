@@ -48,7 +48,16 @@ def letter_facts(kind: str, case: dict, policy: dict | None) -> dict:
         points += [f"Enclosed / to follow: {i['name']}" for i in case.get("checklist", []) if i["group"] == "claim" and i["status"] == "collected"]
     elif kind == "grievance":
         subject = f"Grievance regarding Claim {ref}"
-        points.append("I wrote to you on [date of your earlier letter] about this claim and have not received a satisfactory reply.")
+        timeline = case.get("timeline") or []
+        sent = next((e for e in reversed(timeline) if e.get("kind") == "letter_sent"), None)
+        reply = next((e for e in reversed(timeline) if e.get("kind") == "reply"), None)
+        earlier = (f"on {sent['date']}" + (f" (reference {sent['reference']})" if sent.get("reference") else "")) if sent else "on [date of your earlier letter]"
+        if reply:
+            points.append(f"I wrote to you {earlier} about this claim. Your reply dated {reply['date']} does not resolve my concerns.")
+        elif sent:
+            points.append(f"I wrote to you {earlier} about this claim and have not received a reply.")
+        else:
+            points.append("I wrote to you on [date of your earlier letter] about this claim and have not received a satisfactory reply.")
         if s:
             unexplained = [d for d in s.get("deductions", []) if d.get("trust") == "unknown"]
             for d in unexplained:

@@ -1,0 +1,82 @@
+<div class="page">
+  <div class="page-head">
+    <h1>{{ 'The insurer replied' | t }}</h1>
+    <p>{{ 'Paste their email or letter, or upload it as a PDF. We tell you what it means and what to do next.' | t }}</p>
+  </div>
+
+  <app-next-steps [steps]="nextSteps()" />
+
+  @if (latest(); as r) {
+    <section [class]="'card result out-' + meta(r.outcome).tone" id="result" aria-live="polite">
+      <div class="row">
+        <span [class]="'pill tone-' + meta(r.outcome).tone"><mat-icon class="icon-sm">{{ meta(r.outcome).icon }}</mat-icon>{{ meta(r.outcome).label | t }}</span>
+        <span class="muted small">{{ 'Reply of' | t }} {{ r.date | date: 'd MMM y' }}@if (r.reference) { · {{ 'reference' | t }} {{ r.reference }} }</span>
+      </div>
+      @if (r.summary) { <p><app-gloss [text]="r.summary" /></p> }
+      @if (r.newApprovedAmount) {
+        <p class="amount-now">{{ 'They will now pay, in total:' | t }} <strong>{{ r.newApprovedAmount | inr }}</strong></p>
+      }
+      @if (r.quote) {
+        <div class="section-label">{{ 'Their words' | t }}</div>
+        <blockquote class="quote">“{{ r.quote }}”</blockquote>
+      }
+      @if (r.papersAsked?.length) {
+        <div class="section-label">{{ 'Papers they asked for' | t }}</div>
+        <ul>
+          @for (p of r.papersAsked; track p) { <li>{{ p }}</li> }
+        </ul>
+      }
+      @if (r.docUrl) {
+        <p class="small"><a [href]="r.docUrl" target="_blank" rel="noopener">{{ 'Open their letter' | t }}</a></p>
+      }
+      <div class="row" style="margin-top:12px">
+        @if (r.outcome === 'paid_more' || r.outcome === 'explained') {
+          <button mat-flat-button type="button" (click)="close()" [disabled]="saving() || journey.closed()">
+            <mat-icon>task_alt</mat-icon> {{ (journey.closed() ? 'Claim closed' : "I'm happy – close my claim") | t }}
+          </button>
+        }
+        @if (r.outcome === 'asks_for_papers') {
+          <button mat-flat-button class="btn-sky" type="button" (click)="markPapersSent()" [disabled]="saving() || papersSent()">
+            <mat-icon>send</mat-icon> {{ (papersSent() ? 'Papers marked as sent' : "I've sent the papers") | t }}
+          </button>
+        }
+        @if (r.outcome !== 'paid_more' && r.outcome !== 'asks_for_papers') {
+          <a mat-stroked-button class="btn-rose" routerLink="/case/letter" [queryParams]="{ kind: 'grievance' }"><mat-icon>report</mat-icon> {{ 'Make a complaint' | t }}</a>
+        }
+        <button mat-button type="button" (click)="remove(r.id)">{{ 'Remove this reply' | t }}</button>
+      </div>
+    </section>
+  }
+
+  <section class="card" id="add">
+    <h2>{{ (latest() ? 'Got another reply?' : 'Add their reply') | t }}</h2>
+    @if (!sentBefore()) {
+      <p class="muted small">{{ "You haven't marked a letter as sent yet. That's fine – add the reply anyway." | t }}</p>
+    }
+    <label for="reply-text" class="small muted">{{ 'Their email or letter' | t }}@if (!live) { {{ '(a sample is filled in)' | t }} }</label>
+    <textarea id="reply-text" name="reply" [ngModel]="text()" (ngModelChange)="text.set($event)" [disabled]="busy()" maxlength="6000"></textarea>
+    <div class="row" style="margin-top:12px">
+      <button mat-flat-button class="btn-violet" type="button" (click)="read()" [disabled]="busy() || text().trim().length < 20">
+        <mat-icon>auto_awesome</mat-icon> {{ (busy() ? 'Reading…' : 'Read their reply') | t }}
+      </button>
+      <a mat-stroked-button class="btn-sky" routerLink="/upload" [queryParams]="{ type: 'Insurer reply' }"><mat-icon>upload_file</mat-icon> {{ 'Upload a PDF instead' | t }}</a>
+    </div>
+    @if (error()) { <p class="error" role="alert">{{ error() }}</p> }
+    <p class="muted small">{{ 'Did they send a new payment letter with a table of cuts? Upload it as “Settlement letter” instead, so we redo the breakdown of the cuts.' | t }}</p>
+  </section>
+
+  @if (replies().length > 1) {
+    <section class="card">
+      <h2>{{ 'Earlier replies' | t }}</h2>
+      <ul class="earlier">
+        @for (r of replies().slice(1); track r.id) {
+          <li>
+            <span [class]="'pill tone-' + meta(r.outcome).tone">{{ meta(r.outcome).label | t }}</span>
+            <span class="muted small"> {{ r.date | date: 'd MMM y' }}</span>
+            @if (r.summary) { <div class="small">{{ r.summary }}</div> }
+          </li>
+        }
+      </ul>
+    </section>
+  }
+</div>

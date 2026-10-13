@@ -8,6 +8,7 @@ from app.core.config import get_settings
 from app.core.gcp import gemini
 from app.schemas import Citation, LimitFact, Member, PolicyFacts, PolicyFlag, PolicyTrap, WaitingPeriod
 from app.services.grounding import locate_quote
+from app.services.plain_language import STYLE
 from app.services.policy_details import PRODUCT_NOTES
 from app.services.waiting_periods import duration_label, end_date, parse_date
 
@@ -98,7 +99,7 @@ Extract the facts below. Rules:
   one or two short sentences of simple English that a non-expert understands.
 - flags: annexures or pages the document refers to but which are missing; dates that look outdated;
   wording that is unclear or could be read two ways. Explain in simple English.
-- Write all labels and explanations in simple English. No legal jargon."""
+- Write all labels and explanations in simple English. No legal jargon.""" + STYLE
 
 
 def extract_policy_facts(pages: list[dict]) -> PolicyExtraction:
