@@ -1,13 +1,22 @@
 from fastapi import APIRouter, Response
 
-from app.services import case_store, policy_store
+from app.core.session import COOKIE, expiry, session_id
+from app.services import policy_store
+from app.services.data_lifecycle import delete_guest
 
 router = APIRouter(tags=["session"])
 
 
+@router.get("/session")
+def get_session():
+    state = policy_store.get_active_policy()
+    return {"expiresAt": expiry().isoformat(), "mode": "live_demo" if state and state[1].get("isDemoTemplate") else "guest"}
+
+
 @router.delete("/session", status_code=204)
 def delete_my_data():
-    """Deletes this guest's claim, uploaded claim files, active policy choice and typed-in policy details."""
-    case_store.delete_case()
-    policy_store.delete_session_state()
-    return Response(status_code=204)
+    """Revokes the identity and deletes owned files, policy subcollections and claims."""
+    delete_guest(session_id())
+    response = Response(status_code=204)
+    response.delete_cookie(COOKIE, path="/", httponly=True, samesite="lax")
+    return response

@@ -5,10 +5,17 @@
   </div>
 
   <section class="card">
+    <h2>Try the real AI workflow</h2>
+    <p>The mock preview uses prepared JSON. This button processes fictional policy, bill and settlement documents through Google AI in your guest session. It replaces the selected policy and merges the sample claim documents into the current claim; start with an empty guest session for a clean demo.</p>
+    <button mat-flat-button type="button" (click)="loadLiveDemo()" [disabled]="demoLoading()">{{ demoLoading() ? 'Processing sample documents…' : 'Load fictional documents with live AI' }}</button>
+    @if (actionError()) { <p role="alert" class="error">{{ actionError() }}</p> }
+  </section>
+
+  <section class="card">
     <h2>{{ 'Which parts use your own documents' | t }}</h2>
     <div class="row quick">
       <button mat-stroked-button class="btn-teal" type="button" (click)="useAll(true)">{{ 'Use my own documents everywhere' | t }}</button>
-      <button mat-stroked-button class="btn-sky" type="button" (click)="useAll(false)">{{ 'Use the sample claim everywhere' | t }}</button>
+      <button mat-stroked-button class="btn-sky" type="button" (click)="useAll(false)">{{ 'Use the mock preview everywhere' | t }}</button>
     </div>
     <p class="muted small">{{ 'Or choose part by part. Ticked parts use your own documents on the live service; the rest show the sample claim. Saved in this browser only.' | t }}</p>
     @for (f of features; track f.id) {
@@ -54,3 +61,9 @@
     }
   </section>
 </div>
+
+<section class="page card">
+  <h2>Guest data</h2>
+  <p>Access expires seven days after the session starts. Expired data is removed by a daily cleanup job; completion may take up to an additional day. This browser cookie is needed to recover your session. Deleting removes this guest’s policies, claim files and extracted records; shared fictional templates remain.</p>
+  <button mat-stroked-button type="button" (click)="deleteGuestData()" [disabled]="deleting()">{{ deleting() ? 'Deleting…' : 'Delete my guest documents and start again' }}</button>
+</section>

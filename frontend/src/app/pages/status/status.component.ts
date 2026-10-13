@@ -3,7 +3,7 @@ import { HttpClient } from '@angular/common/http';
 import { KeyValuePipe } from '@angular/common';
 import { MatButtonModule } from '@angular/material/button';
 import { TranslatePipe } from '../../shared/translate.pipe';
-import { FEATURES, Feature, isLive, saveLiveFeatures, setAllLive } from '../../services/api.service';
+import { ApiService, FEATURES, Feature, isLive, saveLiveFeatures, setAllLive } from '../../services/api.service';
 
 interface Check {
   ok: boolean;
@@ -37,6 +37,26 @@ interface DiagResponse {
 })
 export class StatusComponent {
   private http = inject(HttpClient);
+  private api = inject(ApiService);
+  demoLoading = signal(false);
+  actionError = signal<string | null>(null);
+  deleting = signal(false);
+  loadLiveDemo(): void {
+    this.demoLoading.set(true);
+    this.actionError.set(null);
+    this.api.loadDemoCase().subscribe({
+      next: () => { setAllLive(true); location.assign('/'); },
+      error: (e) => { this.demoLoading.set(false); this.actionError.set(e?.error?.detail || 'Live demo failed. Please retry.'); },
+    });
+  }
+  deleteGuestData(): void {
+    this.deleting.set(true);
+    this.actionError.set(null);
+    this.http.delete('/api/session').subscribe({
+      next: () => { setAllLive(true); location.assign('/'); },
+      error: () => { this.deleting.set(false); this.actionError.set('Deletion failed. Please retry.'); },
+    });
+  }
 
   readonly features = FEATURES;
   live = signal<Set<Feature>>(new Set(FEATURES.filter((f) => isLive(f.id)).map((f) => f.id)));

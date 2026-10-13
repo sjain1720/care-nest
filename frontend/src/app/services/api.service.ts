@@ -128,6 +128,8 @@ export class ApiService {
   private settings = inject(SettingsService);
 
   // Live mode: null means "not uploaded yet" (404).
+  private sessionInfo = resource(this.http.get<{ expiresAt: string; mode: 'guest' | 'live_demo' }>('/api/session'));
+  getSessionInfo() { return this.sessionInfo.stream; }
   private policy = resource(this.loadPolicy());
   private claim = resource(this.loadCase());
   private bill = resource(this.loadBill());
@@ -135,7 +137,7 @@ export class ApiService {
   private claims = resource(this.loadClaims());
 
   getPolicy(): Observable<PolicyFacts | null> { return this.policy.stream; }
-  refreshPolicy(): void { this.policy.set(this.loadPolicy()); }
+  refreshPolicy(): void { this.policy.set(this.loadPolicy()); this.sessionInfo.set(this.http.get<{ expiresAt: string; mode: 'guest' | 'live_demo' }>('/api/session')); }
 
   /** Every claim: the current one first, then earlier ones, newest first. */
   getClaims(): Observable<ClaimSummary[] | null> { return this.claims.stream; }

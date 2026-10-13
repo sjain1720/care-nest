@@ -11,6 +11,12 @@ from app.services.general_qa import GeneralOut
 
 
 class MergeIntegrationTests(unittest.TestCase):
+    def setUp(self):
+        from app.core.session import new_session_id, expiry
+        patcher = patch("app.core.session_middleware.resolve_session", side_effect=lambda _: (new_session_id(), expiry()))
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
     def test_json_and_streaming_routes_accept_language(self):
         with TestClient(app) as client:
             for path in ("/api/copilot/ask", "/api/copilot/ask/stream"):

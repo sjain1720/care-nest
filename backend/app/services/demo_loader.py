@@ -3,7 +3,7 @@ without their own documents. Files that were already processed are reused, so re
 from pathlib import Path
 
 from app.services import policy_store
-from app.services.policy_ingest import process_upload
+from app.services.policy_ingest import process_upload, ingest_policy
 
 _APP = Path(__file__).resolve().parents[1]
 # Container: the Angular build copies public/demo into static/demo. Local/Cloud Shell: the repo's demo-data folder.
@@ -30,7 +30,8 @@ def load_demo_case() -> list[dict]:
     folder = _demo_dir()
     results = []
     for name, doc_type in _FILES:
-        r = process_upload((folder / name).read_bytes(), name, doc_type)
+        data = (folder / name).read_bytes()
+        r = ingest_policy(data, name, shared_demo=True) if doc_type == "Policy document" else process_upload(data, name, doc_type)
         if doc_type == "Policy document" and r.policyId:
             policy_store.save_session_details(DEMO_DETAILS)
         results.append({"file": name, "type": r.detectedType, "pages": r.pages, "reused": r.reused, "message": r.message})
