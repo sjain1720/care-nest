@@ -2,6 +2,7 @@ from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 from fastapi.responses import Response
 from google.api_core.exceptions import GoogleAPIError
 from google.genai import errors as genai_errors
+from pypdf.errors import PdfReadError
 
 from app.schemas import PolicyDetailsInput, PolicyFacts, UploadResult
 from app.services import policy_store as store
@@ -31,6 +32,8 @@ def upload_document(file: UploadFile = File(...), docType: str = Form("auto")):
         return process_upload(data, file.filename or "document", docType, mime)
     except (PdfTooLongError, UnsupportedFileError) as exc:
         raise HTTPException(422, str(exc)) from exc
+    except (PdfReadError, IndexError) as exc:
+        raise HTTPException(422, "This PDF is empty, encrypted or unreadable. Upload an unlocked, readable PDF.") from exc
     except _GOOGLE_ERRORS as exc:
         raise HTTPException(502, f"A Google service failed while reading the file: {exc.__class__.__name__}") from exc
 

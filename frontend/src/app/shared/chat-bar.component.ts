@@ -28,7 +28,7 @@ const PLACEHOLDER_TOPICS = ['health policy', 'bill claim preparations', 'explain
           <span class="avatar" aria-hidden="true"><mat-icon>auto_awesome</mat-icon></span>
           <div class="titles">
             <h2 id="chat-title">{{ 'Nessi' | t }}</h2>
-            <span [class]="'state ' + (!chat.live ? 'demo' : chat.reachable() ? 'on' : 'off')">{{ (!chat.live ? 'Demo: answers from the sample claim' : chat.reachable() ? 'Answers come from your own papers' : "Can't reach CareNest right now") | t }}</span>
+            <span [class]="'state ' + (!chat.live ? 'demo' : chat.reachable() ? 'on' : 'off')">{{ (!chat.live ? 'Demo: answers from the sample claim' : chat.reachable() ? 'General guidance or answers from your selected documents' : "Can't reach CareNest right now") | t }}</span>
           </div>
           @if (chat.messages().length) {
             <button mat-icon-button type="button" (click)="chat.clear()" aria-label="Start a new chat" title="New chat"><mat-icon>add_comment</mat-icon></button>

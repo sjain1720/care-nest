@@ -40,6 +40,9 @@ function policyYear(start: string | undefined, today: string): { from: string; t
           </span>
         </div>
       </div>
+      @if (!demo) {
+        <p class="muted small">Insufficient claim history to determine current insurer balance. Any estimate below uses only the claims recorded here.</p>
+      }
       @if (estimate(); as e) {
         <div class="cov-main">
           <strong class="cov-left">{{ e.remaining | inr }}</strong>
@@ -127,7 +130,7 @@ export class CoverageEstimateComponent {
     const claims: ClaimSummary[] = this.claims() ?? [];
     const year = policyYear(p.startDate, todayIso());
     const inYear = (c: ClaimSummary) => !year || !c.date || (c.date >= year.from && c.date <= year.to);
-    const counted = claims.filter((c) => !!c.approvedAmount && inYear(c));
+    const counted = claims.filter((c) => ['paid', 'part_paid'].includes(c.status) && !!c.approvedAmount && inYear(c));
     const used = Math.min(counted.reduce((sum, c) => sum + (c.approvedAmount ?? 0), 0), p.sumInsured);
     const remaining = p.sumInsured - used;
     return {
