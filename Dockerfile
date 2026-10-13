@@ -15,8 +15,8 @@ WORKDIR /app
 ENV PYTHONDONTWRITEBYTECODE=1 \
     PYTHONUNBUFFERED=1
 
-COPY backend/requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+COPY backend/requirements.txt backend/constraints.txt ./
+RUN pip install --no-cache-dir -c constraints.txt -r requirements.txt
 
 COPY backend/app/ ./app/
 COPY --from=frontend-builder /build/dist/frontend/browser/ ./static/

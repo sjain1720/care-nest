@@ -8,7 +8,7 @@ from google import genai
 from google.genai import types
 
 from app.core.config import get_settings
-from app.core.gcp import bucket
+from app.core.gcp import bucket, gemini
 
 BASE_MODEL = "gemini-3.1-flash-lite"
 
@@ -16,7 +16,7 @@ BASE_MODEL = "gemini-3.1-flash-lite"
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("dataset", type=Path)
-    parser.add_argument("--region", default="global")
+    parser.add_argument("--region", default="us-central1")
     parser.add_argument("--submit", action="store_true")
     args = parser.parse_args()
     settings = get_settings()
@@ -51,7 +51,7 @@ def main():
         raise ValueError("Need at least 100 training examples and separate validation/test records")
     # Counting serialized records intentionally includes JSON overhead, giving a conservative estimate.
     payload = "\n".join(json.dumps(row, ensure_ascii=False) for row in data["train"])
-    token_count = client.models.count_tokens(model=BASE_MODEL, contents=payload).total_tokens
+    token_count = sum(gemini().models.count_tokens(model=BASE_MODEL, contents="\n".join(json.dumps(r, ensure_ascii=False) for r in data["train"][i:i+10])).total_tokens for i in range(0, len(data["train"]), 10))
     estimate = token_count * 0.003 / 1000  # Current standard SFT USD rate, one epoch.
     estimate_report = {"baseModel": BASE_MODEL, "region": args.region, "epochCount": 1,
                        "counts": {k: len(v) for k, v in data.items()}, "countedTokensWithJsonOverhead": token_count,
@@ -75,7 +75,7 @@ def main():
         base_model=BASE_MODEL, training_dataset=types.TuningDataset(gcs_uri=uris["train"]),
         config=types.CreateTuningJobConfig(tuned_model_display_name=f"carenest-policy-evidence-{digest}",
                                           epoch_count=1, export_last_checkpoint_only=True,
-                                          validation_dataset=types.TuningDataset(gcs_uri=uris["validation"])))
+                                          validation_dataset=types.TuningValidationDataset(gcs_uri=uris["validation"])))
     saved_job.write_text(job.model_dump_json(indent=2))
     print(job.name, job.state, flush=True)
 

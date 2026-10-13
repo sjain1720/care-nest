@@ -51,7 +51,10 @@ def main():
             request(b, 'GET', '/api/policy', expected=404)
             room = request(a, 'POST', '/api/copilot/ask', json={'question': 'What is my room-rent limit?'}).json()['answer']
             check('policy answer has source page', bool(room['citations']) and any(c['page'] == 7 for c in room['citations']))
+            coverage = request(a, 'GET', '/api/coverage').json()
+            check('backend coverage uses recorded settlement', coverage['used'] == 208000 and coverage['remaining'] == 292000)
             if args.bill_image:
+                request(a, 'POST', '/api/claims/new', json={})
                 with args.bill_image.open('rb') as source:
                     request(a, 'POST', '/api/documents', files={'file': ('synthetic-release-bill.png', source, 'image/png')}, data={'docType': 'Hospital bill'})
                 extracted = request(a, 'GET', '/api/case/bill').json()
@@ -59,6 +62,10 @@ def main():
                 reviewed = request(a, 'PUT', '/api/case/bill', json={
                     'statedTotal': 17250, 'items': extracted['items']}).json()
                 check('review recomputes bill', reviewed['reviewed'] and reviewed['total'] == 17250)
+                evidence = request(a, 'POST', '/api/case/bill/evidence').json()
+                check('bill rows have mapped source evidence', len(evidence['rows']) == len(reviewed['items']) and any(r['citations'] for r in evidence['rows']))
+                coverage = request(a, 'GET', '/api/coverage').json()
+                check('draft bill does not reduce coverage', coverage['used'] == 208000 and coverage['pending'])
             letter = request(a, 'GET', '/api/case/letter?kind=cover_letter').json()
             check('editable draft produced', bool(letter['body']) and bool(letter['evidenceIndex']))
             claim = request(a, 'GET', '/api/case').json()

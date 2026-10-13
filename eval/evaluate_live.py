@@ -19,13 +19,16 @@ def main():
         report = json.loads(args.output.read_text())
         if report["model"] != args.model or report["url"] != args.url:
             raise ValueError("Report belongs to a different deployment")
+    session = requests.Session()
+    loaded = session.post(args.url.rstrip('/') + '/api/demo/load', timeout=300)
+    loaded.raise_for_status()
     completed = {row["question"] for row in report["cases"]}
     for case in golden:
         if case["question"] in completed:
             continue
         for attempt in range(3):
             try:
-                response = requests.post(args.url.rstrip("/") + "/api/copilot/ask",
+                response = session.post(args.url.rstrip("/") + "/api/copilot/ask",
                                          json={"question": case["question"]}, timeout=150)
                 response.raise_for_status()
                 answer = response.json()["answer"]
@@ -45,6 +48,7 @@ def main():
     report.update({"completed": True, "verdictPass": sum(r["verdictOk"] for r in report["cases"]),
                    "citationPass": sum(r["citationOk"] for r in report["cases"]), "total": len(golden)})
     args.output.write_text(json.dumps(report, indent=2))
+    session.delete(args.url.rstrip("/") + "/api/session", timeout=60).raise_for_status()
     print({k: v for k, v in report.items() if k != "cases"})
 
 

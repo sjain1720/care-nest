@@ -148,6 +148,7 @@ export interface BillEstimate {
 }
 
 export interface Bill {
+  policyAnalysis?: BillPolicyAnalysis;
   hospital: string;
   billNumber: string;
   billDate: string;
@@ -379,4 +380,12 @@ export interface CoverageEstimate {
   counted: { id: string; title: string; date: string; approvedAmount: number | null }[];
   excluded: { id: string; reason: string }[];
   pending: boolean; floater: boolean; demo: boolean; historyComplete: boolean; warnings: string[];
+}
+
+export interface BillPolicyRow {
+  id: string; description: string; billPage: number; amount: number; assessment: 'related_clause' | 'needs_checking';
+  explanation: string; citations: Citation[]; missingInformation: string[];
+}
+export interface BillPolicyAnalysis {
+  policyId: string; fingerprint: string; rows: BillPolicyRow[]; omittedRows: number; limitations: string[];
 }

@@ -116,7 +116,7 @@ class TwoVisitorTests(unittest.TestCase):
         claims.assert_called_once()
         state.assert_called_once()
         blob.delete.assert_called_once()
-        database.recursive_delete.assert_called_once_with(private.reference)
+        database.recursive_delete.assert_any_call(private.reference)
 
     def test_delete_endpoint_expires_cookie_without_middleware_restoring_it(self):
         sid = session.new_session_id()

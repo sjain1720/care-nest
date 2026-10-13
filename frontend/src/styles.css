@@ -182,8 +182,8 @@ html[data-theme="dark"] {
   --cn-search-send-ink: #04130f;
   --cn-search-send-hover: #d6e6e0;
   /* Outlined buttons without a colour class are white on the black page */
-  --mdc-outlined-button-outline-color: rgba(255, 255, 255, .6);
-  --mdc-outlined-button-label-text-color: #ffffff;
+  --mat-button-outlined-outline-color: rgba(255, 255, 255, .6);
+  --mat-button-outlined-label-text-color: #ffffff;
   --cn-brand-grad: linear-gradient(90deg, #34d399 0%, #5eead4 100%);
   --cn-hero-bg: radial-gradient(55% 80% at 85% 20%, rgba(52, 211, 153, .1), transparent 60%), linear-gradient(180deg, #0a0f0e 0%, #000000 100%);
   --cn-quote-bg: #2e270a;
@@ -261,8 +261,8 @@ html { font-size: calc(var(--cn-text-scale, 1) * 100%); }
 /* Phones: slightly smaller base text (15px; the text-size setting still scales it). Labels stay at 11px or more. */
 @media (max-width: 599px) {
   html { font-size: calc(var(--cn-text-scale, 1) * 93.75%); }
-  :root { --mdc-filled-button-container-height: 36px; --mdc-outlined-button-container-height: 36px; --mdc-text-button-container-height: 36px;
-          --mat-filled-button-horizontal-padding: 16px; --mat-outlined-button-horizontal-padding: 14px; }
+  :root { --mat-button-filled-container-height: 36px; --mat-button-outlined-container-height: 36px; --mat-button-text-container-height: 36px;
+          --mat-button-filled-horizontal-padding: 16px; --mat-button-outlined-horizontal-padding: 14px; }
 }
 body {
   margin: 0;
@@ -331,11 +331,11 @@ table.data tbody tr { transition: background .15s; }
 .btn-teal { --cn-btn: var(--cn-c1-ink); }
 .btn-ink { --cn-btn: var(--cn-strong); }
 :is(.btn-sky, .btn-amber, .btn-violet, .btn-rose, .btn-teal, .btn-ink) {
-  --mdc-filled-button-container-color: var(--cn-btn);
-  --mdc-filled-button-label-text-color: var(--cn-on-accent);
-  --mdc-outlined-button-label-text-color: var(--cn-btn);
-  --mdc-outlined-button-outline-color: color-mix(in srgb, var(--cn-btn) 60%, transparent);
-  --mdc-text-button-label-text-color: var(--cn-btn);
+  --mat-button-filled-container-color: var(--cn-btn);
+  --mat-button-filled-label-text-color: var(--cn-on-accent);
+  --mat-button-outlined-label-text-color: var(--cn-btn);
+  --mat-button-outlined-outline-color: color-mix(in srgb, var(--cn-btn) 60%, transparent);
+  --mat-button-text-label-text-color: var(--cn-btn);
 }
 :is(.btn-sky, .btn-amber, .btn-violet, .btn-rose, .btn-teal, .btn-ink):not(:disabled):hover {
   box-shadow: 0 0 0 1px color-mix(in srgb, var(--cn-btn) 50%, transparent), 0 6px 18px color-mix(in srgb, var(--cn-btn) 30%, transparent);

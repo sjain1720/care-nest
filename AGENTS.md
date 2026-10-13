@@ -1,6 +1,6 @@
 # Working in CareNest
 
-CareNest is an Angular 19 + FastAPI hackathon monolith. Start with
+CareNest is an Angular 20 + FastAPI hackathon monolith. Start with
 `docs/REPO_MAP.md`, then read only the files for the requested feature.
 `docs/DEVELOPMENT_QUEUE.md` records verified progress and ordered remaining work.
 Historical planning documents describe proposals, not proof of implementation.

@@ -195,7 +195,7 @@ const PLACEHOLDER_TOPICS = ['health policy', 'bill claim preparations', 'explain
       .sheet-head { padding: 6px 4px 6px 10px; gap: 2px; }
       .avatar { width: 32px; height: 32px; }
       .titles h2 { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-      .sheet-head .mat-mdc-icon-button { width: 40px; height: 40px; padding: 8px; --mdc-icon-button-state-layer-size: 40px; }
+      .sheet-head .mat-mdc-icon-button { width: 40px; height: 40px; padding: 8px; --mat-icon-button-state-layer-size: 40px; }
       .sheet-body { padding: 12px 10px; }
       .opt-label { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; line-height: 1.3; }
       .opt-icon { margin-right: 0 !important; }

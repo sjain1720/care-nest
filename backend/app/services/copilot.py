@@ -15,6 +15,7 @@ from app.services.intents import keyword_about, keyword_intent
 from app.services.policy_qa import answer_question
 from app.services.steps import StepLog
 from app.services.coverage import coverage_answer
+from app.services import policy_store
 
 log = logging.getLogger(__name__)
 
@@ -44,7 +45,7 @@ def route(question: str) -> tuple[str, str, str]:
     try:
         response = gemini().models.generate_content(
             model=get_settings().gemini_model,
-            contents=[ROUTER_PROMPT, question],
+            contents=[ROUTER_PROMPT + ("\nThe visitor has selected a policy. Treat benefit, limit and coverage questions as mine unless explicitly general (definitions, usually, in general)." if policy_store.get_active_policy_id() else ""), question],
             config=types.GenerateContentConfig(response_mime_type="application/json", response_schema=Route, temperature=0),
         )
         parsed = response.parsed if isinstance(response.parsed, Route) else Route.model_validate_json(response.text)
@@ -58,15 +59,19 @@ def answer(question: str, on_step: Callable[[AgentStep], None] | None = None, la
     """on_step is called as each step happens, so the API can stream progress."""
     log = StepLog(on_step)
     log.add("Claim Copilot", "Understanding your question")
-    if re.search(r"\b(remaining (cover|coverage|sum insured)|(?:cover|coverage) (?:is )?(?:left|remaining)|how much (?:cover|coverage).*left|my (?:insurance )?balance)\b|कितन[ाी].*कवर.*बचा|बीमा.*शेष", question, re.I):
-        log.add('Verifier', 'Calculating from the selected policy and linked recorded payments')
-        return AskResponse(steps=log.steps, answer=coverage_answer(language))
     if re.search(r"\bdefinitely\b.{0,30}\b(approved|paid|covered)\b|\bguarantee\w*\b.{0,30}\b(claim|approval|payout)\b", question, re.I):
         log.add("Verifier", "An insurer decision is required to confirm approval or payment")
         return AskResponse(steps=log.steps, answer=AnswerCard(
             verdict="cant_confirm", headline="Only your insurer can confirm approval",
             summary="I can explain the terms and evidence in your documents, but cannot guarantee that a claim will be approved or paid.",
             citations=[], toConfirm=["Ask your insurer for its written decision."], nextAction=None))
+    if re.search(r"\b(remaining (cover|coverage|sum insured)|(?:cover|coverage) (?:is )?(?:left|remaining)|how much (?:cover|coverage).*left|my (?:insurance )?balance)\b|कितन[ाी].*कवर.*बचा|बीमा.*शेष", question, re.I):
+        log.add('Verifier', 'Calculating from the selected policy and linked recorded payments')
+        return AskResponse(steps=log.steps, answer=coverage_answer(language))
+    if re.search(r"should I (?:take|stop|start).*(?:antibiotic|medicine|medication)|(?:what|which).*dosage", question, re.I):
+        return AskResponse(steps=log.steps, answer=AnswerCard(verdict='cant_confirm',
+            headline='Ask your treating clinician', summary='I can explain insurance documents, but cannot recommend medicines or doses.',
+            citations=[], toConfirm=['Ask your treating clinician about medicines and recovery.'], nextAction=None))
     intent, about, how = route(question)
     log.add("Claim Copilot", f"Passing your question to the {_NAMES[intent]}" + (" (keyword match)" if how == "keywords" else ""))
     if intent in ("policy", "cashless_query"):

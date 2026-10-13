@@ -20,6 +20,7 @@ def delete_guest(sid: str) -> None:
             for blob in bucket().list_blobs(prefix=f"policies/{policy.id}/"):
                 blob.delete()
             db().recursive_delete(policy.reference)
+        db().recursive_delete(db().collection("conversations").document(sid))
         policy_store.delete_session_state()
         db().collection("guestSessions").document(sid).delete()
     finally:
