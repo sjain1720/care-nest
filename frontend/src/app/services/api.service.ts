@@ -1,10 +1,10 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable, BehaviorSubject, catchError, concat, concatMap, delay, from, map, of, shareReplay, switchMap, tap } from 'rxjs';
+import { Observable, BehaviorSubject, catchError, combineLatest, concat, concatMap, delay, from, map, of, shareReplay, switchMap, tap } from 'rxjs';
 import { postEventStream } from './sse';
 import { SettingsService } from './settings.service';
 import {
-  AgentStep, AnswerCard, AskEvent, Bill, BillItem, BillReview, ChecklistStatus, ClaimCase, ClaimStatus, ClaimSummary, LetterDraft, LetterKind,
+  CoverageEstimate, AgentStep, AnswerCard, AskEvent, Bill, BillItem, BillReview, ChecklistStatus, ClaimCase, ClaimStatus, ClaimSummary, LetterDraft, LetterKind,
   MockQa, MockQuery, PastClaimInput, PolicyDetailsInput, PolicyFacts, QueryEvent, QueryHelp, Settlement, TimelineEvent, TimelineEventInput, UploadEvent,
 } from '../models/models';
 import { diaryStage, guessReply, sortedTimeline, todayIso } from '../shared/claim-diary';
@@ -135,6 +135,19 @@ export class ApiService {
   private bill = resource(this.loadBill());
   private settlement = resource(this.loadOptional<Settlement>('settlement', 'settlement.json', '/api/case/settlement'));
   private claims = resource(this.loadClaims());
+
+  getCoverage(): Observable<CoverageEstimate | null> {
+    return combineLatest([this.policy.stream, this.claims.stream]).pipe(
+      switchMap(([policy, claims]) => {
+        if (isLive('policy') && isLive('case')) return this.http.get<CoverageEstimate>('/api/coverage');
+        if (isLive('policy') || isLive('case') || !policy) return of(null);
+        return this.http.post<CoverageEstimate>('/api/coverage/preview', {
+          policy, claims: (claims ?? []).map((c) => ({ ...c, policyId: policy.policyId })),
+        });
+      }),
+      catchError(() => of(null)),
+    );
+  }
 
   getPolicy(): Observable<PolicyFacts | null> { return this.policy.stream; }
   refreshPolicy(): void { this.policy.set(this.loadPolicy()); this.sessionInfo.set(this.http.get<{ expiresAt: string; mode: 'guest' | 'live_demo' }>('/api/session')); }

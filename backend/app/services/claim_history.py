@@ -39,6 +39,7 @@ def summarize_case(case_doc: dict, claim_id: str) -> dict:
     return {
         "id": claim_id,
         "source": "carenest",
+        "policyId": case_doc.get("policyId"),
         "title": header.get("title") or header.get("diagnosis") or "Hospital claim",
         "patient": header.get("patientName") or "",
         "hospital": bill.get("hospital") or "",
@@ -58,6 +59,7 @@ def manual_claim(entry: dict, claim_id: str) -> dict:
     return {
         "id": claim_id,
         "source": "manual",
+        "policyId": entry.get("policyId"),
         "title": entry.get("title") or "Hospital claim",
         "patient": entry.get("patient") or "",
         "hospital": entry.get("hospital") or "",

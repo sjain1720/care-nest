@@ -14,6 +14,7 @@ from app.services.case_qa import answer_case_question
 from app.services.intents import keyword_about, keyword_intent
 from app.services.policy_qa import answer_question
 from app.services.steps import StepLog
+from app.services.coverage import coverage_answer
 
 log = logging.getLogger(__name__)
 
@@ -57,6 +58,9 @@ def answer(question: str, on_step: Callable[[AgentStep], None] | None = None, la
     """on_step is called as each step happens, so the API can stream progress."""
     log = StepLog(on_step)
     log.add("Claim Copilot", "Understanding your question")
+    if re.search(r"\b(remaining (cover|coverage|sum insured)|(?:cover|coverage) (?:is )?(?:left|remaining)|how much (?:cover|coverage).*left|my (?:insurance )?balance)\b|कितन[ाी].*कवर.*बचा|बीमा.*शेष", question, re.I):
+        log.add('Verifier', 'Calculating from the selected policy and linked recorded payments')
+        return AskResponse(steps=log.steps, answer=coverage_answer(language))
     if re.search(r"\bdefinitely\b.{0,30}\b(approved|paid|covered)\b|\bguarantee\w*\b.{0,30}\b(claim|approval|payout)\b", question, re.I):
         log.add("Verifier", "An insurer decision is required to confirm approval or payment")
         return AskResponse(steps=log.steps, answer=AnswerCard(

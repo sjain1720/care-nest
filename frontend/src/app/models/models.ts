@@ -272,6 +272,7 @@ export type ClaimStatus = 'in_progress' | 'paid' | 'part_paid' | 'refused';
 
 /** One line in the list of claims (GET /api/claims), newest first after the current claim. */
 export interface ClaimSummary {
+  policyId?: string | null;
   id: string;
   /** 'carenest' = kept here with its files and can be opened again; 'manual' = typed in from a past payment letter. */
   source: 'carenest' | 'manual';
@@ -367,4 +368,15 @@ export interface MockQa {
   keywords: string[];
   steps: AgentStep[];
   answer: AnswerCard;
+}
+
+export interface CoverageEstimate {
+  status: 'missing_policy' | 'missing_sum_insured' | 'missing_start_date' | 'not_started' | 'unsupported_product' | 'recorded_only';
+  policyId: string | null;
+  asOf: string;
+  year: { from: string; to: string } | null;
+  sumInsured: number | null; used: number | null; remaining: number | null; pct: number | null;
+  counted: { id: string; title: string; date: string; approvedAmount: number | null }[];
+  excluded: { id: string; reason: string }[];
+  pending: boolean; floater: boolean; demo: boolean; historyComplete: boolean; warnings: string[];
 }

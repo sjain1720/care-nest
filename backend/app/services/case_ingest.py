@@ -8,6 +8,7 @@ from pypdf import PdfReader
 from app.schemas import UploadResult
 from app.services import case_store, policy_store
 from app.services.bill_checks import analyse_bill
+from app.services.claim_history import has_content
 from app.services.bill_review import apply_review, extraction_from_bill
 from app.services.deduction_explainer import explain_deductions
 from app.services.doc_extract import extract_bill, extract_settlement
@@ -40,6 +41,9 @@ def process_case_document(data: bytes, filename: str, doc_type: str, mime: str =
     if seen and (has_result is None or case.get(has_result)):
         return UploadResult(detectedType=seen["type"], pages=pages, reused=True, message="Already analysed – showing the earlier result.")
 
+    active_policy_id = policy_store.get_active_policy_id()
+    if not has_content(case) and not case.get("policyId") and active_policy_id:
+        case_store.update_case({"policyId": active_policy_id})
     case_store.save_file(doc_id, data, mime)
     message = None
 

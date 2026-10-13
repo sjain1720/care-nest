@@ -193,3 +193,53 @@ class UploadResult(BaseModel):
     policyId: str | None = None
     reused: bool = False
     message: str | None = None
+
+
+class CoverageClaim(BaseModel):
+    id: str
+    title: str = ''
+    date: str = ''
+    approvedAmount: float | None = None
+
+
+class CoverageExcluded(BaseModel):
+    id: str
+    reason: str
+
+
+class CoverageYear(BaseModel):
+    from_: str = Field(alias='from')
+    to: str
+
+
+class CoverageEstimate(BaseModel):
+    status: Literal['missing_policy', 'missing_sum_insured', 'missing_start_date', 'not_started', 'unsupported_product', 'recorded_only']
+    policyId: str | None
+    asOf: str
+    year: CoverageYear | None
+    sumInsured: float | None
+    used: float | None
+    remaining: float | None
+    pct: int | None
+    counted: list[CoverageClaim]
+    excluded: list[CoverageExcluded]
+    pending: bool
+    floater: bool
+    demo: bool
+    historyComplete: bool
+    warnings: list[str]
+
+
+class PreviewClaim(BaseModel):
+    id: str = Field(max_length=100)
+    title: str = Field(default='', max_length=200)
+    policyId: str | None = Field(default=None, max_length=100)
+    date: str = Field(default='', max_length=10)
+    approvedAmount: float | None = Field(default=None, ge=0, le=100_000_000, allow_inf_nan=False)
+    status: Literal['paid', 'part_paid', 'refused', 'in_progress']
+    claimNumber: str = Field(default='', max_length=100)
+
+
+class CoveragePreviewInput(BaseModel):
+    policy: PolicyFacts
+    claims: list[PreviewClaim] = Field(max_length=200)
