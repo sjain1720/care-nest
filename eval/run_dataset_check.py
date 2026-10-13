@@ -10,6 +10,8 @@ import uuid
 from pathlib import Path
 
 UNVERIFIED = "We couldn't find the exact wording"
+# Keeps the guest-session cookie, so the policy read back is the one just uploaded.
+_OPENER = urllib.request.build_opener(urllib.request.HTTPCookieProcessor())
 
 
 def upload(base_url: str, pdf: Path) -> dict:
@@ -18,12 +20,12 @@ def upload(base_url: str, pdf: Path) -> dict:
             f"Content-Type: application/pdf\r\n\r\n").encode() + pdf.read_bytes() + f"\r\n--{boundary}--\r\n".encode()
     req = urllib.request.Request(f"{base_url}/api/documents", data=body, method="POST",
                                  headers={"Content-Type": f"multipart/form-data; boundary={boundary}"})
-    with urllib.request.urlopen(req, timeout=600) as resp:
+    with _OPENER.open(req, timeout=600) as resp:
         return json.load(resp)
 
 
 def get_policy(base_url: str) -> dict:
-    with urllib.request.urlopen(f"{base_url}/api/policy", timeout=60) as resp:
+    with _OPENER.open(f"{base_url}/api/policy", timeout=60) as resp:
         return json.load(resp)
 
 

@@ -10,6 +10,9 @@ import urllib.request
 import uuid
 from pathlib import Path
 
+# Keeps the guest-session cookie, so the bill read back is the one just uploaded.
+_OPENER = urllib.request.build_opener(urllib.request.HTTPCookieProcessor())
+
 
 def upload(base_url: str, pdf: Path) -> dict:
     boundary = uuid.uuid4().hex
@@ -18,12 +21,12 @@ def upload(base_url: str, pdf: Path) -> dict:
             f"Content-Type: application/pdf\r\n\r\n").encode() + pdf.read_bytes() + f"\r\n--{boundary}--\r\n".encode()
     req = urllib.request.Request(f"{base_url}/api/documents", data=body, method="POST",
                                  headers={"Content-Type": f"multipart/form-data; boundary={boundary}"})
-    with urllib.request.urlopen(req, timeout=600) as resp:
+    with _OPENER.open(req, timeout=600) as resp:
         return json.load(resp)
 
 
 def get_bill(base_url: str) -> dict:
-    with urllib.request.urlopen(f"{base_url}/api/case/bill", timeout=60) as resp:
+    with _OPENER.open(f"{base_url}/api/case/bill", timeout=60) as resp:
         return json.load(resp)
 
 

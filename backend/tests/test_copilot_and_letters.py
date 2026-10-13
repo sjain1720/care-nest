@@ -85,7 +85,7 @@ class LetterTests(unittest.TestCase):
 
     def test_cover_letter_lists_documents(self):
         f = letter_facts("cover_letter", self.case, None)
-        self.assertIn("Enclosed: Final itemised bill", f["points"])
+        self.assertIn("Enclosed: Final hospital bill, with every charge listed", f["points"])
         self.assertTrue(any(p.startswith("To follow:") for p in f["points"]))
 
 
@@ -99,7 +99,7 @@ class ChecklistOverrideTests(unittest.TestCase):
 
     def test_rejected_stage(self):
         case = build_case({"rejection": {"reason": "Pre-existing disease", "claimNumber": "CLM-9"}})
-        self.assertTrue(case["stage"].startswith("Claim rejected"))
+        self.assertTrue(case["stage"].startswith("Claim refused"))
         self.assertEqual(case["claimNumber"], "CLM-9")
         self.assertIn("x-reject", {i["id"] for i in case["checklist"]})
 

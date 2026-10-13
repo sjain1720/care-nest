@@ -1,16 +1,21 @@
 """Firestore layout for policies:
 
-policies/{policyId}                 status, filename, pageCount, facts (PolicyFacts), clauseCount
+policies/{policyId}                 status, filename, pageCount, baseFacts (what the document says), clauseCount
 policies/{policyId}/pages/{NNN}     page, text
 policies/{policyId}/clauses/{id}    page, label, title, text, embedding (768-dim vector)
-app/state                           activePolicyId (single demo user)
+sessions/{sessionId}                activePolicyId, policyDetails (schedule details this guest typed in), expireAt
+
+A policy document is shared by content hash (same file = same wording), but each guest's choice of policy and their
+personal schedule details live only in their own session.
 """
 from google.cloud import firestore
 from google.cloud.firestore_v1.base_vector_query import DistanceMeasure
 from google.cloud.firestore_v1.vector import Vector
 
 from app.core.gcp import bucket, db
+from app.core.session import expiry, session_id
 from app.services.clauses import Clause
+from app.services.policy_details import apply_user_details
 
 _BATCH_LIMIT = 400
 
@@ -81,10 +86,47 @@ def search_clauses(policy_id: str, query_vector: list[float], k: int = 6) -> lis
     return hits
 
 
+def _session():
+    return db().collection("sessions").document(session_id())
+
+
+def _session_state() -> dict:
+    snap = _session().get()
+    return (snap.to_dict() or {}) if snap.exists else {}
+
+
+def _save_session_state(data: dict) -> None:
+    _session().set({**data, "updatedAt": firestore.SERVER_TIMESTAMP, "expireAt": expiry()}, merge=True)
+
+
 def set_active_policy(policy_id: str) -> None:
-    db().collection("app").document("state").set({"activePolicyId": policy_id}, merge=True)
+    """A new policy for this guest: earlier typed-in details belonged to the old one, so they are cleared."""
+    state = _session_state()
+    if state.get("activePolicyId") != policy_id:
+        _save_session_state({"activePolicyId": policy_id, "policyDetails": firestore.DELETE_FIELD})
+    else:
+        _save_session_state({"activePolicyId": policy_id})
 
 
 def get_active_policy_id() -> str | None:
-    snap = db().collection("app").document("state").get()
-    return (snap.to_dict() or {}).get("activePolicyId") if snap.exists else None
+    return _session_state().get("activePolicyId")
+
+
+def save_session_details(details: dict) -> None:
+    _save_session_state({"policyDetails": details})
+
+
+def get_active_policy() -> tuple[str, dict] | None:
+    """This guest's ready policy; its "facts" are the document's facts plus the details this guest typed in."""
+    state = _session_state()
+    policy_id = state.get("activePolicyId")
+    doc = get_policy(policy_id) if policy_id else None
+    if not doc or doc.get("status") != "ready":
+        return None
+    base = doc.get("baseFacts") or doc["facts"]
+    details = state.get("policyDetails")
+    return policy_id, {**doc, "facts": apply_user_details(base, details) if details else base}
+
+
+def delete_session_state() -> None:
+    _session().delete()

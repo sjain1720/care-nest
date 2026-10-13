@@ -1,53 +1,87 @@
 <div class="page">
   <div class="page-head no-print">
-    <h1>Letter to the insurer</h1>
-    <p>Built from your own documents. The facts and amounts are checked by our code. Read and edit before sending.</p>
+    <h1>{{ 'Write to the insurer' | t }}</h1>
+    <p>{{ 'We fill this in from your own papers and check every amount. Read it, change anything you like, send it, then mark it as sent.' | t }}</p>
   </div>
 
-  <div class="kinds no-print" role="group" aria-label="Kind of letter">
+  <div class="kinds no-print" role="group" [attr.aria-label]="'Kind of letter' | t">
     @for (k of kinds; track k.id) {
-      <button type="button" class="kind" [class.active]="kind() === k.id" (click)="load(k.id)"
-              [disabled]="loading() || (!live && k.id !== 'clarification')" [attr.aria-pressed]="kind() === k.id">
-        <strong>{{ k.label }}</strong><small>{{ !live && k.id !== 'clarification' ? 'Available with live data' : k.when }}</small>
+      <button type="button" class="kind" [class.active]="kind() === k.id" (click)="choose(k.id)" [disabled]="loading()" [attr.aria-pressed]="kind() === k.id">
+        <strong>{{ k.label | t }}</strong><small>{{ k.when | t }}</small>
       </button>
     }
   </div>
 
   @if (error()) { <p class="warn">{{ error() }}</p> }
-  @if (loading()) { <p class="muted">Drafting your letter…</p> }
+  @if (loading()) { <app-skeleton label="Writing your letter…" [count]="1" /> }
 
   @if (letter(); as l) {
     <section class="card">
       @for (w of l.warnings ?? []; track $index) { <div class="warn no-print">{{ w }}</div> }
+      @if (edited()) {
+        <div class="note no-print">
+          <span><mat-icon class="icon-sm">edit</mat-icon> {{ "You're seeing your own edits (kept in this browser)." | t }}</span>
+          <button mat-button type="button" (click)="freshDraft()">{{ 'Use a fresh draft' | t }}</button>
+        </div>
+      }
+      @if (blanks().length) {
+        <div class="warn no-print" role="status">
+          {{ 'Fill in these blanks before you send' | t }} ({{ blanks().length }}):
+          @for (b of blanks(); track b; let last = $last) { <span class="blank">{{ b }}</span>@if (!last) {, } }
+        </div>
+      }
       <div class="meta">
-        <span>To</span><strong>{{ l.to }}</strong>
-        <span>Subject</span><strong>{{ l.subject }}</strong>
+        <span>{{ 'To' | t }}</span><strong>{{ l.to }}</strong>
+        <span>{{ 'Subject' | t }}</span><strong>{{ l.subject }}</strong>
       </div>
-      <label for="letter-body" class="sr-only">Letter text</label>
-      <textarea id="letter-body" name="body" [(ngModel)]="body" spellcheck="true"></textarea>
-      <div class="print-only">{{ body }}</div>
+      <label for="letter-body" class="sr-only">{{ 'Letter text' | t }}</label>
+      <textarea id="letter-body" name="body" [ngModel]="body()" (ngModelChange)="onEdit($event)" spellcheck="true"></textarea>
+      <div class="print-only">{{ body() }}</div>
 
       <div class="row no-print" style="margin-top:12px">
-        <button mat-flat-button type="button" (click)="print()"><mat-icon>picture_as_pdf</mat-icon> Print / save as PDF</button>
-        <button mat-stroked-button type="button" (click)="copy()"><mat-icon>{{ copied() ? 'check' : 'content_copy' }}</mat-icon> {{ copied() ? 'Copied' : 'Copy text' }}</button>
-        <button mat-stroked-button type="button" (click)="download()"><mat-icon>download</mat-icon> Download .txt</button>
+        <button mat-flat-button class="btn-ink" type="button" (click)="print()"><mat-icon>picture_as_pdf</mat-icon> {{ 'Print / save as PDF' | t }}</button>
+        <button mat-stroked-button class="btn-sky" type="button" (click)="copy()"><mat-icon>{{ copied() ? 'check' : 'content_copy' }}</mat-icon> {{ (copied() ? 'Copied' : 'Copy text') | t }}</button>
+        <button mat-stroked-button class="btn-teal" type="button" (click)="download()"><mat-icon>download</mat-icon> {{ 'Download .txt' | t }}</button>
       </div>
     </section>
 
     <section class="card">
-      <h2>Evidence index – attach these</h2>
+      <h2>{{ 'Papers to attach' | t }}</h2>
       <ol>
         @for (e of l.evidenceIndex; track $index) { <li>{{ e }}</li> }
       </ol>
-      <a mat-button routerLink="/case" class="no-print">Check which papers you have</a>
+      <a mat-button routerLink="/case" fragment="checklist" class="no-print">{{ 'Papers checklist' | t }}</a>
     </section>
-  } @else {
-    <p class="muted">Preparing your letter…</p>
+
+    <section class="card no-print" id="sent">
+      <h2>{{ 'Sent it? Mark it here' | t }}</h2>
+      <p class="muted small" style="margin:0">{{ "We count the days and tell you what to do if the insurer doesn't answer." | t }}</p>
+      @for (e of sentForKind(); track e.id) {
+        <div class="sent-row">
+          <mat-icon class="icon-sm">check_circle</mat-icon>
+          <span class="spacer">{{ 'Sent on' | t }} <strong>{{ e.date | date: 'd MMM y' }}</strong>@if (e.reference) { · {{ 'reference' | t }} {{ e.reference }} }</span>
+          <button mat-button type="button" (click)="undo(e.id)" [attr.aria-label]="('Undo' | t) + ': ' + e.date">{{ 'Undo' | t }}</button>
+        </div>
+      }
+      <div class="mark">
+        <label>{{ 'Date you sent it' | t }} <input type="date" name="sentDate" [max]="today" [ngModel]="sentDate()" (ngModelChange)="sentDate.set($event)"></label>
+        <label>{{ 'Their reference number (optional)' | t }} <input type="text" name="sentRef" maxlength="60" [ngModel]="sentRef()" (ngModelChange)="sentRef.set($event)"></label>
+        <button mat-flat-button type="button" (click)="markSent()" [disabled]="saving() || !sentDate()"><mat-icon>send</mat-icon> {{ "I've sent it" | t }}</button>
+      </div>
+      @if (journey.awaiting(); as a) {
+        <p class="small" style="margin:12px 0 0">
+          {{ 'Waiting for an answer:' | t }} {{ journey.waitingDays() }} {{ (journey.waitingDays() === 1 ? 'day' : 'days') | t }}.
+          <a routerLink="/case/reply">{{ 'The insurer replied? Add it here' | t }}</a>
+        </p>
+      }
+    </section>
+  } @else if (!loading() && !error()) {
+    <app-skeleton label="Getting your letter ready…" [count]="1" />
   }
 
   @if (claimCase(); as c) {
-    <section class="card no-print">
-      <h2>If the reply doesn't resolve it</h2>
+    <section class="card no-print" id="escalation">
+      <h2>{{ "If the insurer's reply doesn't help" | t }}</h2>
       <ol class="escalation">
         @for (step of c.escalation; track step.level) {
           <li>
@@ -55,10 +89,25 @@
             <div>{{ step.when }}</div>
             <div class="muted small">{{ step.howTo }}</div>
             @if (step.link) {
-              <a [href]="step.link" target="_blank" rel="noopener noreferrer" class="small">{{ step.link }}</a>
+              <a [href]="step.link" target="_blank" rel="noopener noreferrer" class="small ext">{{ 'Open the website' | t }} <mat-icon>open_in_new</mat-icon><span class="sr-only">: {{ step.name }}</span></a>
             }
             @if (step.verify) {
-              <div><span class="pill tone-warn"><mat-icon class="icon-sm">event</mat-icon>Check the current deadline before filing</span></div>
+              <div><span class="pill tone-warn"><mat-icon class="icon-sm">event</mat-icon>{{ 'Check the latest time limit before you file' | t }}</span></div>
+            }
+            @if (filedAt(step.level); as f) {
+              <div class="filed">
+                <span class="pill tone-ok"><mat-icon class="icon-sm">check</mat-icon>{{ 'Done on' | t }} {{ f.date | date: 'd MMM y' }}@if (f.reference) { · {{ f.reference }} }</span>
+                <button mat-button type="button" (click)="undo(f.id)">{{ 'Undo' | t }}</button>
+              </div>
+            } @else if (filing() === step.level) {
+              <div class="mark">
+                <label>{{ 'Date' | t }} <input type="date" [name]="'fileDate' + step.level" [max]="today" [ngModel]="fileDate()" (ngModelChange)="fileDate.set($event)"></label>
+                <label>{{ 'Reference number (optional)' | t }} <input type="text" [name]="'fileRef' + step.level" maxlength="60" [ngModel]="fileRef()" (ngModelChange)="fileRef.set($event)"></label>
+                <button mat-flat-button type="button" (click)="markFiled(step.level)" [disabled]="saving() || !fileDate()">{{ 'Save' | t }}</button>
+                <button mat-button type="button" (click)="filing.set(null)">{{ 'Cancel' | t }}</button>
+              </div>
+            } @else {
+              <div class="filed"><button mat-stroked-button class="btn-amber" type="button" (click)="startFiling(step.level)" [attr.aria-label]="('I\'ve done this' | t) + ': ' + step.name"><mat-icon>task_alt</mat-icon> {{ "I've done this" | t }}</button></div>
             }
           </li>
         }
@@ -66,5 +115,5 @@
     </section>
   }
 
-  <p class="muted small">CareNest does not promise that the insurer will change its decision.</p>
+  <p class="muted small">{{ "CareNest can't promise the insurer will change its decision." | t }}</p>
 </div>

@@ -78,32 +78,32 @@
   ],
   "traps": [
     {
-      "title": "A room above ₹5,000/day cuts more than the room rent",
-      "explanation": "If you choose a costlier room, the insurer also reduces doctor and nursing charges in the same proportion.",
+      "title": "A room above ₹5,000 a day costs you more than the room",
+      "explanation": "If your room costs more than the limit, the insurer also cuts doctor and nursing charges by the same share.",
       "trust": "supported",
       "citation": { "docId": "policy", "docName": "Policy wording", "page": 11, "clause": "Clause 5.3", "quote": "Where the room category exceeds eligibility, all associated medical expenses shall be payable in the same proportion as the eligible room rent bears to the actual room rent." }
     },
     {
-      "title": "10% co-pay for your father",
-      "explanation": "Mohan is above 61, so you pay 10% of every approved amount for his claims.",
+      "title": "You pay 10% of your father's bills",
+      "explanation": "Mohan is over 61. For his claims, you pay 10% of the bill yourself (this is called co-pay).",
       "trust": "supported",
       "citation": { "docId": "policy", "docName": "Policy wording", "page": 8, "clause": "Clause 3.6", "quote": "For Insured Persons aged 61 years or above at the time of admission, a co-payment of 10% shall apply on every admissible claim." }
     },
     {
-      "title": "Gloves, PPE kits and admission kits are not paid",
-      "explanation": "Items on the non-payable list are deducted unless you have a consumables add-on. This policy has none.",
+      "title": "Gloves, PPE kits and admission kits are never paid",
+      "explanation": "The insurer never pays for these items unless you bought extra cover for them. You didn't.",
       "trust": "supported",
       "citation": { "docId": "policy", "docName": "Policy wording", "page": 38, "clause": "Annexure II", "quote": "List I – Items for which coverage is not available: gloves, PPE kit, admission kit, ..." }
     },
     {
-      "title": "Cataract is capped at ₹40,000 per eye",
-      "explanation": "Even after the waiting period, the insurer pays at most ₹40,000 per eye.",
+      "title": "Cataract: at most ₹40,000 per eye",
+      "explanation": "Even after the waiting time, the insurer pays no more than ₹40,000 per eye.",
       "trust": "supported",
       "citation": { "docId": "policy", "docName": "Policy wording", "page": 14, "clause": "Clause 4.6", "quote": "Expenses for cataract treatment are payable up to ₹40,000 per eye per policy year." }
     },
     {
-      "title": "Tell the insurer within 48 hours of an emergency admission",
-      "explanation": "Late intimation can lead to questions on the claim. Keep proof of when you informed them.",
+      "title": "Tell the insurer within 48 hours of an emergency stay",
+      "explanation": "If you tell them late, they may question the claim. Keep proof of when you told them.",
       "trust": "check",
       "citation": { "docId": "policy", "docName": "Policy wording", "page": 21, "clause": "Clause 7.1", "quote": "In case of emergency hospitalisation, the Company/TPA must be informed within 48 hours of admission." }
     }
@@ -111,12 +111,12 @@
   "flags": [
     {
       "kind": "ambiguous",
-      "message": "Clause 5.3 talks about \"associated medical expenses\" but does not fully list them. Ask the insurer which charges are included.",
+      "message": "One rule (Clause 5.3) mentions \"associated medical expenses\" but doesn't list them. Ask the insurer which charges it means.",
       "citation": { "docId": "policy", "docName": "Policy wording", "page": 11, "clause": "Clause 5.3", "quote": "Where the room category exceeds eligibility, all associated medical expenses shall be payable in the same proportion as the eligible room rent bears to the actual room rent." }
     },
     {
       "kind": "missing_pages",
-      "message": "Annexure III (day-care procedures) is mentioned on page 15 but is not in the uploaded file."
+      "message": "Page 15 mentions a list of day-care treatments (Annexure III), but that list is not in your file. Ask the insurer for it."
     }
   ]
 }

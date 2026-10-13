@@ -8,7 +8,7 @@
     @if (p.productNote) {
       <section class="card notice" role="note">
         <mat-icon>info</mat-icon>
-        <div><strong>This policy works differently</strong><p>{{ p.productNote }}</p></div>
+        <div><strong>{{ 'This policy works differently' | t }}</strong><p>{{ p.productNote }}</p></div>
       </section>
     }
 
@@ -16,19 +16,21 @@
       <section class="card notice">
         <mat-icon>event</mat-icon>
         <div>
-          <strong>Add your policy start date</strong>
-          <p>Your document is the policy wording, which doesn't include your personal details. Add them from your policy schedule so we can work out waiting periods and room limits.</p>
-          <button mat-flat-button type="button" (click)="editing.set(true)">Add policy details</button>
+          <strong>{{ 'Add your policy start date' | t }}</strong>
+          <p>{{ "Your file is the policy rule book. It doesn't have your personal details. Copy them from your policy schedule (the page with your name and dates). Then we can work out waiting times and room limits." | t }}</p>
+          <button mat-flat-button type="button" (click)="editing.set(true)">{{ 'Add policy details' | t }}</button>
         </div>
       </section>
     }
 
-    <section class="card">
+    <app-next-steps [steps]="nextSteps()" />
+
+    <section class="card" id="details">
       <div class="row">
-        <h2 style="margin:0">Your policy details</h2>
+        <h2 style="margin:0">{{ 'Your policy details' | t }}</h2>
         <span class="spacer"></span>
         @if (!editing()) {
-          <button mat-stroked-button type="button" (click)="editing.set(true)"><mat-icon>edit</mat-icon> Add or correct</button>
+          <button mat-stroked-button class="btn-sky" type="button" (click)="editing.set(true)"><mat-icon>edit</mat-icon> {{ 'Edit details' | t }}</button>
         }
       </div>
       @if (editing()) {
@@ -37,31 +39,33 @@
         </div>
       } @else {
       <div class="grid" style="margin-top:12px">
-        <div class="stat"><div class="label">Sum insured</div><div class="value">{{ p.sumInsured ? (p.sumInsured | inr) : 'Not found' }}</div><div class="muted small">{{ p.policyType }}</div>@if (byYou('sumInsured')) { <div class="by-you">Entered by you</div> }</div>
-        <div class="stat"><div class="label">Policy start</div><div class="value">{{ p.startDate ? (p.startDate | date: 'd MMM y') : 'Not found' }}</div>@if (byYou('startDate')) { <div class="by-you">Entered by you</div> }</div>
-        <div class="stat"><div class="label">Renewal due</div><div class="value">{{ p.renewalDate ? (p.renewalDate | date: 'd MMM y') : 'Not found' }}</div></div>
-        <div class="stat"><div class="label">Deductible</div><div class="value">{{ p.deductible.label }}</div></div>
+        <div class="stat"><div class="label">{{ 'Total cover' | t }}</div><div class="value">{{ p.sumInsured ? (p.sumInsured | inr) : ('Not found' | t) }}</div><div class="muted small">{{ p.policyType }}</div>@if (byYou('sumInsured')) { <div class="by-you">{{ 'Entered by you' | t }}</div> }</div>
+        <div class="stat"><div class="label">{{ 'Cover started' | t }}</div><div class="value">{{ p.startDate ? (p.startDate | date: 'd MMM y') : ('Not found' | t) }}</div>@if (byYou('startDate')) { <div class="by-you">{{ 'Entered by you' | t }}</div> }</div>
+        <div class="stat"><div class="label">{{ 'Renew by' | t }}</div><div class="value">{{ p.renewalDate ? (p.renewalDate | date: 'd MMM y') : ('Not found' | t) }}</div></div>
+        <div class="stat"><div class="label">{{ 'You pay first (deductible)' | t }}</div><div class="value">{{ p.deductible.label }}</div></div>
       </div>
-      <h3 style="margin-top:16px">Covered members @if (byYou('members')) { <span class="by-you">· Entered by you</span> }</h3>
+      <h3 style="margin-top:16px">{{ 'People covered' | t }} @if (byYou('members')) { <span class="by-you">· {{ 'Entered by you' | t }}</span> }</h3>
       <div class="members">
         @for (m of p.members; track m.name) {
           <span class="member">{{ m.name }} · {{ m.relation }}@if (m.age) { · {{ m.age }} yrs }</span>
         } @empty {
-          <span class="muted small">No members found in the document.</span>
+          <span class="muted small">{{ 'No members found in the document.' | t }}</span>
         }
       </div>
       }
     </section>
 
-    <section class="card">
-      <h2>Limits that affect what you get paid</h2>
+    <app-coverage-estimate />
+
+    <section class="card" id="limits">
+      <h2>{{ 'Limits on what the insurer pays' | t }}</h2>
       <ul class="limits">
         <li>
-          <strong>Room rent:</strong> {{ p.roomRent.label }}
+          <strong>{{ 'Room rent' | t }}:</strong> <app-gloss [text]="p.roomRent.label" />
           @if (p.roomRent.citation; as c) { <app-citation-chip [citation]="c" /> }
         </li>
         <li>
-          <strong>Co-pay:</strong> {{ p.coPay.label }}
+          <strong>{{ 'Co-pay (the share you pay yourself)' | t }}:</strong> <app-gloss [text]="p.coPay.label" />
           @if (p.coPay.citation; as c) { <app-citation-chip [citation]="c" /> }
         </li>
         @for (s of p.subLimits; track s.label) {
@@ -74,24 +78,24 @@
     </section>
 
     <section class="card" id="room-rent">
-      <h2>Before admission: check the room you pick</h2>
-      <p class="muted small">Choosing a room above your limit cuts more than the room rent. Try a room type to see the effect.</p>
+      <h2>{{ 'Before a hospital stay: check the room cost' | t }}</h2>
+      <p class="muted small">{{ 'If your room costs more than your limit, the insurer cuts more than just the room rent. Pick a room type to see what you may pay.' | t }}</p>
       @if (p.roomRent.amount) {
         <app-room-rent-simulator [limit]="p.roomRent.amount" [citations]="roomRentCitations()" />
       } @else {
-        <p>We need your room-rent limit per day to run this check.
-          <button mat-button type="button" (click)="editing.set(true)">Add it from your schedule</button></p>
+        <p>{{ 'We need your room-rent limit per day to run this check.' | t }}
+          <button mat-button type="button" (click)="editing.set(true)">{{ 'Add it from your schedule' | t }}</button></p>
       }
     </section>
 
-    <h2>Top traps in your policy</h2>
+    <h2 id="traps">{{ 'Watch out for these' | t }}</h2>
     <div class="grid">
       @for (t of p.traps; track t.title) {
         <article class="card trap">
           <h3>{{ t.title }}</h3>
-          <p>{{ t.explanation }}</p>
+          <p><app-gloss [text]="t.explanation" /></p>
           <div class="row">
-            <app-trust-pill [trust]="t.trust" />
+            @if (t.trust !== 'supported') { <app-trust-pill [trust]="t.trust" /> }
             <app-citation-chip [citation]="t.citation" />
           </div>
         </article>
@@ -99,22 +103,22 @@
     </div>
 
     @if (timeline(); as tl) {
-      <section class="card">
-        <h2>Waiting periods</h2>
-        <p class="muted small">Green = waiting period is over. Amber = still waiting. The line marks today ({{ today | date: 'd MMM y' }}).</p>
+      <section class="card" id="waiting-periods">
+        <h2>{{ 'Waiting times before cover starts' | t }}</h2>
+        <p class="muted small">{{ 'Green: the wait is over and you are covered. Amber: you still have to wait. The line marks today.' | t }} ({{ today | date: 'd MMM y' }})</p>
         <div class="timeline">
           @for (w of tl.rows; track w.id; let first = $first) {
             <div class="tl-row">
               <div class="tl-head">
                 <span><strong>{{ w.label }}</strong> · {{ w.duration }}</span>
                 <span [class]="'pill ' + (w.over ? 'tone-ok' : 'tone-warn')">
-                  {{ w.over ? 'Over since' : 'Ends' }} {{ w.endDate | date: 'd MMM y' }}
+                  {{ (w.over ? 'Covered since' : 'Covered from') | t }} {{ w.endDate | date: 'd MMM y' }}
                 </span>
               </div>
-              <div class="track" role="img" [attr.aria-label]="w.label + (w.over ? ' is over' : ' ends ' + (w.endDate | date: 'd MMM y'))">
+              <div class="track" role="img" [attr.aria-label]="w.label + ': ' + (w.over ? ('Covered now' | t) : ('Ends on' | t) + ' ' + (w.endDate | date: 'd MMM y'))">
                 <div class="bar" [class.over]="w.over" [style.left.%]="w.offsetPct" [style.width.%]="w.widthPct"></div>
                 <div class="today" [style.left.%]="tl.todayPct">
-                  @if (first) { <span class="today-label">Today</span> }
+                  @if (first) { <span class="today-label">{{ 'Today' | t }}</span> }
                 </div>
               </div>
               <div class="row small muted" style="margin-top:4px">
@@ -123,13 +127,13 @@
             </div>
           }
         </div>
-        <a mat-stroked-button routerLink="/ask" [queryParams]="{ q: 'Is diabetes treatment covered?' }">Ask about a specific condition</a>
+        <a mat-stroked-button class="btn-violet" routerLink="/ask" [queryParams]="{ q: 'Is diabetes treatment covered?' }">{{ 'Ask about an illness or treatment' | t }}</a>
       </section>
     }
 
     @if (p.flags.length) {
       <section class="card">
-        <h2>Things we noticed in your document</h2>
+        <h2>{{ 'Things to check in your policy file' | t }}</h2>
         @for (f of p.flags; track $index) {
           <div class="flag">
             <mat-icon>{{ flagIcon(f.kind) }}</mat-icon>
@@ -142,12 +146,9 @@
       </section>
     }
   } @else if (policy() === null) {
-    <section class="card">
-      <h1>No policy yet</h1>
-      <p>Upload your policy PDF and we'll read every page, find the limits and waiting periods, and point to the exact clause.</p>
-      <a mat-flat-button routerLink="/upload">Upload your policy</a>
-    </section>
+    <app-empty-state icon="policy" title="No policy yet" action="Add your policy"
+      text="Upload your policy PDF. We read every page and show your limits, waiting times and the exact rule, in plain words." />
   } @else {
-    <p class="muted">Loading your policy…</p>
+    <app-skeleton label="Loading your policy…" [count]="3" />
   }
 </div>

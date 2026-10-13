@@ -1,28 +1,93 @@
 <div class="page">
   @if (claimCase(); as c) {
-    <div class="page-head">
-      <h1>{{ c.title }}</h1>
-      <p>{{ c.patient.name }} · {{ c.hospital }}</p>
+    <div class="page-head head-row">
+      <div class="head-text">
+        @if (isEmpty()) {
+          <h1>{{ 'My claim' | t }}</h1>
+          <p>{{ 'Nothing has been added to this claim yet.' | t }}</p>
+        } @else {
+          <h1>{{ c.title }}</h1>
+          <p>{{ c.patient.name }} · {{ c.hospital }}</p>
+        }
+      </div>
+      <div class="head-actions">
+        <a mat-stroked-button routerLink="/case" fragment="claims"><mat-icon>folder_copy</mat-icon> {{ 'All your claims' | t }}</a>
+      </div>
     </div>
 
+    @if (isEmpty()) {
+    <section class="card start-card" aria-labelledby="start-title">
+      <span class="sc-icon"><mat-icon>note_add</mat-icon></span>
+      <div class="sc-text">
+        <h2 id="start-title">{{ 'Start your claim' | t }}</h2>
+        <p>{{ 'Add your final hospital bill first. We read every charge, check it against your policy and build your claim from it. A PDF or a clear phone photo is fine.' | t }}</p>
+        <div class="row">
+          <a mat-flat-button class="btn-teal" routerLink="/upload" [queryParams]="{ type: 'Hospital bill' }"><mat-icon>receipt_long</mat-icon> {{ 'Add the hospital bill' | t }}</a>
+          <a mat-stroked-button class="btn-sky" routerLink="/upload"><mat-icon>upload_file</mat-icon> {{ 'Add another document' | t }}</a>
+        </div>
+      </div>
+    </section>
+    } @else {
     <section class="card">
       <div class="facts">
-        <div><span>Diagnosis</span>{{ c.diagnosis }}</div>
-        <div><span>Stay</span>{{ c.admissionDate | date: 'd MMM' }} – {{ c.dischargeDate | date: 'd MMM y' }}</div>
-        <div><span>Claim type</span>{{ c.claimType === 'cashless' ? 'Cashless' : 'Reimbursement' }} · {{ c.claimNumber }}</div>
-        <div><span>Status</span><strong>{{ c.stage }}</strong></div>
-      </div>
-      <div class="actions">
-        <a mat-flat-button routerLink="/case/settlement"><mat-icon>stacked_bar_chart</mat-icon> See the deduction breakdown</a>
-        <a mat-stroked-button routerLink="/case/letter"><mat-icon>edit_note</mat-icon> Draft a letter to the insurer</a>
+        <div><span>{{ 'Illness' | t }}</span>{{ c.diagnosis }}</div>
+        <div><span>{{ 'Hospital stay' | t }}</span>{{ c.admissionDate | date: 'd MMM' }} – {{ c.dischargeDate | date: 'd MMM y' }}</div>
+        <div><span>{{ 'How you claim' | t }}</span>{{ (c.claimType === 'cashless' ? 'Cashless (insurer pays the hospital)' : 'Reimbursement (you pay, then claim)') | t }} · {{ c.claimNumber }}</div>
+        <div><span>{{ 'Where it stands' | t }}</span><strong>{{ c.stage }}</strong></div>
       </div>
     </section>
 
-    <section class="card">
-      <h2>Documents for your claim</h2>
-      <p class="muted small" style="margin:0">Made for a {{ c.claimType }} claim under your policy. Tap a document when you have it.</p>
-      <mat-progress-bar mode="determinate" [value]="progressPct()" aria-label="Documents collected" />
-      <p class="small"><strong>{{ collected() }} of {{ claimItems().length }}</strong> collected</p>
+    <app-next-steps [steps]="nextSteps()" />
+
+    <section class="card" id="diary">
+      <h2>{{ 'Claim diary' | t }}</h2>
+      <p class="muted small" style="margin:0">{{ 'What you sent and what the insurer said, with dates. You need these if you complain.' | t }}</p>
+      @if (timeline().length) {
+        <ol class="diary">
+          @for (e of timeline(); track e.id) {
+            <li>
+              <span class="d-date">{{ e.date | date: 'd MMM y' }}</span>
+              <span class="d-text">
+                @if (e.kind === 'reply') { <a routerLink="/case/reply">{{ text(e) | t }}</a> } @else { {{ text(e) | t }} }
+                @if (e.reference) { <span class="muted small"> · ref {{ e.reference }}</span> }
+                @if (e.note) { <span class="muted small"> – {{ e.note }}</span> }
+              </span>
+              @if (!e.id.startsWith('sample-')) {
+                <button mat-icon-button type="button" (click)="remove(e.id)" [attr.aria-label]="('Remove from diary' | t) + ': ' + text(e)"><mat-icon>close</mat-icon></button>
+              }
+            </li>
+          }
+        </ol>
+      } @else {
+        <p class="small">{{ 'Nothing yet. When you send your claim or a letter, mark it as sent and it shows up here.' | t }}</p>
+      }
+      @if (journey.awaiting(); as a) {
+        <div [class]="'wait ' + (journey.overdue() ? 'tone-bad' : 'tone-info')" role="status">
+          {{ 'Waiting for the insurer:' | t }} {{ journey.waitingDays() }} {{ (journey.waitingDays() === 1 ? 'day' : 'days') | t }}.
+          @if (journey.overdue()) { {{ 'That is longer than usual –' | t }} <a routerLink="/case/letter" [queryParams]="{ kind: 'grievance' }" fragment="escalation">{{ 'see what to do next' | t }}</a>. }
+        </div>
+      }
+      <div class="mark">
+        <label>{{ 'Date' | t }} <input type="date" name="diaryDate" [max]="today" [ngModel]="diaryDate()" (ngModelChange)="diaryDate.set($event)"></label>
+        @if (!sentClaim()) {
+          <button mat-stroked-button class="btn-sky" type="button" (click)="add('claim_sent')" [disabled]="saving()"><mat-icon>send</mat-icon> {{ 'I sent my claim' | t }}</button>
+        }
+        <a mat-stroked-button class="btn-violet" routerLink="/case/reply"><mat-icon>mark_email_read</mat-icon> {{ 'The insurer replied' | t }}</a>
+        @if (journey.closed()) {
+          <button mat-button type="button" (click)="reopen()"><mat-icon>undo</mat-icon> {{ 'Reopen the claim' | t }}</button>
+        } @else {
+          <button mat-flat-button type="button" (click)="add('closed')" [disabled]="saving()"><mat-icon>task_alt</mat-icon> {{ 'Close this claim' | t }}</button>
+        }
+      </div>
+      <p class="muted small" style="margin-bottom:0">{{ 'Sent a letter? Mark it on the' | t }} <a routerLink="/case/letter" fragment="sent">{{ 'letter page' | t }}</a>{{ ', so it is linked to that letter.' | t }}</p>
+    </section>
+    }
+
+    <section class="card" id="checklist">
+      <h2>{{ 'Papers checklist' | t }}</h2>
+      <p class="muted small" style="margin:0">{{ 'Tick each paper when you have it.' | t }}</p>
+      <mat-progress-bar mode="determinate" [value]="progressPct()" [attr.aria-label]="'Papers collected' | t" />
+      <p class="small"><strong>{{ collected() }} {{ 'of' | t }} {{ claimItems().length }}</strong> {{ 'ready' | t }}</p>
 
       @for (item of claimItems(); track item.id) {
         <ng-container *ngTemplateOutlet="row; context: { $implicit: item }" />
@@ -30,49 +95,60 @@
     </section>
 
     @if (disputeItems().length) {
-      <section class="card">
-        <h2>Extra papers to challenge the deductions</h2>
-        <p class="muted small" style="margin:0">Only needed if you want the insurer to review a deduction.</p>
+      <section class="card" id="dispute-papers">
+        <h2>{{ 'Extra papers if you want to question a cut' | t }}</h2>
+        <p class="muted small" style="margin:0">{{ 'You only need these if you ask the insurer to look at a cut again.' | t }}</p>
         @for (item of disputeItems(); track item.id) {
           <ng-container *ngTemplateOutlet="row; context: { $implicit: item }" />
         }
       </section>
     }
 
-    <section class="card">
-      <h2>Uploaded documents</h2>
+    @if (!isEmpty()) {
+    <section class="card" id="documents">
+      <h2>{{ 'Your uploaded files' | t }}</h2>
       <ul class="docs">
         @for (d of c.documents; track d.id) {
           <li>
-            <mat-icon>picture_as_pdf</mat-icon>
-            <div class="spacer"><strong>{{ d.name }}</strong><div class="muted small">{{ d.type }} · {{ d.pages }} pages</div></div>
-            <span class="pill tone-ok"><mat-icon class="icon-sm">check</mat-icon>Read</span>
+            <mat-icon>{{ d.id.startsWith('img-') ? 'image' : 'picture_as_pdf' }}</mat-icon>
+            <div class="spacer"><strong>{{ d.name }}</strong><div class="muted small">{{ d.type | t }} · {{ d.pages }} {{ (d.pages === 1 ? 'page' : 'pages') | t }}</div></div>
+            @if (d.docUrl) {
+              <a mat-button [href]="d.docUrl" target="_blank" rel="noopener" [attr.aria-label]="('Open' | t) + ' ' + d.name">{{ 'Open' | t }}</a>
+            } @else {
+              <span class="pill tone-ok"><mat-icon class="icon-sm">check</mat-icon>{{ 'Read' | t }}</span>
+            }
           </li>
         }
       </ul>
-      <a mat-stroked-button routerLink="/upload" style="margin-top:8px"><mat-icon>upload_file</mat-icon> Add a document</a>
+      <a mat-stroked-button class="btn-teal" routerLink="/upload" style="margin-top:8px"><mat-icon>upload_file</mat-icon> {{ 'Add documents' | t }}</a>
     </section>
+    }
+
+    <app-claims-list />
   } @else if (claimCase() === null) {
-    <section class="card">
-      <h1>We couldn't load your case</h1>
-      <p>The CareNest server didn't respond. Check your connection, or switch to the demo case with the button at the top.</p>
-    </section>
+    <app-empty-state icon="note_add" title="No claim yet" action="Add documents" actionIcon="upload_file" route="/upload"
+      text="Start your claim by adding your hospital bill, or any other paper from the hospital stay. A PDF or a clear phone photo is fine." />
   } @else {
-    <p class="muted">Loading your case…</p>
+    <app-skeleton label="Loading your claim…" [count]="3" />
   }
 </div>
 
 <ng-template #row let-item>
   <div class="check">
-    <button mat-icon-button class="toggle" type="button" (click)="toggle(item.id)" [disabled]="item.status === 'requested'"
-            [attr.aria-label]="(item.status === 'collected' ? 'Mark as missing: ' : 'Mark as collected: ') + item.name">
+    <button mat-icon-button class="toggle" type="button" (click)="toggle(item.id)"
+            [attr.aria-label]="((item.status === 'collected' ? 'Mark as missing' : 'Mark as collected') | t) + ': ' + item.name">
       <mat-icon [style.color]="item.status === 'collected' ? 'var(--cn-ok)' : 'var(--cn-muted)'">{{ status(item.status).icon }}</mat-icon>
     </button>
     <div class="body">
-      <div class="name">{{ item.name }}</div>
-      <div class="meta"><strong>Get it from:</strong> {{ item.source }}</div>
+      <div class="name-row">
+        <span class="name">{{ item.name }}</span>
+        <span [class]="'pill tone-' + status(item.status).tone">{{ status(item.status).label | t }}</span>
+      </div>
+      <div class="meta"><strong>{{ 'Get it from:' | t }}</strong> {{ item.source }}</div>
       <div class="meta">{{ item.why }}</div>
+      @if (item.status === 'missing') {
+        <button mat-button type="button" class="asked" (click)="askedFor(item.id)" [attr.aria-label]="('I\'ve asked for it' | t) + ': ' + item.name"><mat-icon>schedule</mat-icon> {{ "I've asked for it" | t }}</button>
+      }
     </div>
-    <span [class]="'pill tone-' + status(item.status).tone">{{ status(item.status).label }}</span>
   </div>
 </ng-template>

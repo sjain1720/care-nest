@@ -10,11 +10,8 @@ from app.services.waiting_periods import parse_date, status
 
 
 def _active_policy() -> tuple[str, PolicyFacts] | None:
-    policy_id = policy_store.get_active_policy_id()
-    doc = policy_store.get_policy(policy_id) if policy_id else None
-    if not doc or doc.get("status") != "ready":
-        return None
-    return policy_id, PolicyFacts.model_validate(doc["facts"])
+    active = policy_store.get_active_policy()
+    return (active[0], PolicyFacts.model_validate(active[1]["facts"])) if active else None
 
 
 def search_policy(question: str) -> dict:

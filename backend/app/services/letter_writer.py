@@ -22,15 +22,16 @@ def draft_letter(kind: str) -> dict:
     case_doc = case_store.get_case()
     case = {**build_case(case_doc), "settlement": case_doc.get("settlement"), "bill": case_doc.get("bill"),
             "rejection": case_doc.get("rejection")}
-    policy_id = policy_store.get_active_policy_id()
-    policy_doc = policy_store.get_policy(policy_id) if policy_id else None
-    facts = letter_facts(kind, case, (policy_doc or {}).get("facts"))
+    active = policy_store.get_active_policy()
+    facts = letter_facts(kind, case, active[1]["facts"] if active else None)
 
     warnings = []
     if kind == "clarification" and not case_doc.get("settlement"):
         warnings.append("Upload the settlement letter so the deductions can be listed.")
     if kind == "reconsideration" and not case_doc.get("rejection"):
         warnings.append("Upload the rejection letter so its reason can be quoted.")
+    if (case_doc.get("bill") or {}).get("reviewed") is False:
+        warnings.append("Check the details we read from your bill (on the bill page) before you send this letter.")
 
     fact_text = "\n".join(["HEADER:", *facts["header"], "POINTS:", *facts["points"], "SIGNATURE:", facts["signature"]])
     response = gemini().models.generate_content(

@@ -2,7 +2,8 @@ import { Component, inject, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { KeyValuePipe } from '@angular/common';
 import { MatButtonModule } from '@angular/material/button';
-import { FEATURES, Feature, isLive, saveLiveFeatures } from '../../services/api.service';
+import { TranslatePipe } from '../../shared/translate.pipe';
+import { FEATURES, Feature, isLive, saveLiveFeatures, setAllLive } from '../../services/api.service';
 
 interface Check {
   ok: boolean;
@@ -15,11 +16,11 @@ interface DiagResponse {
   checks: Record<string, Check>;
 }
 
-/** Developer page: backend health and a one-click check of every Google service (/api/diag). */
+/** Demo and live settings: which features use the live backend, its health, and a developer check of every Google service (/api/diag). */
 @Component({
   selector: 'app-status',
   standalone: true,
-  imports: [KeyValuePipe, MatButtonModule],
+  imports: [KeyValuePipe, MatButtonModule, TranslatePipe],
   templateUrl: './status.component.html',
   styles: `
     .checks { list-style: none; padding: 0; margin: 16px 0 0; }
@@ -29,6 +30,9 @@ interface DiagResponse {
     .feature { display: flex; align-items: center; gap: 10px; padding: 8px 0; border-top: 1px solid var(--cn-border); }
     .feature input { width: 20px; height: 20px; }
     .feature.disabled { color: var(--cn-muted); }
+    .dev summary { cursor: pointer; min-height: 40px; display: flex; align-items: center; color: var(--cn-link); font-weight: 600; }
+    .dev button { margin-top: 8px; }
+    .quick { gap: 8px; margin-bottom: 4px; }
   `,
 })
 export class StatusComponent {
@@ -50,7 +54,12 @@ export class StatusComponent {
     location.reload();
   }
 
-  health = signal<string>('checking…');
+  useAll(on: boolean): void {
+    setAllLive(on);
+    location.reload();
+  }
+
+  health = signal<string>('checking');
   diag = signal<DiagResponse | null>(null);
   diagLoading = signal(false);
   diagError = signal<string | null>(null);
