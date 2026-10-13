@@ -31,7 +31,7 @@ def get_settings() -> Settings:
         docai_processor_id=os.environ["DOCAI_PROCESSOR_ID"],
         firestore_db=os.environ.get("FIRESTORE_DB", "(default)"),
         gemini_location=os.environ.get("GOOGLE_CLOUD_LOCATION", "global"),
-        gemini_model=os.environ.get("GEMINI_MODEL", "gemini-2.5-flash"),
+        gemini_model=os.environ.get("GEMINI_MODEL", "gemini-3.1-flash-lite"),
         embedding_model=os.environ.get("EMBEDDING_MODEL", "text-embedding-005"),
         max_policy_pages=int(os.environ.get("MAX_POLICY_PAGES", "100")),
     )

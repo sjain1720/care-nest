@@ -1,4 +1,5 @@
 """ADK Policy Specialist on its own, for trying in `adk web` (run from backend/agents)."""
+import os
 import sys
 from pathlib import Path
 
@@ -14,7 +15,7 @@ from app.agent_tools import policy_summary, search_policy, waiting_period_status
 
 root_agent = Agent(
     name="policy_specialist",
-    model="gemini-2.5-flash",
+    model=os.environ.get("GEMINI_MODEL", "gemini-3.1-flash-lite"),
     description="Explains the family's own health-insurance policy with page and clause citations.",
     instruction=(
         "You help Indian families understand their own health policy in simple English. "

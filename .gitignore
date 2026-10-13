@@ -18,3 +18,25 @@ frontend/.angular/
 # Local files
 .DS_Store
 *.log
+
+# Credentials and private key material
+application_default_credentials.json
+*service-account*.json
+credentials*.json
+*.pem
+*.key
+.gcp/
+.config/gcloud/
+
+# Source datasets and generated model/evaluation artifacts
+policies-data-set/
+training/*
+!training/README.md
+eval/results/
+tmp/
+
+# Supplied planning documents and cloud setup records (keep local)
+1. CareNest_ feature list.docx
+MONOLITH PLAN.html
+gcp setup service details for phase 0 requirements.txt
+googleCloudStepsForThisPhase.md

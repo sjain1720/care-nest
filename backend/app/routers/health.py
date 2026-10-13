@@ -4,7 +4,8 @@ from fastapi import APIRouter
 from pypdf import PdfWriter
 
 from app.core.config import get_settings
-from app.core.gcp import bucket, db, gemini
+from app.core.gcp import db, gemini
+from app.services.connectivity import check_storage
 from app.services.ocr import ocr_pdf
 
 router = APIRouter(tags=["health"])
@@ -44,7 +45,7 @@ def diag():
         "firestore": _check(
             lambda: (db().collection("healthcheck").document("ping").set({"ok": True}), "write ok")[1]
         ),
-        "storage": _check(lambda: bucket().exists()),
+        "storage": _check(check_storage),
         "document_ai": _check(lambda: f"{len(ocr_pdf(_blank_pdf()))} page(s) processed"),
     }
     return {"all_ok": all(c["ok"] for c in checks.values()), "checks": checks}
