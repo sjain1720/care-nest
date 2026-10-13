@@ -1,15 +1,17 @@
 <div class="page">
   <div class="page-head">
-    <h1>Insurer asked a question?</h1>
-    <p>During a cashless admission, the insurer or TPA may put the request on hold with a query. Paste it here and we'll explain it and prepare a reply.</p>
+    <h1>{{ 'The insurer asked a question?' | t }}</h1>
+    <p>{{ 'While you are in hospital, the insurer (or its TPA, the company that handles claims for it) may pause approval and ask for more papers. Paste their message here. We explain it and write a reply.' | t }}</p>
   </div>
 
+  <app-next-steps [steps]="nextSteps()" />
+
   <section class="card">
-    <label for="query" class="small muted">The insurer's query (a sample is filled in)</label>
+    <label for="query" class="small muted">{{ "The insurer's message (a sample is filled in)" | t }}</label>
     <textarea id="query" name="query" [(ngModel)]="queryText" [disabled]="busy()"></textarea>
     <div class="row" style="margin-top:12px">
-      <button mat-flat-button type="button" (click)="explain()" [disabled]="busy() || !queryText.trim()">
-        <mat-icon>auto_awesome</mat-icon> Explain this query
+      <button mat-flat-button class="btn-violet" type="button" (click)="explain()" [disabled]="busy() || !queryText.trim()">
+        <mat-icon>auto_awesome</mat-icon> {{ 'Explain this message' | t }}
       </button>
     </div>
     @if (steps().length) {
@@ -20,7 +22,7 @@
   @if (help(); as h) {
     <section class="card">
       <span class="pill tone-info">{{ h.queryType }}</span>
-      <h2 style="margin-top:10px">What it means</h2>
+      <h2 style="margin-top:10px">{{ 'What it means' | t }}</h2>
       <p>{{ h.plainMeaning }}</p>
       <div class="urgent"><mat-icon class="icon-sm">schedule</mat-icon>{{ h.urgency }}</div>
       <div class="row" style="margin-top:12px">
@@ -29,13 +31,13 @@
     </section>
 
     <section class="card">
-      <h2>Send these {{ h.documents.length }} documents</h2>
+      <h2>{{ 'Papers to send' | t }} ({{ h.documents.length }})</h2>
       @for (d of h.documents; track d.name; let i = $index) {
         <div class="doc">
           <span class="num">{{ i + 1 }}</span>
           <div>
             <strong>{{ d.name }}</strong>
-            <div class="meta"><strong>Get it from:</strong> {{ d.source }}</div>
+            <div class="meta"><strong>{{ 'Get it from:' | t }}</strong> {{ d.source }}</div>
             <div class="meta">{{ d.why }}</div>
           </div>
         </div>
@@ -43,15 +45,23 @@
     </section>
 
     <section class="card">
-      <h2>Reply for the hospital's insurance desk</h2>
+      <h2>{{ "Reply to give the hospital's insurance desk" | t }}</h2>
       <pre>{{ h.draftReply }}</pre>
       <div class="row">
-        <button mat-stroked-button type="button" (click)="copyReply()">
-          <mat-icon>{{ copied() ? 'check' : 'content_copy' }}</mat-icon> {{ copied() ? 'Copied' : 'Copy reply' }}
+        <button mat-stroked-button class="btn-sky" type="button" (click)="copyReply()">
+          <mat-icon>{{ copied() ? 'check' : 'content_copy' }}</mat-icon> {{ (copied() ? 'Copied' : 'Copy reply') | t }}
         </button>
-        <a mat-button routerLink="/case">Track your documents</a>
+        <a mat-button routerLink="/case" fragment="checklist">{{ 'Track your papers' | t }}</a>
       </div>
       <p class="muted small">{{ h.timelineNote }}</p>
+      <div class="row">
+        @if (answered(); as a) {
+          <span class="pill tone-ok"><mat-icon class="icon-sm">check</mat-icon>{{ 'Handed in today – saved in your claim diary' | t }}</span>
+          <a mat-button routerLink="/case" fragment="diary">{{ 'Claim diary' | t }}</a>
+        } @else {
+          <button mat-flat-button type="button" (click)="markAnswered()" [disabled]="saving()"><mat-icon>task_alt</mat-icon> {{ "I've handed it in" | t }}</button>
+        }
+      </div>
     </section>
   }
 </div>

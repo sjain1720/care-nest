@@ -3,6 +3,7 @@ import json
 import unittest
 
 from app.services.sse import sse_event
+from app.services.plain_language import STYLE, language_rule
 
 try:  # needs pydantic: runs in Cloud Shell, skipped on a laptop without the backend packages
     from app.services.steps import StepLog
@@ -17,6 +18,20 @@ class SseTests(unittest.TestCase):
         self.assertTrue(msg.endswith("\n\n"))
         self.assertEqual(msg.count("\n"), 2)
         self.assertEqual(json.loads(msg[6:])["step"]["label"], "Line one\nline two – ₹9,500")
+
+
+class PlainLanguageTests(unittest.TestCase):
+    def test_english_adds_nothing_and_unknown_is_ignored(self):
+        self.assertEqual(language_rule("en"), "")
+        self.assertEqual(language_rule("fr"), "")
+
+    def test_hindi_keeps_quotes_verbatim(self):
+        rule = language_rule("hi")
+        self.assertIn("Hindi", rule)
+        self.assertIn("Copy every quote exactly", rule)
+
+    def test_style_has_no_format_braces(self):
+        self.assertNotIn("{", STYLE + language_rule("hi"))
 
 
 @unittest.skipIf(StepLog is None, "pydantic not installed")

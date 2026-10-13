@@ -1,44 +1,349 @@
 :root {
-  --cn-primary: #005cbb;
-  --cn-primary-soft: #e8f0fb;
-  --cn-ink: #1b2430;
-  --cn-muted: #5b6675;
-  --cn-bg: #f5f7fa;
+  /* Light (default): deep care green + soft mint on white. Dark mode is the same design on deep green surfaces (below). */
+  --cn-navy-900: #0b3b31;
+  --cn-navy: #0f6b58;
+  --cn-navy-700: #1f8a6e;
+  --cn-green: #1f9d7a;
+  --cn-green-bright: #34b38f;
+  --cn-green-strong: #0f6b58;
+  --cn-green-soft: #e4f4ed;
+  /* Highlight: fill for highlights; -ink is the readable text version on the page background */
+  --cn-hl: #14b8a6;
+  --cn-hl-ink: #0f6b58;
+  --cn-hl-soft: #e4f4ed;
+  --cn-white: #ffffff;
+  /* Bright accents that sit well with the green: fill, soft background, readable ink, and a light border line */
+  --cn-c1: #14b8a6; --cn-c1-soft: #ccfbf1; --cn-c1-ink: #0f766e; --cn-c1-line: #99f6e4;
+  --cn-c2: #0ea5e9; --cn-c2-soft: #e0f2fe; --cn-c2-ink: #0369a1; --cn-c2-line: #bae6fd;
+  --cn-c3: #f59e0b; --cn-c3-soft: #fef3c7; --cn-c3-ink: #b45309; --cn-c3-line: #fde68a;
+  --cn-c4: #f43f5e; --cn-c4-soft: #ffe4e6; --cn-c4-ink: #be123c; --cn-c4-line: #fecdd3;
+  --cn-c5: #8b5cf6; --cn-c5-soft: #ede9fe; --cn-c5-ink: #6d28d9; --cn-c5-line: #ddd6fe;
+  --cn-c6: #22c55e; --cn-c6-soft: #dcfce7; --cn-c6-ink: #15803d; --cn-c6-line: #bbf7d0;
+
+  --cn-primary: var(--cn-navy);
+  --cn-primary-soft: #eaf5f0;
+  --cn-accent: var(--cn-green);
+  --cn-ink: #1d2b2a;
+  --cn-muted: #5b6b67;
+  --cn-bg: #f5f9f7;
   --cn-surface: #ffffff;
-  --cn-border: #e2e7ee;
-  --cn-ok: #13795b;
-  --cn-ok-soft: #e4f5ec;
+  --cn-border: #e1ebe6;
+  --cn-border-strong: #c6d8cf;
+  --cn-focus: #0f6b58;
+  --cn-ok: var(--cn-green-strong);
+  --cn-ok-soft: var(--cn-green-soft);
   --cn-warn: #9a5b00;
   --cn-warn-soft: #fff3df;
   --cn-unknown: #4b5563;
   --cn-unknown-soft: #eceff3;
   --cn-bad: #b42318;
   --cn-bad-soft: #fdecea;
-  --cn-radius: 14px;
-  --cn-shadow: 0 1px 2px rgba(16, 24, 40, .05), 0 1px 3px rgba(16, 24, 40, .08);
+  /* Theme-aware roles (redefined for dark mode below) */
+  --cn-strong: var(--cn-navy-900);
+  --cn-link: var(--cn-navy);
+  --cn-field: #ffffff;
+  --cn-field-border: transparent;
+  --cn-tile: var(--cn-green-soft);
+  /* Icon colour on a --cn-tile background */
+  --cn-tile-ink: var(--cn-navy);
+  --cn-bubble: var(--cn-navy);
+  --cn-claimed: var(--cn-navy);
+  --cn-pdf: #c5221f;
+  /* Header icons, hover fills, filled buttons and the banner (both themes use the same layout) */
+  --cn-icon: #3b4a47;
+  --cn-green-soft-hover: #d5efe4;
+  --cn-on-primary: #ffffff;
+  --cn-cta-bg: var(--cn-navy);
+  --cn-cta-ink: #ffffff;
+  --cn-cta-hover: var(--cn-navy-700);
+  --cn-brand-grad: linear-gradient(90deg, #0f6b58 0%, #14b8a6 100%);
+  --cn-hero-bg: radial-gradient(55% 80% at 85% 20%, rgba(31, 157, 122, .1), transparent 60%), linear-gradient(180deg, #ffffff 0%, #f1f8f5 100%);
+  /* Nessi's orb: the same greenish blue in both themes, with white stars */
+  --cn-orb: radial-gradient(circle at 30% 25%, #2dd4bf 0%, #0d9488 50%, #0e7490 100%);
+  /* Text on a filled colour button (see .btn-sky etc.) */
+  --cn-on-accent: #ffffff;
+  /* Ask / search bar: edge, icon and send button */
+  --cn-search-edge: linear-gradient(120deg, var(--cn-green), var(--cn-navy-700), var(--cn-green-bright));
+  --cn-search-line: var(--cn-hl);
+  --cn-search-icon: var(--cn-hl);
+  --cn-send-bg: var(--cn-green);
+  --cn-send-ink: var(--cn-navy-900);
+  /* Send button in the dashboard's search bar */
+  --cn-search-send-bg: var(--cn-cta-bg);
+  --cn-search-send-ink: var(--cn-cta-ink);
+  --cn-search-send-hover: var(--cn-cta-hover);
+  --cn-quote-bg: #fff8c5;
+  --cn-quote-line: #d4a72c;
+  --cn-glow: 0 0 0 1px rgba(31, 157, 122, .4), 0 8px 24px rgba(31, 157, 122, .14);
+  --cn-glow-strong: 0 0 0 1px rgba(31, 157, 122, .65), 0 12px 32px rgba(31, 157, 122, .22);
+  --cn-track: #e6efeb;
+  --cn-seg-1: #b42318;
+  --cn-seg-2: #b45309;
+  --cn-seg-3: #475569;
+  --cn-seg-4: #0e7490;
+  --cn-seg-5: #6d28d9;
+  color-scheme: light;
+  --cn-radius: 16px;
+  --cn-shadow: 0 1px 2px rgba(11, 59, 49, .04), 0 4px 14px rgba(11, 59, 49, .06);
+  --cn-shadow-lg: 0 14px 34px rgba(11, 59, 49, .12);
+  --cn-ease: cubic-bezier(.2, .7, .2, 1);
+  --cn-topbar-h: 64px;
+  --cn-font: "Noto Sans", "Noto Sans Devanagari", system-ui, -apple-system, "Segoe UI", sans-serif;
+
+  /* Material components follow the brand colours */
+  --mat-sys-primary: var(--cn-navy);
+  --mat-sys-on-primary: #ffffff;
+  --mat-sys-primary-container: #d5efe4;
+  --mat-sys-on-primary-container: var(--cn-navy-900);
+  --mat-sys-surface-tint: var(--cn-navy);
+  --mat-sys-inverse-primary: #8ad8bd;
+  --mat-sys-secondary: var(--cn-green-strong);
+  --mat-sys-secondary-container: var(--cn-green-soft);
+  --mat-sys-on-secondary-container: #0b3b31;
+  --mat-sys-tertiary: #1f9d7a;
+
+  /* The prebuilt Material theme asks for Roboto, which we don't load; without this, buttons fall back to a serif font. */
+  --mat-sys-body-large-font: var(--cn-font);
+  --mat-sys-body-medium-font: var(--cn-font);
+  --mat-sys-body-small-font: var(--cn-font);
+  --mat-sys-display-large-font: var(--cn-font);
+  --mat-sys-display-medium-font: var(--cn-font);
+  --mat-sys-display-small-font: var(--cn-font);
+  --mat-sys-headline-large-font: var(--cn-font);
+  --mat-sys-headline-medium-font: var(--cn-font);
+  --mat-sys-headline-small-font: var(--cn-font);
+  --mat-sys-label-large-font: var(--cn-font);
+  --mat-sys-label-medium-font: var(--cn-font);
+  --mat-sys-label-small-font: var(--cn-font);
+  --mat-sys-title-large-font: var(--cn-font);
+  --mat-sys-title-medium-font: var(--cn-font);
+  --mat-sys-title-small-font: var(--cn-font);
 }
 
+/* ---------- Dark mode: the light design on a pitch-black page, near-black cards and mint accents ---------- */
+html[data-theme="dark"] {
+  color-scheme: dark;
+  --cn-navy-900: #0b3b31;
+  --cn-navy: #0f6b58;
+  --cn-navy-700: #1f8a6e;
+  --cn-tile-ink: #6ee7b7;
+  --cn-c1: #2dd4bf; --cn-c1-soft: #0b3a37; --cn-c1-ink: #5eead4; --cn-c1-line: #115e59;
+  --cn-c2: #38bdf8; --cn-c2-soft: #0c2f45; --cn-c2-ink: #7dd3fc; --cn-c2-line: #075985;
+  --cn-c3: #fbbf24; --cn-c3-soft: #3a2a08; --cn-c3-ink: #fcd34d; --cn-c3-line: #78530c;
+  --cn-c4: #fb7185; --cn-c4-soft: #3d0f1a; --cn-c4-ink: #fda4af; --cn-c4-line: #881337;
+  --cn-c5: #a78bfa; --cn-c5-soft: #2a1d52; --cn-c5-ink: #c4b5fd; --cn-c5-line: #4c1d95;
+  --cn-c6: #4ade80; --cn-c6-soft: #0f3324; --cn-c6-ink: #86efac; --cn-c6-line: #166534;
+  --cn-green: #34d399;
+  --cn-green-bright: #6ee7b7;
+  --cn-green-strong: #6ee7b7;
+  --cn-green-soft: #0f2620;
+  --cn-hl: #2dd4bf;
+  --cn-hl-ink: #5eead4;
+  --cn-hl-soft: #0b3a35;
+  --cn-primary: #6ee7b7;
+  --cn-primary-soft: #0f2620;
+  --cn-ink: #e6f2ee;
+  --cn-muted: #9fb8af;
+  --cn-bg: #000000;
+  --cn-surface: #0a0f0e;
+  --cn-border: #1c2a26;
+  --cn-border-strong: #2b403a;
+  --cn-focus: #6ee7b7;
+  --cn-ok: #6ee7b7;
+  --cn-ok-soft: #0f2620;
+  --cn-warn: #ffc94a;
+  --cn-warn-soft: #33270a;
+  --cn-unknown: #d3e0db;
+  --cn-unknown-soft: #141d1a;
+  --cn-bad: #ff7b7b;
+  --cn-bad-soft: #3a1316;
+  --cn-strong: #ffffff;
+  --cn-link: #6ee7b7;
+  --cn-field: #050807;
+  --cn-field-border: #2b403a;
+  --cn-tile: #0f2a23;
+  --cn-bubble: #0f6b58;
+  --cn-claimed: #5eead4;
+  --cn-pdf: #ff7b7b;
+  --cn-icon: #b5cbc3;
+  --cn-green-soft-hover: #143229;
+  --cn-on-primary: #04281f;
+  --cn-cta-bg: #ffffff;
+  --cn-cta-ink: #04130f;
+  --cn-cta-hover: #d1fae5;
+  --cn-on-accent: #0a0f0e;
+  /* Search bar: soft white rather than bright white */
+  --cn-search-edge: linear-gradient(120deg, rgba(255, 255, 255, .45), rgba(153, 246, 228, .4) 50%, rgba(255, 255, 255, .45));
+  --cn-search-line: rgba(255, 255, 255, .38);
+  --cn-search-icon: #cfe0da;
+  --cn-send-bg: #bfd3cc;
+  --cn-send-ink: #04130f;
+  --cn-search-send-bg: #bfd3cc;
+  --cn-search-send-ink: #04130f;
+  --cn-search-send-hover: #d6e6e0;
+  /* Outlined buttons without a colour class are white on the black page */
+  --mdc-outlined-button-outline-color: rgba(255, 255, 255, .6);
+  --mdc-outlined-button-label-text-color: #ffffff;
+  --cn-brand-grad: linear-gradient(90deg, #34d399 0%, #5eead4 100%);
+  --cn-hero-bg: radial-gradient(55% 80% at 85% 20%, rgba(52, 211, 153, .1), transparent 60%), linear-gradient(180deg, #0a0f0e 0%, #000000 100%);
+  --cn-quote-bg: #2e270a;
+  --cn-quote-line: #f2c94c;
+  --cn-shadow: 0 1px 2px rgba(0, 0, 0, .5), 0 2px 6px rgba(0, 0, 0, .35);
+  --cn-shadow-lg: 0 14px 36px rgba(0, 0, 0, .55);
+  --cn-glow: 0 0 0 1px rgba(110, 231, 183, .45), 0 8px 24px rgba(52, 211, 153, .14);
+  --cn-glow-strong: 0 0 0 1px rgba(110, 231, 183, .7), 0 12px 32px rgba(52, 211, 153, .24);
+  --cn-track: #141e1b;
+  --cn-seg-1: #ff7b7b;
+  --cn-seg-2: #ffc94a;
+  --cn-seg-3: #a3b8b0;
+  --cn-seg-4: #5eead4;
+  --cn-seg-5: #c4b5fd;
+
+  /* Material: mint primary on pitch-black and near-black surfaces */
+  --mat-sys-primary: #6ee7b7;
+  --mat-sys-on-primary: #04281f;
+  --mat-sys-primary-container: #0f4a3c;
+  --mat-sys-on-primary-container: #c9f7e4;
+  --mat-sys-surface-tint: #6ee7b7;
+  --mat-sys-inverse-primary: #0f6b58;
+  --mat-sys-secondary: #5eead4;
+  --mat-sys-secondary-container: #0f3b35;
+  --mat-sys-on-secondary-container: #ccfbf1;
+  --mat-sys-tertiary: #6ee7b7;
+  --mat-sys-background: #000000;
+  --mat-sys-on-background: #e6f2ee;
+  --mat-sys-surface: #0a0f0e;
+  --mat-sys-on-surface: #e6f2ee;
+  --mat-sys-surface-variant: #1c2a26;
+  --mat-sys-on-surface-variant: #b0c7bf;
+  --mat-sys-surface-dim: #000000;
+  --mat-sys-surface-bright: #1c2a26;
+  --mat-sys-surface-container-lowest: #000000;
+  --mat-sys-surface-container-low: #070b0a;
+  --mat-sys-surface-container: #0d1412;
+  --mat-sys-surface-container-high: #121a18;
+  --mat-sys-surface-container-highest: #18221f;
+  --mat-sys-outline: #5d7d72;
+  --mat-sys-outline-variant: #2b403a;
+  --mat-sys-inverse-surface: #e6f2ee;
+  --mat-sys-inverse-on-surface: #0a0f0e;
+  --mat-sys-error: #ff7b7b;
+  --mat-sys-on-error: #450a0a;
+  --mat-sys-error-container: #3a1316;
+  --mat-sys-on-error-container: #ffd0d0;
+}
+
+/* Theme switch: a circle grows from the toggle (see theme.service.ts); nothing else animates meanwhile. */
+html.cn-theme-switch * { view-transition-name: none !important; }
+html.cn-theme-switch::view-transition-old(root),
+html.cn-theme-switch::view-transition-new(root) { animation: none; mix-blend-mode: normal; }
+
 * { box-sizing: border-box; }
+/* Page container: content width plus left and right margins (the header lines up with it). */
+:root { --cn-side-w: 0px; --cn-chat-w: 420px; --cn-page-w: 1136px; --cn-gutter: clamp(16px, 4vw, 48px); }
+@media (max-width: 899px) { :root { --cn-topbar-h: 56px; --cn-gutter: 12px; } }
+.cn-term-tip .mdc-tooltip__surface { max-width: 280px; font-size: .85rem; line-height: 1.4; padding: 8px 10px; background: var(--cn-navy-900); color: #fff;
+  border: 1px solid var(--cn-green); }
+
+/* Search suggestions panel: a compact card floating a little away from the bar */
+.cn-search-panel { max-height: min(52vh, 380px) !important; padding: 6px 0 !important; margin: 10px 0; border-radius: 16px !important;
+  border: 1px solid var(--cn-border); box-shadow: var(--cn-shadow-lg) !important; }
+.cn-search-panel .mat-mdc-optgroup-label { min-height: 28px; padding: 0 16px; font-size: .75rem; font-weight: 700; text-transform: uppercase; letter-spacing: .06em; color: var(--cn-green-strong); }
+.cn-search-panel .mat-mdc-option { min-height: 38px; margin: 2px 8px; padding: 0 10px; border-radius: 10px; font-size: .86rem;
+  transition: background .15s, transform .15s; }
+.cn-search-panel .mat-mdc-optgroup .mat-mdc-option:not(.mat-mdc-option-multiple) { padding-left: 10px; }
+.cn-search-panel .mdc-list-item__primary-text { min-width: 0; flex: 1; overflow: hidden; font-size: inherit; }
+.cn-search-panel .mat-mdc-option:hover:not(.mdc-list-item--disabled),
+.cn-search-panel .mat-mdc-option.mat-mdc-option-active { background: var(--cn-green-soft); transform: translateX(2px); }
+.cn-search-panel .mat-mdc-option .mat-mdc-option-ripple, .cn-search-panel .mat-mdc-option::before { border-radius: inherit; }
 html, body { height: 100%; }
+html { font-size: calc(var(--cn-text-scale, 1) * 100%); }
+/* Phones: slightly smaller base text (15px; the text-size setting still scales it). Labels stay at 11px or more. */
+@media (max-width: 599px) {
+  html { font-size: calc(var(--cn-text-scale, 1) * 93.75%); }
+  :root { --mdc-filled-button-container-height: 36px; --mdc-outlined-button-container-height: 36px; --mdc-text-button-container-height: 36px;
+          --mat-filled-button-horizontal-padding: 16px; --mat-outlined-button-horizontal-padding: 14px; }
+}
 body {
   margin: 0;
   background: var(--cn-bg);
   color: var(--cn-ink);
-  font-family: "Noto Sans", "Noto Sans Devanagari", system-ui, -apple-system, "Segoe UI", sans-serif;
-  font-size: 16px;
-  line-height: 1.5;
+  font-family: var(--cn-font);
+  font-size: 1rem;
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+  text-rendering: optimizeLegibility;
 }
-h1 { font-size: 1.5rem; line-height: 1.3; margin: 0 0 4px; }
-h2 { font-size: 1.15rem; margin: 0 0 12px; }
-h3 { font-size: 1rem; margin: 0 0 6px; }
+h1 { font-size: 1.6rem; line-height: 1.25; letter-spacing: -.015em; margin: 0 0 6px; }
+h2 { font-size: 1.18rem; line-height: 1.3; letter-spacing: -.005em; margin: 0 0 12px; }
+h3 { font-size: 1rem; line-height: 1.35; margin: 0 0 6px; }
+h1, h2, h3 { color: var(--cn-strong); font-weight: 700; text-wrap: balance; }
+p, li { text-wrap: pretty; }
+p { margin: 0 0 10px; }
+p:last-child { margin-bottom: 0; }
+/* Hindi: Devanagari needs taller lines and no letter-spacing (it breaks the joined headline). */
+html[lang="hi"] body { line-height: 1.7; }
+html[lang="hi"] :is(h1, h2, h3) { line-height: 1.45; }
+html[lang="hi"] * { letter-spacing: normal !important; }
 a { color: var(--cn-primary); }
-:focus-visible { outline: 3px solid #2684ff; outline-offset: 2px; }
+button, input, select, textarea { font-family: inherit; }
+:focus-visible { outline: 3px solid var(--cn-focus); outline-offset: 2px; }
+/* Leave room for the sticky header when jumping to a section. */
+[id] { scroll-margin-top: calc(var(--cn-topbar-h) + 16px); }
 
 /* Layout helpers */
-.page { max-width: 980px; margin: 0 auto; padding: 20px 16px 32px; }
-.page-head { margin-bottom: 16px; }
-.page-head p { margin: 0; color: var(--cn-muted); }
-.card { background: var(--cn-surface); border: 1px solid var(--cn-border); border-radius: var(--cn-radius); padding: 16px; box-shadow: var(--cn-shadow); margin-bottom: 16px; }
+.page { max-width: var(--cn-page-w); margin: 0 auto; padding: 28px var(--cn-gutter) 40px; }
+.page-head { margin-bottom: 20px; }
+.page-head p { margin: 0; max-width: 72ch; color: var(--cn-muted); }
+/* Comfortable reading length for running text inside cards on wide screens. */
+.card p, .card .plain li, app-next-steps .text { max-width: 78ch; }
+.card.empty p { margin-inline: auto; }
+/* Give each child of a group its own accent: icons read --tc-soft / --tc-ink (and --tc for fills). */
+.tone-cycle > :nth-child(6n + 1) { --tc: var(--cn-c1); --tc-soft: var(--cn-c1-soft); --tc-ink: var(--cn-c1-ink); }
+.tone-cycle > :nth-child(6n + 2) { --tc: var(--cn-c2); --tc-soft: var(--cn-c2-soft); --tc-ink: var(--cn-c2-ink); }
+.tone-cycle > :nth-child(6n + 3) { --tc: var(--cn-c3); --tc-soft: var(--cn-c3-soft); --tc-ink: var(--cn-c3-ink); }
+.tone-cycle > :nth-child(6n + 4) { --tc: var(--cn-c5); --tc-soft: var(--cn-c5-soft); --tc-ink: var(--cn-c5-ink); }
+.tone-cycle > :nth-child(6n + 5) { --tc: var(--cn-c4); --tc-soft: var(--cn-c4-soft); --tc-ink: var(--cn-c4-ink); }
+.tone-cycle > :nth-child(6n + 6) { --tc: var(--cn-c6); --tc-soft: var(--cn-c6-soft); --tc-ink: var(--cn-c6-ink); }
+.card { background: var(--cn-surface); border: 1px solid var(--cn-border); border-radius: var(--cn-radius); padding: 18px 20px; box-shadow: var(--cn-shadow); margin-bottom: 16px;
+        transition: transform .2s var(--cn-ease), box-shadow .2s var(--cn-ease), border-color .2s; }
+/* Hover glow: every card and every clickable row lights up green under the pointer (not on touch screens, where hover sticks). */
+:is(.attn, .action, .question, .prompt, .kind, .person, .wf-row, .cite-chip, .presets button, .doc, .check, .member, .go) {
+  transition: box-shadow .2s var(--cn-ease), border-color .2s, background .2s, transform .2s var(--cn-ease);
+}
+table.data tbody tr { transition: background .15s; }
+@media (hover: hover) {
+  a.card:hover, .card.clickable:hover { transform: translateY(-2px); }
+  .card:hover { border-color: rgba(34, 197, 94, .5); box-shadow: var(--cn-glow); }
+  a.card:hover, .card.clickable:hover, details.card[open]:hover { box-shadow: var(--cn-glow-strong); }
+  :is(.attn, .action, .question, .prompt, .kind, .person, .wf-row, .cite-chip, .presets button, .doc, .check, .member, .go):hover {
+    box-shadow: var(--cn-glow); border-color: rgba(34, 197, 94, .5);
+  }
+  .check:hover, .doc:hover { border-radius: 10px; }
+  table.data tbody tr:hover { background: var(--cn-green-soft); }
+  .mat-mdc-unelevated-button:not(:disabled):hover { box-shadow: 0 0 18px rgba(34, 197, 94, .4); }
+  .mat-mdc-outlined-button:not(:disabled):hover { box-shadow: var(--cn-glow); }
+/* Button colours, so not every button is green. Light: deep shade with white text; dark: bright shade with near-black text. */
+.btn-sky { --cn-btn: var(--cn-c2-ink); }
+.btn-amber { --cn-btn: var(--cn-c3-ink); }
+.btn-violet { --cn-btn: var(--cn-c5-ink); }
+.btn-rose { --cn-btn: var(--cn-c4-ink); }
+.btn-teal { --cn-btn: var(--cn-c1-ink); }
+.btn-ink { --cn-btn: var(--cn-strong); }
+:is(.btn-sky, .btn-amber, .btn-violet, .btn-rose, .btn-teal, .btn-ink) {
+  --mdc-filled-button-container-color: var(--cn-btn);
+  --mdc-filled-button-label-text-color: var(--cn-on-accent);
+  --mdc-outlined-button-label-text-color: var(--cn-btn);
+  --mdc-outlined-button-outline-color: color-mix(in srgb, var(--cn-btn) 60%, transparent);
+  --mdc-text-button-label-text-color: var(--cn-btn);
+}
+:is(.btn-sky, .btn-amber, .btn-violet, .btn-rose, .btn-teal, .btn-ink):not(:disabled):hover {
+  box-shadow: 0 0 0 1px color-mix(in srgb, var(--cn-btn) 50%, transparent), 0 6px 18px color-mix(in srgb, var(--cn-btn) 30%, transparent);
+}}
+/* Touch screens: a brief press highlight instead. */
+@media (hover: none) {
+  :is(a.card, .attn, .action, .question, .prompt, .kind, .wf-row, .go):active { box-shadow: var(--cn-glow); }
+}
 .grid { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); }
 .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
 .spacer { flex: 1; }
@@ -63,7 +368,7 @@ a { color: var(--cn-primary); }
 /* Citation chip */
 .cite-chip {
   display: inline-flex; align-items: center; gap: 4px; min-height: 32px; padding: 4px 10px;
-  border: 1px solid #c7d7f0; border-radius: 999px; background: #fff; color: var(--cn-primary);
+  border: 1px solid var(--cn-border-strong); border-radius: 999px; background: var(--cn-surface); color: var(--cn-primary);
   font: inherit; font-size: .8rem; font-weight: 600; cursor: pointer;
 }
 .cite-chip:hover { background: var(--cn-primary-soft); }
@@ -77,4 +382,41 @@ table.data .num { text-align: right; }
 @media print {
   .no-print { display: none !important; }
   body { background: #fff; }
+}
+
+/* ---------- Motion (skipped when the user prefers reduced motion) ---------- */
+@keyframes cn-rise { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: none; } }
+@keyframes cn-fade-in { from { opacity: 0; } to { opacity: 1; } }
+@keyframes cn-fade-out { from { opacity: 1; } to { opacity: 0; } }
+@keyframes cn-flash {
+  0%, 100% { box-shadow: var(--cn-shadow); }
+  15%, 55% { box-shadow: 0 0 0 3px var(--cn-green), var(--cn-shadow-lg); }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  .page > * { animation: cn-rise .45s var(--cn-ease) backwards; }
+  .page > :nth-child(2) { animation-delay: .04s; }
+  .page > :nth-child(3) { animation-delay: .08s; }
+  .page > :nth-child(4) { animation-delay: .12s; }
+  .page > :nth-child(5) { animation-delay: .16s; }
+  .page > :nth-child(n + 6) { animation-delay: .2s; }
+  .cn-flash { animation: cn-flash 1.8s var(--cn-ease); }
+
+  /* Page changes cross-fade; the header, side menu and chat button stay still. */
+  ::view-transition-old(root) { animation: cn-fade-out .12s ease both; }
+  ::view-transition-new(root) { animation: cn-fade-in .22s ease both; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .cn-flash { outline: 3px solid var(--cn-green); }
+}
+
+/* Phones: tighter spacing (kept last so it wins over the base rules). */
+@media (max-width: 599px) {
+  .page { padding: 14px 12px 24px; }
+  .card { padding: 14px; margin-bottom: 12px; border-radius: 14px; }
+  h1 { font-size: 1.4rem; }
+  h2 { font-size: 1.1rem; margin-bottom: 8px; }
+  .page-head { margin-bottom: 14px; }
+  .pill { font-size: .78rem; }
+  .small { font-size: .9rem; }
 }

@@ -10,7 +10,9 @@ from app.schemas import AnswerCard, AskResponse, Citation, NextAction
 from app.services import case_store
 from app.services.case_builder import build_case
 from app.services.case_facts import build_case_facts
+from app.services.general_qa import general_answer
 from app.services.grounding import quote_in_text
+from app.services.plain_language import NEXT_STEPS, STYLE, language_rule
 from app.services.steps import StepLog
 
 _NEXT = {
@@ -48,11 +50,12 @@ Rules:
 - headline at most 10 words; summary at most 70 words of simple English; use the exact rupee amounts from the facts.
 - citations: for every statement, the fact ref (e.g. "F3") and a quote copied WORD FOR WORD from that fact (5-30 words).
 - Never say a deduction is wrong or promise money back; say what is unclear and what to ask. No medical advice.
-- toConfirm: 0-2 short things to ask the insurer or hospital.
-- nextAction: "bill", "settlement", "case" (documents) or "letter" (when they should write to the insurer), else "none"."""
+- toConfirm: see the rule below.
+- nextAction: "bill", "settlement", "case" (documents) or "letter" (when they should write to the insurer), else "none".""" + "\n- " + NEXT_STEPS + "\n" + STYLE
 
 
-def answer_case_question(question: str, intent: str, log: StepLog | None = None) -> AskResponse:
+def answer_case_question(question: str, intent: str, log: StepLog | None = None, language: str = "en",
+                         about: str = "mine") -> AskResponse:
     log = log or StepLog()
     case_doc = case_store.get_case()
     agent = _AGENT.get(intent, "Claim Assistant")
@@ -60,6 +63,8 @@ def answer_case_question(question: str, intent: str, log: StepLog | None = None)
 
     needed = _NEEDS.get(intent)
     if needed and not case_doc.get(needed[0]):
+        if about == "general":
+            return AskResponse(steps=log.steps, answer=general_answer(question, log, language))
         return AskResponse(steps=log.steps, answer=AnswerCard(
             verdict="cant_confirm", headline=f"Upload {needed[1]} first",
             summary=f"I answer from your own documents, and {needed[1]} hasn't been uploaded yet.",
@@ -72,7 +77,7 @@ def answer_case_question(question: str, intent: str, log: StepLog | None = None)
 
     response = gemini().models.generate_content(
         model=get_settings().gemini_model,
-        contents=[PROMPT.format(agent=agent), f"FACTS\n{block}", f"QUESTION\n{question}"],
+        contents=[PROMPT.format(agent=agent) + language_rule(language), f"FACTS\n{block}", f"QUESTION\n{question}"],
         config=types.GenerateContentConfig(response_mime_type="application/json", response_schema=CaseAnswerOut, temperature=0.1),
     )
     out = response.parsed if isinstance(response.parsed, CaseAnswerOut) else CaseAnswerOut.model_validate_json(response.text)

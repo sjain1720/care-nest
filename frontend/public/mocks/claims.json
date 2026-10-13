@@ -1,0 +1,20 @@
+[
+  {
+    "id": "current", "source": "carenest", "current": true,
+    "title": "Mother's gallbladder surgery", "patient": "Kamala Sharma", "hospital": "City Care Hospital, Pune (demo)",
+    "date": "2026-08-22", "claimNumber": "CLM-2026-0083412",
+    "claimedAmount": 246000, "approvedAmount": 208000, "status": "part_paid", "closed": false
+  },
+  {
+    "id": "cl-3f9a1c20", "source": "manual", "current": false,
+    "title": "Dengue fever", "patient": "Ravi Sharma", "hospital": "Sunrise Hospital, Pune (demo)",
+    "date": "2026-06-05", "claimNumber": "CLM-2026-0041177",
+    "claimedAmount": 46500, "approvedAmount": 42000, "status": "part_paid", "closed": true
+  },
+  {
+    "id": "cl-8b02d7e4", "source": "carenest", "current": false,
+    "title": "Cataract surgery, right eye", "patient": "Mohan Sharma", "hospital": "Vision Eye Centre, Pune (demo)",
+    "date": "2025-11-14", "claimNumber": "CLM-2025-0190256",
+    "claimedAmount": 38000, "approvedAmount": 38000, "status": "paid", "closed": true
+  }
+]

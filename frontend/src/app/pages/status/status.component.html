@@ -1,47 +1,56 @@
 <div class="page">
   <div class="page-head">
-    <h1>System status</h1>
-    <p>For the team: checks that the backend and every Google service are reachable.</p>
+    <h1>{{ 'Demo and live settings' | t }}</h1>
+    <p>{{ 'Try CareNest on a sample claim, or use your own documents with the live service.' | t }}</p>
   </div>
 
   <section class="card">
-    <p>
-      Backend:
-      <span [class]="'pill ' + (health() === 'ok' ? 'tone-ok' : health() === 'unreachable' ? 'tone-bad' : 'tone-unknown')">{{ health() }}</span>
-    </p>
-
-    <button mat-flat-button type="button" (click)="runDiag()" [disabled]="diagLoading()">
-      {{ diagLoading() ? 'Checking Google services…' : 'Check Google services' }}
-    </button>
-
-    @if (diagError()) {
-      <p class="error">{{ diagError() }}</p>
-    }
-
-    @if (diag(); as d) {
-      <ul class="checks">
-        @for (item of d.checks | keyvalue; track item.key) {
-          <li>
-            <span [class]="'pill ' + (item.value.ok ? 'tone-ok' : 'tone-bad')">{{ item.value.ok ? 'OK' : 'FAIL' }}</span>
-            <strong>{{ item.key }}</strong>
-            <span class="detail">{{ item.value.ok ? item.value.detail : item.value.error }}</span>
-          </li>
-        }
-      </ul>
-    }
-  </section>
-
-  <section class="card">
-    <h2>Live or demo data</h2>
-    <p class="muted small">Ticked features call the real backend. The rest use the built-in demo data. Saved in this browser only.</p>
+    <h2>{{ 'Which parts use your own documents' | t }}</h2>
+    <div class="row quick">
+      <button mat-stroked-button class="btn-teal" type="button" (click)="useAll(true)">{{ 'Use my own documents everywhere' | t }}</button>
+      <button mat-stroked-button class="btn-sky" type="button" (click)="useAll(false)">{{ 'Use the sample claim everywhere' | t }}</button>
+    </div>
+    <p class="muted small">{{ 'Or choose part by part. Ticked parts use your own documents on the live service; the rest show the sample claim. Saved in this browser only.' | t }}</p>
     @for (f of features; track f.id) {
       <label class="feature" [class.disabled]="!f.backendReady">
         <input type="checkbox" [checked]="live().has(f.id)" [disabled]="!f.backendReady"
                (change)="toggle(f.id, $any($event.target).checked)">
-        <span>{{ f.label }}</span>
-        @if (!f.backendReady) { <span class="pill tone-unknown">Later phase</span> }
+        <span>{{ f.label | t }}</span>
+        @if (!f.backendReady) { <span class="pill tone-unknown">{{ 'Later phase' | t }}</span> }
       </label>
     }
-    <button mat-flat-button type="button" (click)="applyLive()" style="margin-top:12px">Save and reload</button>
+    <button mat-flat-button type="button" (click)="applyLive()" style="margin-top:12px">{{ 'Save and reload' | t }}</button>
+  </section>
+
+  <section class="card">
+    <h2>{{ 'Live service' | t }}</h2>
+    @switch (health()) {
+      @case ('ok') { <p><span class="pill tone-ok">{{ 'Connected' | t }}</span> {{ 'Your own documents can be read and checked.' | t }}</p> }
+      @case ('unreachable') { <p><span class="pill tone-warn">{{ 'Not connected' | t }}</span> {{ 'The sample claim still works. Parts set to your own documents will not load until the service is back.' | t }}</p> }
+      @default { <p class="muted">{{ 'Checking…' | t }}</p> }
+    }
+
+    @if (health() === 'ok') {
+      <details class="dev">
+        <summary>{{ 'For developers: check each Google service' | t }}</summary>
+        <button mat-stroked-button type="button" (click)="runDiag()" [disabled]="diagLoading()">
+          {{ (diagLoading() ? 'Checking…' : 'Run the check') | t }}
+        </button>
+        @if (diagError()) {
+          <p class="error">{{ diagError() }}</p>
+        }
+        @if (diag(); as d) {
+          <ul class="checks">
+            @for (item of d.checks | keyvalue; track item.key) {
+              <li>
+                <span [class]="'pill ' + (item.value.ok ? 'tone-ok' : 'tone-bad')">{{ item.value.ok ? 'OK' : 'FAIL' }}</span>
+                <strong>{{ item.key }}</strong>
+                <span class="detail">{{ item.value.ok ? item.value.detail : item.value.error }}</span>
+              </li>
+            }
+          </ul>
+        }
+      </details>
+    }
   </section>
 </div>

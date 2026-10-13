@@ -11,7 +11,9 @@ from app.core.gcp import gemini
 from app.schemas import AnswerCard, AskResponse, Citation, NextAction, PolicyFacts, Verdict
 from app.services import policy_store as store
 from app.services.embeddings import embed_texts
+from app.services.general_qa import general_answer, needs_policy
 from app.services.grounding import quote_in_text
+from app.services.plain_language import NEXT_STEPS, STYLE, language_rule
 from app.services.steps import StepLog
 from app.services.waiting_periods import parse_date, status
 
@@ -20,7 +22,6 @@ _NEXT = {
     "policy": NextAction(label="See your policy summary", route="/policy"),
     "room_rent": NextAction(label="Check the room you pick", route="/policy"),
     "case": NextAction(label="Open your document checklist", route="/case"),
-    "upload": NextAction(label="Upload your policy", route="/upload"),
 }
 _PROMISE = re.compile(r"\b(guarantee[ds]?|will (definitely|surely|certainly) be (paid|approved|covered)|definitely covered|100% covered)\b", re.I)
 
@@ -57,8 +58,8 @@ Rules:
   user should add it on the My policy page, and use verdict needs_checking for waiting-period questions.
 - If the policy type is not health_indemnity, explain what that policy type pays before answering.
 - Never promise that a claim will be approved or paid. Never give medical advice.
-- toConfirm: 0-2 short things the family should confirm with the insurer or hospital.
-- nextAction: "room_rent" for room questions, "policy" for waiting periods/limits, "case" for documents, else "none"."""
+- toConfirm: see the rule below.
+- nextAction: "room_rent" for room questions, "policy" for waiting periods/limits, "case" for documents, else "none".""" + "\n- " + NEXT_STEPS + "\n" + STYLE
 
 
 def _facts_block(facts: PolicyFacts, today: date) -> str:
@@ -77,23 +78,18 @@ def _facts_block(facts: PolicyFacts, today: date) -> str:
     return "\n".join(lines)
 
 
-def _no_policy(log: StepLog) -> AskResponse:
-    log.add("Claim Copilot", "Looking for your policy")
-    return AskResponse(
-        steps=log.steps,
-        answer=AnswerCard(verdict="cant_confirm", headline="Upload your policy first",
-                          summary="I answer from your own policy document, and none has been uploaded yet.",
-                          citations=[], toConfirm=[], nextAction=_NEXT["upload"]),
-    )
-
-
-def answer_question(question: str, today: date | None = None, log: StepLog | None = None) -> AskResponse:
+def answer_question(question: str, today: date | None = None, log: StepLog | None = None, language: str = "en",
+                    about: str = "mine") -> AskResponse:
+    """about: "general" (how insurance works) or "mine" (the user's own cover)."""
     log = log or StepLog()
     today = today or date.today()
-    policy_id = store.get_active_policy_id()
-    doc = store.get_policy(policy_id) if policy_id else None
-    if not doc or doc.get("status") != "ready":
-        return _no_policy(log)
+    active = store.get_active_policy()
+    if not active:
+        if about == "general":
+            return AskResponse(steps=log.steps, answer=general_answer(question, log, language))
+        log.add("Claim Copilot", "Looking for your policy")
+        return AskResponse(steps=log.steps, answer=needs_policy())
+    policy_id, doc = active
     facts = PolicyFacts.model_validate(doc["facts"])
 
     log.add("Policy Specialist", f"Searching {doc.get('clauseCount', 'all')} clauses in your policy")
@@ -109,13 +105,16 @@ def answer_question(question: str, today: date | None = None, log: StepLog | Non
     context = "\n\n".join(f"[C{i}] Page {h['page']} · {h['label']}\n{h['text']}" for i, h in enumerate(hits, 1))
     response = gemini().models.generate_content(
         model=get_settings().gemini_model,
-        contents=[PROMPT, f"FACTS\n{_facts_block(facts, today)}", f"CLAUSES\n{context}", f"QUESTION\n{question}"],
+        contents=[PROMPT + language_rule(language), f"FACTS\n{_facts_block(facts, today)}", f"CLAUSES\n{context}", f"QUESTION\n{question}"],
         config=types.GenerateContentConfig(response_mime_type="application/json", response_schema=AnswerOut, temperature=0.1),
     )
     out = response.parsed if isinstance(response.parsed, AnswerOut) else AnswerOut.model_validate_json(response.text)
 
     answer, checked = verify_answer(out, hits)
     log.add("Verifier", f"Checked sources: {checked[0]} of {checked[1]} quotes found in your policy")
+    if about == "general" and answer.verdict == "cant_confirm":
+        # The policy doesn't cover a general question: explain it generally, clearly marked as not from the policy.
+        return AskResponse(steps=log.steps, answer=general_answer(question, log, language, has_policy=True))
     return AskResponse(steps=log.steps, answer=answer)
 
 

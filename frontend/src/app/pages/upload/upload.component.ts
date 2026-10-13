@@ -1,19 +1,32 @@
-import { Component, DestroyRef, inject, signal } from '@angular/core';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { Component, DestroyRef, computed, inject, signal } from '@angular/core';
+import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
-import { RouterLink } from '@angular/router';
+import { ActivatedRoute, RouterLink } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
+import { TranslatePipe } from '../../shared/translate.pipe';
 import { MatIconModule } from '@angular/material/icon';
 import { ApiService, DOC_TYPES, DocType } from '../../services/api.service';
+import { JourneyService } from '../../services/journey.service';
 import { AgentProgressComponent } from '../../shared/agent-progress.component';
+import { NextStep, NextStepsComponent } from '../../shared/next-steps.component';
 import { AgentStep } from '../../models/models';
 
 const MAX_BYTES = 20 * 1024 * 1024;
+const PHOTO_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
+const ACCEPTED_TYPES = ['application/pdf', ...PHOTO_TYPES];
+
+const TYPE_LABELS: Partial<Record<DocType, string>> = {
+  auto: 'Let CareNest work it out',
+  'Settlement letter': "Insurer's payment letter (settlement)",
+  'Rejection letter': "Insurer's refusal letter",
+  'Insurer reply': "Insurer's reply to my letter",
+};
 
 interface UploadItem {
   id: number;
   name: string;
   sizeKb: number;
+  photo: boolean;
   steps: AgentStep[];
   done: boolean;
   detectedType?: string;
@@ -25,18 +38,22 @@ interface UploadItem {
 @Component({
   selector: 'app-upload',
   standalone: true,
-  imports: [FormsModule, RouterLink, MatButtonModule, MatIconModule, AgentProgressComponent],
+  imports: [FormsModule, RouterLink, MatButtonModule, MatIconModule, AgentProgressComponent, NextStepsComponent, TranslatePipe],
   templateUrl: './upload.component.html',
   styles: `
     .drop { display: flex; flex-direction: column; align-items: center; gap: 8px; padding: 32px 16px; text-align: center;
-            border: 2px dashed #b9c8de; border-radius: var(--cn-radius); background: #fff; cursor: pointer; }
+            border: 2px dashed var(--cn-border-strong); border-radius: var(--cn-radius); background: var(--cn-surface); cursor: pointer; }
     .drop.over { border-color: var(--cn-primary); background: var(--cn-primary-soft); }
     .drop mat-icon { font-size: 48px; width: 48px; height: 48px; color: var(--cn-primary); }
     .types { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; }
     .file-head { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
-    .file-head mat-icon { color: #c5221f; }
+    .file-head mat-icon { color: var(--cn-pdf); }
     .error { color: var(--cn-bad); margin: 0; }
-    .type-select { min-height: 44px; padding: 0 10px; font: inherit; border: 1px solid var(--cn-border); border-radius: 10px; background: #fff; }
+    .type-select { min-height: 44px; padding: 0 10px; font: inherit; color: var(--cn-ink); border: 1px solid var(--cn-border); border-radius: 10px; background: var(--cn-field); }
+    .photo-btn { display: none; align-items: center; justify-content: center; gap: 8px; width: 100%; min-height: 48px; margin: 0 0 12px; padding: 0 16px;
+                 border-radius: 999px; border: 1px solid var(--cn-c1-line); background: var(--cn-c1-soft); color: var(--cn-c1-ink); font-weight: 600; cursor: pointer; }
+    /* Phones and tablets: open the camera straight away. */
+    @media (hover: none) and (pointer: coarse) { .photo-btn { display: flex; } }
   `,
 })
 export class UploadComponent {
@@ -45,11 +62,31 @@ export class UploadComponent {
 
   items = signal<UploadItem[]>([]);
   dragOver = signal(false);
+  private hasPolicy = toSignal(this.api.getPolicy());
+  private hasBill = toSignal(this.api.getBill());
+  private hasSettlement = toSignal(this.api.getSettlement());
+  private journey = inject(JourneyService);
+  nextSteps = computed<NextStep[]>(() => [
+    { text: 'Start with your policy papers. We read every page.', done: !!this.hasPolicy() },
+    { text: 'Add the final hospital bill: a PDF, or a clear phone photo if the bill is one page.', done: !!this.hasBill() },
+    { text: "Add the insurer's letter when it arrives (payment or refusal). We explain it.", done: !!this.hasSettlement() || !!this.journey.rejection() },
+    { text: 'Wrote to the insurer and they answered? Add their reply too.', done: !!this.journey.lastReply() },
+  ]);
   docType: DocType = 'auto';
   readonly docTypes = DOC_TYPES;
+  readonly accept = ACCEPTED_TYPES.join(',');
   private nextId = 1;
 
-  readonly acceptedTypes = ['Policy wording or schedule', 'Hospital bill', 'Discharge summary', 'Settlement or rejection letter'];
+  readonly acceptedTypes = ['Policy papers', 'Hospital bill', 'Discharge summary', "Insurer's letter (payment or refusal)", "Insurer's reply"];
+
+  constructor() {
+    const wanted = inject(ActivatedRoute).snapshot.queryParamMap.get('type');
+    if (wanted && (DOC_TYPES as readonly string[]).includes(wanted)) this.docType = wanted as DocType;
+  }
+
+  typeLabel(t: DocType): string {
+    return TYPE_LABELS[t] ?? t;
+  }
 
   onPick(event: Event): void {
     const input = event.target as HTMLInputElement;
@@ -71,9 +108,12 @@ export class UploadComponent {
   private addFiles(files: FileList | null): void {
     for (const file of Array.from(files ?? [])) {
       const id = this.nextId++;
-      const item: UploadItem = { id, name: file.name, sizeKb: Math.round(file.size / 1024), steps: [], done: false };
-      if (file.type !== 'application/pdf') {
-        item.error = 'Only PDF files are supported for now.';
+      const photo = PHOTO_TYPES.includes(file.type);
+      const item: UploadItem = { id, name: file.name, sizeKb: Math.round(file.size / 1024), photo, steps: [], done: false };
+      if (!ACCEPTED_TYPES.includes(file.type)) {
+        item.error = 'Upload a PDF, or a photo (JPG, PNG or WebP).';
+      } else if (photo && this.docType === 'Policy document') {
+        item.error = 'Upload the policy as a PDF. Photos work for bills and letters.';
       } else if (file.size > MAX_BYTES) {
         item.error = 'This file is larger than 20 MB.';
       }

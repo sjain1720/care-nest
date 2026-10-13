@@ -1,0 +1,7 @@
+# Netlify, when the site is connected to the repository: set the base directory to "frontend".
+[build]
+  command = "npm run build"
+  publish = "dist/frontend/browser"
+
+[build.environment]
+  NODE_VERSION = "20"

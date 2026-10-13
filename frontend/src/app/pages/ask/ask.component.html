@@ -1,49 +1,14 @@
 <div class="page">
-  <div class="page-head">
-    <h1>Ask CareNest</h1>
-    <p>Answers come from your own policy, bill and settlement letter, with the page and clause.</p>
-  </div>
-
-  <div class="thread" #thread aria-live="polite">
-    @for (m of messages(); track m.id) {
-      @if (m.role === 'user') {
-        <div class="bubble-user">{{ m.text }}</div>
-      } @else {
-        <div class="card bubble-ai">
-          @if (m.steps?.length) {
-            <app-agent-progress [steps]="m.steps ?? []" [running]="!m.answer && !m.text" />
-          } @else if (!m.answer && !m.text) {
-            <p class="muted small" style="margin:0">Thinking…</p>
-          }
-          @if (m.answer; as a) {
-            <hr style="border:0;border-top:1px solid var(--cn-border);margin:12px 0">
-            <app-answer-card [answer]="a" />
-          }
-          @if (m.text) {
-            <p>{{ m.text }}</p>
-          }
-        </div>
-      }
-    } @empty {
-      <div class="empty">
-        <mat-icon>forum</mat-icon>
-        <h2>What would you like to know?</h2>
-        <p class="muted">Try one of these:</p>
-        <div class="prompts">
-          @for (p of prompts; track p) {
-            <button mat-stroked-button type="button" (click)="send(p)">{{ p }}</button>
-          }
-        </div>
-      </div>
+  <div class="page-head row">
+    <div>
+      <h1>{{ 'Ask CareNest' | t }}</h1>
+      <p>{{ 'Answers come from your own policy, bill and settlement letter, with the page and clause.' | t }}</p>
+    </div>
+    <span class="spacer"></span>
+    @if (chat.messages().length) {
+      <button mat-button type="button" (click)="chat.clear()"><mat-icon>restart_alt</mat-icon> New chat</button>
     }
   </div>
 
-  <form class="composer no-print" (ngSubmit)="send()">
-    <label for="question" class="sr-only">Your question</label>
-    <input id="question" name="question" [(ngModel)]="draft" autocomplete="off"
-           placeholder="Ask about coverage, your bill or your settlement…" [disabled]="busy()">
-    <button mat-flat-button type="submit" [disabled]="busy() || !draft.trim()" aria-label="Send question">
-      <mat-icon>send</mat-icon>
-    </button>
-  </form>
+  <app-chat-thread [prompts]="prompts" (pick)="send($event)" />
 </div>

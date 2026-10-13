@@ -57,7 +57,7 @@ interface MemberRow {
   styles: `
     .fields { display: grid; gap: 12px; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); margin-bottom: 12px; }
     label { display: flex; flex-direction: column; gap: 4px; font-size: .85rem; color: var(--cn-muted); }
-    input, select { min-height: 44px; padding: 0 10px; font: inherit; font-size: 1rem; color: var(--cn-ink); border: 1px solid var(--cn-border); border-radius: 10px; background: #fff; min-width: 0; }
+    input, select { min-height: 44px; padding: 0 10px; font: inherit; font-size: 1rem; color: var(--cn-ink); border: 1px solid var(--cn-border); border-radius: 10px; background: var(--cn-field); min-width: 0; }
     .member-row { display: grid; grid-template-columns: 1fr 120px 80px 48px; gap: 8px; align-items: center; margin-bottom: 8px; }
     @media (max-width: 599px) { .member-row { grid-template-columns: 1fr 1fr; } .member-row .age { grid-column: 1; } }
     .error { color: var(--cn-bad); }

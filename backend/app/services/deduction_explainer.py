@@ -9,6 +9,7 @@ from app.schemas import POLICY_DOC_URL
 from app.services import policy_store
 from app.services.embeddings import embed_texts
 from app.services.grounding import quote_in_text
+from app.services.plain_language import STYLE
 from app.services.policy_details import format_inr as _rupees
 from app.services.settlement_checks import bill_evidence, has_reason
 
@@ -40,7 +41,7 @@ For each deduction write:
   insurer's reason. If the insurer gave no reason, say so plainly and that the family can ask for an itemised explanation.
   Never call a deduction wrong or promise it will be reversed; point out what is unclear.
 - citations: the clause refs that support your reading, each with a quote copied WORD FOR WORD (8-30 words). Empty if none fit.
-- questions: 1-2 specific questions the family should ask the insurer or hospital."""
+- questions: 1-2 specific questions the family should ask the insurer or hospital.""" + STYLE
 
 
 def explain_deductions(deductions: list[dict], bill: dict | None) -> list[dict]:

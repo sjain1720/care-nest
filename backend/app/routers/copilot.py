@@ -1,3 +1,4 @@
+import contextvars
 import logging
 import queue
 import threading
@@ -21,7 +22,7 @@ _GOOGLE_ERRORS = (GoogleAPIError, genai_errors.APIError)
 def ask(body: AskRequest):
     """Claim Copilot: routes to the policy, bill/settlement or claim specialist; every quote is verified."""
     try:
-        return answer(body.question.strip())
+        return answer(body.question.strip(), language=body.language)
     except _GOOGLE_ERRORS as exc:
         raise HTTPException(502, f"A Google service failed while answering: {exc.__class__.__name__}") from exc
 
@@ -33,7 +34,7 @@ def ask_stream(body: AskRequest):
 
     def work() -> None:
         try:
-            result = answer(body.question.strip(), on_step=lambda s: events.put({"type": "step", "step": s.model_dump()}))
+            result = answer(body.question.strip(), on_step=lambda s: events.put({"type": "step", "step": s.model_dump()}), language=body.language)
             events.put({"type": "answer", "answer": result.answer.model_dump()})
         except Exception as exc:  # report any failure to the browser instead of leaving the stream hanging
             log.exception("Streaming answer failed")
@@ -42,7 +43,8 @@ def ask_stream(body: AskRequest):
         finally:
             events.put(None)
 
-    threading.Thread(target=work, daemon=True).start()
+    # copy_context: the worker thread keeps this request's guest session.
+    threading.Thread(target=contextvars.copy_context().run, args=(work,), daemon=True).start()
 
     def stream():
         while (item := events.get()) is not None:

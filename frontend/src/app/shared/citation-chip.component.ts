@@ -2,16 +2,17 @@ import { Component, inject, input } from '@angular/core';
 import { MatIconModule } from '@angular/material/icon';
 import { Citation } from '../models/models';
 import { CitationViewerService } from '../services/citation-viewer.service';
+import { TranslatePipe } from './translate.pipe';
 
 @Component({
   selector: 'app-citation-chip',
   standalone: true,
-  imports: [MatIconModule],
+  imports: [MatIconModule, TranslatePipe],
   template: `
     <button type="button" class="cite-chip" (click)="viewer.open(citation())"
-            [attr.aria-label]="'Open source: ' + citation().docName + ', page ' + citation().page + ', ' + citation().clause">
+            [attr.aria-label]="('Open source' | t) + ': ' + citation().docName + ', ' + ('Page' | t) + ' ' + citation().page + ', ' + citation().clause">
       <mat-icon class="icon-sm">description</mat-icon>
-      Page {{ citation().page }} · {{ citation().clause }}
+      {{ 'Page' | t }} {{ citation().page }} · {{ citation().clause }}
     </button>
   `,
 })

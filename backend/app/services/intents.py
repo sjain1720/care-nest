@@ -1,4 +1,5 @@
 """Keyword routing for the Claim Copilot – the fallback when the Gemini router is unavailable. Pure Python."""
+import re
 
 INTENTS = ("policy", "bill", "settlement", "documents", "cashless_query")
 
@@ -10,6 +11,9 @@ _KEYWORDS = (
     ("bill", ("bill", "charge", "invoice", "out of pocket", "out-of-pocket", "pay from my pocket", "non-payable", "non payable", "estimate")),
 )
 
+# Words that tie a question to the asker's own policy, bill or claim (English and Hindi).
+_MINE = re.compile(r"\b(my|mine|me|am i|i am|i'm|do i|can i|will i|should i|have i|our|we|us)\b|मेरा|मेरी|मेरे|मुझे|हमारा|हमारी", re.I)
+
 
 def keyword_intent(question: str) -> str:
     q = question.lower()
@@ -17,3 +21,8 @@ def keyword_intent(question: str) -> str:
         if any(w in q for w in words):
             return intent
     return "policy"
+
+
+def keyword_about(question: str) -> str:
+    """"mine" when the question is about the asker's own policy, bill or claim; "general" for how insurance works."""
+    return "mine" if _MINE.search(question) else "general"
