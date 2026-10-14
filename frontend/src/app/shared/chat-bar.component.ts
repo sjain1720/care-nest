@@ -268,7 +268,11 @@ export class ChatBarComponent {
     });
     // Wide screens: the chat's input only appears when it opens, so put the cursor there.
     effect(() => {
-      if (!this.inline() && this.chat.panelOpen() && !this.phone()) setTimeout(() => this.box().nativeElement.focus());
+      if (!this.inline() && this.chat.panelOpen() && !this.phone()) setTimeout(() => {
+        this.box().nativeElement.focus();
+        // Opening an answer should not cover its actions with search suggestions.
+        this.trigger().closePanel();
+      });
     });
   }
 

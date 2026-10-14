@@ -176,7 +176,7 @@ def main():
         response = peer.get(base+'/api/case/document/'+document,timeout=60)
         record('F2', 'Other guest cannot access documents or thread',response.status_code==404 and not missing['answer']['citations'],{'documentStatus':response.status_code,'answer':missing['answer']})
         # Reuse the fast deterministic cancellation check; do not burn 220 seconds in a real timeout.
-        suite=unittest.defaultTestLoader.loadTestsFromName('tests.test_adk_scope.LifecycleTests.test_timeout_is_a_safe_failure_and_deletes_session')
+        suite=unittest.defaultTestLoader.loadTestsFromName('tests.test_claim_investigation.FailureTests.test_integrated_timeout_withholds_findings_and_deletes_adk_session')
         result=unittest.TestResult();suite.run(result)
         record('F3','Controlled timeout fails safely',result.wasSuccessful(),{'testsRun':result.testsRun},'controlled fault / mocked model')
 
