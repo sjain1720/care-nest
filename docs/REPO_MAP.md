@@ -36,7 +36,7 @@ under `frontend/src/app/pages/`; tests are under `backend/tests/`.
 | Policy extraction / schedule | `routers/policy.py` → `policy_extract.py`, `policy_details.py`, `clauses.py`, `embeddings.py`, `policy_store.py` | `policy/`, `policy-details-form.component.ts` | `test_policy_logic.py`, `test_policy_details.py` |
 | Chat routing and grounded QA | `routers/copilot.py` → `copilot.py`, `intents.py`, `policy_qa.py`, `case_qa.py`, `general_qa.py`, `grounding.py`, `conversation.py`, `answer_support.py`, `plain_language.py`, `steps.py` | `ask/`, `services/chat.service.ts`, `shared/chat-*`, `answer-card.component.ts` | `test_live_findings.py`, `test_merge_integration.py`, `test_ai_workflows.py` |
 | Bill review / amounts | `routers/case.py` → `bill_review.py`, `bill_checks.py`, `bill_policy.py`, `case_builder.py` | `bill-check/`, `bill-review.component.ts` | `test_bill_review.py`, `test_bill_and_case.py`, `test_ai_workflows.py` |
-| Settlement / rejection | `routers/case.py` → `settlement_checks.py`, `deduction_explainer.py` | `settlement/`, `shared/waterfall.component.ts` | `test_phase5.py`, `test_copilot_and_letters.py` |
+| Settlement / rejection | `routers/case.py` → `settlement_checks.py`, `deduction_explainer.py`, `dispute_inputs.py` | `settlement/`, `shared/waterfall.component.ts` | `test_phase5.py`, `test_copilot_and_letters.py`, `test_dispute_inputs.py` |
 | Drafts / query / insurer replies | `routers/case.py` → `letter_writer.py`, `letters.py`, `query_help.py`, `reply_reader.py` | `letter/`, `query-helper/`, `reply/` | `test_copilot_and_letters.py`, `test_phase5.py` |
 | Claim history / diary | `routers/claims.py`, `routers/case.py` → `claim_history.py`, `claim_tracker.py`, `case_store.py` | `case/`, `services/journey.service.ts`, `shared/claim-diary.ts` | `test_claim_history.py`, `test_claim_diary.py` |
 | Remaining cover estimate | `routers/coverage.py` → `coverage.py`, `claim_history.py` | `shared/coverage-estimate.component.ts` (server result) | `test_coverage.py` |
@@ -97,3 +97,5 @@ Runtime dependencies are pinned in `backend/requirements.txt` and `constraints.t
 frontend versions are locked in `frontend/package-lock.json`. Angular uses the
 application builder (`@angular/build`), not the legacy webpack bundle.
 Tuning comparison: `eval/compare_tuned.py`; reports and generated labels stay ignored.
+
+Selected ADK dispute workflow stages and acceptance: `docs/ADK_DISPUTE_WORKFLOW_PLAN.md`.

@@ -5,7 +5,7 @@ from fastapi.responses import Response
 from google.api_core.exceptions import GoogleAPIError, NotFound
 from google.genai import errors as genai_errors
 
-from app.schemas import BillReviewIn, ChecklistUpdate, QueryHelpRequest, ReplyRequest, TimelineEventIn
+from app.schemas import BillReviewIn, ChecklistUpdate, DisputePreparation, QueryHelpRequest, ReplyRequest, TimelineEventIn
 from app.services import case_store, policy_store
 from app.services.case_builder import build_case
 from app.services.bill_policy import analyse_bill_policy, fingerprint
@@ -16,6 +16,7 @@ from app.services.letters import LETTER_KINDS
 from app.services.privacy import mask_all
 from app.services.query_help import explain_query
 from app.services.reply_reader import read_reply_text
+from app.services.dispute_inputs import current_dispute_inputs
 
 router = APIRouter(tags=["case"])
 
@@ -27,6 +28,12 @@ _GOOGLE_ERRORS = (GoogleAPIError, genai_errors.APIError)
 @router.get("/case")
 def get_case():
     return build_case(case_store.get_case())
+
+
+@router.get('/case/dispute/inputs', response_model=DisputePreparation)
+def get_dispute_inputs():
+    """Guest-owned source readiness and arithmetic for the upcoming ADK review."""
+    return current_dispute_inputs()
 
 
 @router.get("/case/bill")

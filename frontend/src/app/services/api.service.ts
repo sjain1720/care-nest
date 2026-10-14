@@ -4,7 +4,7 @@ import { Observable, BehaviorSubject, catchError, combineLatest, concat, concatM
 import { postEventStream } from './sse';
 import { SettingsService } from './settings.service';
 import {
-  BillPolicyAnalysis, CoverageEstimate, AgentStep, AnswerCard, AskEvent, Bill, BillItem, BillReview, ChecklistStatus, ClaimCase, ClaimStatus, ClaimSummary, LetterDraft, LetterKind,
+  DisputePreparation, BillPolicyAnalysis, CoverageEstimate, AgentStep, AnswerCard, AskEvent, Bill, BillItem, BillReview, ChecklistStatus, ClaimCase, ClaimStatus, ClaimSummary, LetterDraft, LetterKind,
   MockQa, MockQuery, PastClaimInput, PolicyDetailsInput, PolicyFacts, QueryEvent, QueryHelp, Settlement, TimelineEvent, TimelineEventInput, UploadEvent,
 } from '../models/models';
 import { diaryStage, guessReply, sortedTimeline, todayIso } from '../shared/claim-diary';
@@ -250,6 +250,11 @@ export class ApiService {
     return next;
   }
   getSettlement(): Observable<Settlement | null> { return this.settlement.stream; }
+
+  getDisputePreparation(): Observable<DisputePreparation | null> {
+    if (!isLive('settlement')) return of(null);
+    return this.http.get<DisputePreparation>('/api/case/dispute/inputs').pipe(catchError(() => of(null)));
+  }
   refreshCase(): void {
     this.reloadClaimData();
     this.claims.set(this.loadClaims());

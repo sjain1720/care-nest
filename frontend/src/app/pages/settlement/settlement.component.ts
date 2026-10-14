@@ -55,6 +55,7 @@ export class SettlementComponent {
   private api = inject(ApiService);
   readonly journey = inject(JourneyService);
   readonly rejection = this.journey.rejection;
+  preparation = toSignal(this.api.getDisputePreparation());
   settlement = toSignal(this.api.getSettlement());
   bill = toSignal(this.api.getBill());
   /** undefined = nothing chosen yet, so the deduction in the link (#d3) or the first unexplained one is opened. */

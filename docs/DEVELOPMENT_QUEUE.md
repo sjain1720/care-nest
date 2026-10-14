@@ -50,3 +50,22 @@ Run a synthetic real-cloud workflow after a meaningful release, not after every
 styling edit. `eval/verify_followup.py` checks bounded context and policy switches;
 `eval/evaluate_live.py --questions eval/golden_questions_v2.jsonl` selects the updated
 expectations. Generated labels, reports and credentials remain ignored.
+
+
+## Selected next workflow and schedule
+
+User selected unexplained deductions/rejection first. Work window 14–16 October;
+video on 17 October and submission on 18 October. Follow
+`ADK_DISPUTE_WORKFLOW_PLAN.md` rather than adding other features in parallel.
+
+Stage 1 source preparation is implemented locally: guest-scoped typed endpoint,
+missing/unreviewed input checks, wrong-policy/conflicting-decision checks, decimal
+reconciliation, and a settlement/rejection page preparation panel. Stated reasons
+are no longer described as matching policy rules in the page summary. Seven new
+checks pass, 136 backend tests total; frontend production build passes. This is
+preparation for ADK, not execution
+of the coordinated agents, and has not been deployed.
+
+Next: controlled ADK policy-evidence and deduction review, mandatory verification,
+personalized clarification checklist/letter and end-to-end comparison. Retain the
+working live path until those acceptance gates pass.

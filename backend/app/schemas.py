@@ -244,3 +244,28 @@ class PreviewClaim(BaseModel):
 class CoveragePreviewInput(BaseModel):
     policy: PolicyFacts
     claims: list[PreviewClaim] = Field(max_length=200)
+
+
+class DisputeInputIssue(BaseModel):
+    code: str
+    message: str
+    route: str
+
+
+class DisputeReconciliation(BaseModel):
+    claimedAmount: float
+    approvedAmount: float
+    decisionDifference: float
+    itemizedDeductions: float
+    unexplainedGap: float
+    arithmeticOk: bool
+
+
+class DisputePreparation(BaseModel):
+    status: Literal['needs_inputs', 'ready_for_review']
+    decision: Literal['none', 'settlement', 'rejection', 'conflicting']
+    availableDocuments: list[str]
+    missingInputs: list[DisputeInputIssue]
+    warnings: list[str]
+    reconciliation: DisputeReconciliation | None = None
+    deductionsWithoutReason: list[str]

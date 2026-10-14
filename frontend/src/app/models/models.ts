@@ -389,3 +389,18 @@ export interface BillPolicyRow {
 export interface BillPolicyAnalysis {
   policyId: string; fingerprint: string; rows: BillPolicyRow[]; omittedRows: number; limitations: string[];
 }
+
+
+/** Source readiness for dispute review; readiness is not a coverage decision. */
+export interface DisputePreparation {
+  status: 'needs_inputs' | 'ready_for_review';
+  decision: 'none' | 'settlement' | 'rejection' | 'conflicting';
+  availableDocuments: string[];
+  missingInputs: { code: string; message: string; route: string }[];
+  warnings: string[];
+  reconciliation: {
+    claimedAmount: number; approvedAmount: number; decisionDifference: number;
+    itemizedDeductions: number; unexplainedGap: number; arithmeticOk: boolean;
+  } | null;
+  deductionsWithoutReason: string[];
+}
