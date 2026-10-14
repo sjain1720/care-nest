@@ -1,43 +1,52 @@
 # CareNest development queue — 14 October 2026
 
-Read `REPO_MAP.md` for navigation and `AI_QUALITY_REPORT.md` for release evidence,
-limitations and exact resume commands. Older handoff documents are historical.
+Start with `REPO_MAP.md`. `FEATURE_PLAN_STATUS.md` maps the original five features
+and build phases to actual code. `AI_QUALITY_REPORT.md` records release checks;
+`TUNING_COMPARISON.md` records the completed experiment. Historical handoffs are
+not current acceptance evidence.
 
-## Completed
+## Confirmed scope
 
-Repository navigation; issued guest identity and isolation; retention/deletion;
-synthetic live demo; deterministic backend coverage; reviewed bill-row policy
-citations; bounded server-side follow-up context; Angular/backend dependency fixes;
-quality evaluation harness and held-out tuning comparison runner.
+Finish the five core features: policy explanation, bill analysis, claim preparation,
+rejection/deduction assistance and waiting-period/PED tracking, with a unified journey.
+Defer recommendations, automatic alerts, accounts/family profiles, insurer APIs and
+complete benefit accounting until after the hackathon.
 
-Live revision: `carenest-00007-28h`. Cleanup image synchronized with that revision.
-129 backend tests and production frontend build pass. Full cloud workflow passed
-40 checks on v5; the 12-question benchmark reached 11/12 verdict and 11/12 citation
-checks on v6. These reports are not semantic insurance accuracy scores.
+## Latest completed checks
 
-## Next tasks, in order
+- Backend coverage, reviewed bill-row policy evidence and bounded guest-scoped
+  follow-up context are implemented. 129 backend tests pass.
+- Semantic support guard: unchanged benchmark 11/12 verdict, 12/12 citation checks.
+  The old diabetes reference assumes PED without onset facts; corrected v2 rescoring
+  yields 12/12 verdict checks on the same outputs, not an independent evaluation.
+- Follow-up verification passed six storage/isolation checks. One date follow-up
+  was withheld by the stricter support guard; completeness still needs improvement.
+- Existing tuning job succeeded. Both arms completed 34 held-out questions: baseline
+  33/34 and tuned 34/34 exact quotes. Keep the baseline live pending broader evidence.
+- Scheduled cleanup worker succeeded at 03:00 India time using the v7 image, with
+  0 removed/0 failed. No manual multi-tenant deletion was run.
+- Node build image upgraded to 24. Revision `carenest-00008-7wp` is deployed with the support guard and serves 100%
+  traffic. The cleanup job image is synchronized; last verified scheduled run used v7.
 
-1. Evaluate the local answer-support guard broadly, inspect unsupported dental
-   evidence and false abstentions, measure latency, then deploy. It is not live yet.
-2. Recheck the v7 diagnosis/onset-date follow-up and policy-switch scenarios live.
-3. Resume the existing running tuning job; compare both arms on the same 34 held-out
-   examples, review answers and decide whether promotion is justified. No tuned
-   model is enabled in the application. Do not launch a duplicate job.
-4. Execute the updated cleanup worker once; inspect bill evidence on desktop/phone
-   and test blurred/cropped synthetic bill images.
-5. Before private multiuser use: legacy record inventory and in-flight deletion
-   hardening. Upgrade the Docker Node build image to supported LTS and rebuild.
+## Remaining application work, in order
 
-## Prototype verification strategy
+1. Make claim preparation fit cashless/reimbursement and selected-policy requirements;
+   incorporate actual insurer document requests with traceable sources. The current
+   default checklist is mostly generic reimbursement guidance.
+2. Strengthen each deduction explanation's semantic evidence before labeling it
+   supported; link a reason-specific checklist/action plan to verified policy and
+   bill/settlement facts. Verify official escalation deadlines before presenting them.
+3. Improve grounded clarification answers without weakening safe abstention. Review
+   broader unseen policies and realistic claims with onset/schedule/rider unknowns.
+4. Complete explicit demo reset/mode switching and the desktop/phone walkthrough;
+   test blurred/cropped synthetic bill images and prepare a backup judging video.
+5. Before broader private use, inventory legacy unowned records and harden deletion
+   during in-flight uploads/AI writes. Do not blindly delete legacy data.
 
-Keep fast tests for arithmetic, evidence integrity, routing and guest isolation.
-They use mocks and do not establish real model quality. Run the cloud workflow
-once after a meaningful release, rather than after every styling edit:
+## Verification strategy
 
-```sh
-backend/.venv/bin/python scripts/verify-release.py --url https://carenest-17055771987.asia-south1.run.app --full --bill-image /private/tmp/carenest-release-bill.png
-```
-
-Reports/training data stay ignored. Machine-checked labels need human review.
-The application continues to retrieve from a newly uploaded policy; fine-tuning
-is not a replacement for ingestion, relevant source evidence or missing facts.
+Keep fast tests for arithmetic, ownership, source integrity and API compatibility.
+Run a synthetic real-cloud workflow after a meaningful release, not after every
+styling edit. `eval/verify_followup.py` checks bounded context and policy switches;
+`eval/evaluate_live.py --questions eval/golden_questions_v2.jsonl` selects the updated
+expectations. Generated labels, reports and credentials remain ignored.

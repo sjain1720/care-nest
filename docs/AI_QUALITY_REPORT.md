@@ -92,3 +92,45 @@ supports it; retrieval remains necessary for unseen products and revisions.
 Unreadable pages, missing schedules/riders or absent relevant evidence should lead
 to clarification or inability to confirm. Bill evidence and coverage estimates do
 not replace insurer adjudication. Policy recommendation remains a future feature.
+
+
+## Follow-up pass on 14 October
+
+The tuning job succeeded and both 34-case arms completed. See
+`TUNING_COMPARISON.md`: baseline 33/34 versus tuned 34/34 exact-quote checks;
+no broad semantic superiority established. Keep the live retrieval baseline.
+The old RUNNING status above records the earlier wrap-up, not the current job state.
+
+The local answer-support guard completed the unchanged 12-question benchmark:
+11/12 verdict checks, 12/12 citation checks. Dental wording is now withheld rather
+than citing unrelated cataract evidence. The old diabetes reference assumes PED
+without onset facts; `golden_questions_v2.jsonl` corrects this one expectation and
+preserves the original benchmark. Re-scoring the saved answers against v2 yields
+12/12 verdict checks; this is not a second independent run or semantic accuracy.
+
+Synthetic follow-up verification passed six storage/isolation checks: latest date
+retained, bounded history, guest separation and old context dropped after a private
+policy upload. Inspection of the answers found that the support guard withheld one
+date-related explanation. This is a safe abstention but reduces completeness; do
+not describe every follow-up as fully resolved. Four measured local answers took
+4.33–8.12 seconds, a small diagnostic sample rather than a latency benchmark.
+
+Product scope is now confirmed: finish the five core features. Defer recommendations,
+automatic alerts, accounts/family profiles, insurer integration and complete benefit
+accounting. `FEATURE_PLAN_STATUS.md` maps original features and build phases to code
+and lists the remaining generic-checklist and deduction-support gaps.
+
+
+Read-only cleanup verification: scheduled execution `carenest-guest-cleanup-lt54g`
+succeeded at 03:00 on 14 October India time using the v7 image. Its log reports
+0 removed, 0 failed. This verifies worker execution, not a fresh deletion fixture.
+An additional manual execution was rejected by automatic approval review because
+it could irreversibly delete expired multi-tenant records; no manual run occurred.
+
+
+Release update: the support guard and Node 24 build are now deployed in
+`carenest-00008-7wp`, serving 100% traffic. Cleanup image synchronized to v8;
+its last verified scheduled execution above used v7. See `CURRENT_ARCHITECTURE.md`
+for the actual Python workflow and separate experimental ADK team.
+
+Full synthetic live v8 workflow passed 40 checks, including actual bill-image extraction, row evidence, coverage, draft, ownership and guest deletion. The frontend loaded its live controls after deployment; the full phone/device workflow remains pending.

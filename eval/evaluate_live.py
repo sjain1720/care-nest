@@ -12,12 +12,13 @@ def main():
     parser.add_argument("url")
     parser.add_argument("output", type=Path)
     parser.add_argument("--model", required=True)
+    parser.add_argument("--questions", type=Path, default=Path(__file__).parent / "golden_questions.jsonl")
     args = parser.parse_args()
-    golden = [json.loads(line) for line in (Path(__file__).parent / "golden_questions.jsonl").read_text().splitlines() if line.strip()]
-    report = {"url": args.url, "model": args.model, "cases": [], "completed": False}
+    golden = [json.loads(line) for line in args.questions.read_text().splitlines() if line.strip()]
+    report = {"url": args.url, "model": args.model, "cases": [], "completed": False, "questionsFile": args.questions.name}
     if args.output.exists():
         report = json.loads(args.output.read_text())
-        if report["model"] != args.model or report["url"] != args.url:
+        if report["model"] != args.model or report["url"] != args.url or report.get("questionsFile", "golden_questions.jsonl") != args.questions.name:
             raise ValueError("Report belongs to a different deployment")
     session = requests.Session()
     loaded = session.post(args.url.rstrip('/') + '/api/demo/load', timeout=300)

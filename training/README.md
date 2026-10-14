@@ -74,3 +74,8 @@ both models, minimal thinking and the same output contract. The baseline has
 34/34 parseable JSON outputs and 33/34 exact-quote checks; all 26 policy-fact
 examples have some verified citation. These checks do not establish semantic
 insurance accuracy. Run the tuned arm only after the saved job succeeds.
+
+
+The existing job subsequently succeeded. Both held-out arms completed; see
+`docs/TUNING_COMPARISON.md`. Keep the baseline active: quotation improvement alone
+is insufficient evidence for promotion.

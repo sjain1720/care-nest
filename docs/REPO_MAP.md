@@ -22,7 +22,7 @@ context; exact token savings depend on each task.
 | Frontend startup / routes | `frontend/src/app/app.config.ts`, `app.routes.ts` | `app.component.ts/html/css` |
 | UI API / mock switch | `frontend/src/app/services/api.service.ts` | `sse.ts`, `frontend/public/mocks/` |
 | Cloud clients / config | `backend/app/core/gcp.py`, `config.py` | `.env.example`, `scripts/deploy.sh` |
-| Work queue / current evidence | `docs/DEVELOPMENT_QUEUE.md` | `AI_QUALITY_REPORT.md`; `GPT_6_1_SOL_HANDOFF.md` (historical review) |
+| Work queue / current evidence | `docs/DEVELOPMENT_QUEUE.md` | `AI_QUALITY_REPORT.md`, `FEATURE_PLAN_STATUS.md`, `TUNING_COMPARISON.md`, `CURRENT_ARCHITECTURE.md`; `GPT_6_1_SOL_HANDOFF.md` (historical review) |
 
 ## Feature-to-file lookup
 
@@ -75,7 +75,7 @@ Refer to the lifecycle implementation for current ownership and retention paths.
 | Index / check five-policy corpus | `backend/scripts/index_policy_corpus.py`, `check_policy_corpus.py` |
 | Generate/review synthetic examples | `backend/scripts/draft_tuning_data.py`, `training/README.md` |
 | Cost preflight / optional tuning job | `backend/scripts/tune_policy_model.py` |
-| QA evaluations | `eval/evaluate_live.py`, `eval/run_policy_eval.py`, `eval/compare_tuned.py` |
+| QA evaluations | `eval/evaluate_live.py`, `eval/run_policy_eval.py`, `eval/compare_tuned.py`, `eval/verify_followup.py` |
 | Bill / dataset checks | `eval/run_bill_check.py`, `run_dataset_check.py` |
 | Synthetic source assets | `demo-data/make_demo_pdfs.py`, `frontend/public/demo/` |
 
