@@ -22,7 +22,7 @@ backend/
   app/routers/health.py  /api/health and /api/diag (calls every Google service once)
   agents/hello_agent/    ADK test agent on Vertex AI
   scripts/smoke_test.py  Phase 0 connection test
-frontend/                Angular 19 + Material 3 app (Phase 1 screens on mock data; /status = service check)
+frontend/                Angular 20 + Material 3 app (Phase 1 screens on mock data; /status = service check)
   public/mocks/          demo-case JSON that follows src/app/models/models.ts (the API contract)
   src/app/services/api.service.ts   USE_MOCKS switch: mocks now, /api/* later
 infra/gcp-bootstrap.sh   one-time GCP setup (run in Cloud Shell)
@@ -59,3 +59,31 @@ Cloud Shell limits: about 50 hours/week; the session stops after inactivity, but
 
 - Never commit `backend/.env` or any key file. Credentials come from your Cloud Shell sign-in and the `ppm-runner` service account on Cloud Run.
 - Synthetic or public documents only – no real patient data.
+
+
+## Judge demo and guest identity
+
+No shared username/password is needed. Open the deployed URL, then Demo and live
+settings (`/status`), enable live features and reload if the app is in mock mode.
+Choose **Load the demo case with real AI**. It loads fictional policy, bill and
+settlement documents into this visitor's isolated guest context. The canonical
+sample wording is shared read-only; visitor edits/uploads remain guest-owned.
+The current demo policyholder is fictional Ravi Sharma and family.
+
+Use these sample questions: “What is my room-rent limit?”, “Why was money deducted
+from my claim?”, and “What should I ask the insurer?”. Inspect the actual source
+pages and unknowns. Review extracted bill rows before starting evidence analysis.
+Uploaded synthetic bill/settlement figures come from the processed files; the app
+must not promise final payment or an official insurer balance.
+
+The coordinated ADK decision-review workflow is being added and evaluated separately
+from normal chat. Its current implementation/verified release is recorded in
+`docs/DEVELOPMENT_QUEUE.md`. Do not claim the experimental `/api/copilot/agent`
+endpoint is the default chat architecture. UI colleague guidance is in
+`docs/UI_COLLEAGUE_HANDOFF.md`; current architecture is in
+`docs/CURRENT_ARCHITECTURE.md`.
+
+Guest retention is fixed at seven days; recovery across browsers/devices is not
+guaranteed. Use synthetic documents in the demo. Real account management remains
+outside the hackathon scope. Never put passwords, service-account files or patient
+records into the README/repository.
