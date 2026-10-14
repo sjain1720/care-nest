@@ -32,9 +32,10 @@ def main():
         events = [json.loads(line[6:]) for line in response.text.splitlines() if line.startswith('data: ')]
         review = next(e['review'] for e in events if e['type'] == 'review')
         report['elapsedSeconds'] = round(time.monotonic() - started, 2); report['review'] = review
-        check('ADK review completes', review['status'] == 'reviewed' and review['engine'] == 'adk_sequential')
+        check('ADK review completes', review['status'] == 'reviewed' and review['engine'] == 'adk_investigation')
         names = {s['agent'] for s in review['steps']}
-        check('all specialists and code verifier report progress', {'Policy Specialist', 'Deduction Analyst', 'Evidence Verifier', 'Source Verifier'} <= names)
+        check('shared support and source verifier report progress', {'Shared Verifier', 'Source Verifier'} <= names)
+        check('adaptive policy retrieval ran', any('Retrieved policy evidence' in step['label'] for step in review['steps']))
         check('every extracted deduction is represented', len(review['rows']) == len(call('GET', '/api/case/settlement').json()['deductions']))
         check('no-reason deduction is not inferred', any(r['assessment'] == 'no_stated_reason' and not r['citations'] for r in review['rows']))
         check('review contains actionable missing-fact questions', all(r['missingInformation'] for r in review['rows']))

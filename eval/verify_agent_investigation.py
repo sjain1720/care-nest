@@ -1,6 +1,6 @@
-"""One disposable synthetic run of the bounded experimental tool-using ADK team.
+"""One disposable synthetic run of the integrated bounded ADK investigation.
 
-Checks runtime tools and limits, not interpretation accuracy or AnswerCard readiness.
+Checks runtime tools and limits; full semantic quality still needs human review.
 """
 import argparse
 import json
@@ -33,19 +33,18 @@ def main():
         bill = call('GET', '/api/case/bill')
         call('PUT', '/api/case/bill', json={'items': bill['items'], 'statedTotal': bill['total']})
         start = time.monotonic()
-        result = call('POST', '/api/copilot/agent', json={
+        response = call('POST', '/api/copilot/ask', json={
             'conversationId': 'synthetic-adk-check',
             'question': 'Investigate my settlement deductions. Inspect the bill and settlement, retrieve relevant policy clauses and identify missing facts. Do not promise payment.'})
+        result = response['answer']['investigation']
         report.update(result=result, elapsedSeconds=round(time.monotonic() - start, 2))
-        check('tool-using ADK completes as explicitly unverified experiment',
-              result['status'] == 'experimental' and result['verified'] is False)
+        check('normal chat returns the shared verified investigation', result['status'] == 'reviewed')
         labels = [step['label'] for step in result['steps']]
-        check('actual runtime invokes settlement tool', 'Using tool settlement_breakdown' in labels)
-        check('actual runtime invokes policy retrieval', 'Using tool search_policy' in labels)
+        check('actual runtime consults a specialist', any('Executing tool' in label for label in labels))
+        check('actual runtime retrieves policy evidence', any('Retrieved policy evidence' in label for label in labels))
         check('tool budget respected', 0 < result['metrics']['toolCalls'] <= 10)
-        check('reported model usage fits configured call budget',
-              0 < result['metrics']['modelCallsWithUsage'] <= 6)
-        check('token usage is measured', result['metrics']['usage']['totalTokens'] > 0)
+        check('model calls bounded including child agents and verifier', 0 < result['metrics']['modelCalls'] <= 9)
+        check('token usage is measured', result['metrics']['totalTokens'] > 0)
         report['allPassed'] = True
     except Exception as exc:
         report['errorType'] = type(exc).__name__
