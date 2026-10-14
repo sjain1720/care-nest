@@ -15,7 +15,6 @@ import { GlossComponent } from '../../shared/gloss.component';
 import { CitationChipComponent } from '../../shared/citation-chip.component';
 import { TrustPillComponent } from '../../shared/trust-pill.component';
 import { WaterfallComponent, WaterfallStep } from '../../shared/waterfall.component';
-import { DisputeReviewComponent } from '../../shared/dispute-review.component';
 import { plainCutName } from '../../shared/plain-words';
 
 const SEGMENT_COLORS = ['var(--cn-seg-1)', 'var(--cn-seg-2)', 'var(--cn-seg-3)', 'var(--cn-seg-4)', 'var(--cn-seg-5)'];
@@ -24,7 +23,7 @@ const SEGMENT_COLORS = ['var(--cn-seg-1)', 'var(--cn-seg-2)', 'var(--cn-seg-3)',
   selector: 'app-settlement',
   standalone: true,
   imports: [DatePipe, RouterLink, MatButtonModule, MatIconModule, InrPipe, CitationChipComponent, TrustPillComponent, WaterfallComponent, NextStepsComponent, TranslatePipe,
-            SkeletonComponent, EmptyStateComponent, GlossComponent, DisputeReviewComponent],
+            SkeletonComponent, EmptyStateComponent, GlossComponent],
   templateUrl: './settlement.component.html',
   styles: `
     .totals { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }

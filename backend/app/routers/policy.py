@@ -4,8 +4,7 @@ from google.api_core.exceptions import GoogleAPIError
 from google.genai import errors as genai_errors
 from pypdf.errors import PdfReadError
 
-from app.schemas import PolicyDetailsInput, PolicyFacts, TreatmentPlanInput, TreatmentPlanPreparation, UploadResult
-from app.services.treatment_planning import current_plan
+from app.schemas import PolicyDetailsInput, PolicyFacts, UploadResult
 from app.services import policy_store as store
 from app.services.file_types import detect_mime, is_image
 from app.services.ocr import PdfTooLongError
@@ -49,11 +48,6 @@ def _active_policy() -> tuple[str, dict]:
 @router.get("/policy", response_model=PolicyFacts)
 def get_policy():
     return _active_policy()[1]["facts"]
-
-
-@router.post('/policy/treatment-plan/prepare', response_model=TreatmentPlanPreparation)
-def prepare_treatment_plan(body: TreatmentPlanInput):
-    return current_plan(body)
 
 
 @router.put("/policy/details", response_model=PolicyFacts)

@@ -1,16 +1,11 @@
 import re
-import asyncio
-import contextvars
-import queue
-import threading
 
 from fastapi import APIRouter, HTTPException, Query
-from fastapi.responses import Response, StreamingResponse
+from fastapi.responses import Response
 from google.api_core.exceptions import GoogleAPIError, NotFound
 from google.genai import errors as genai_errors
 
-from app.schemas import AskRequest, BillReviewIn, ChecklistUpdate, DisputePreparation, DisputeReview, QueryHelpRequest, ReplyRequest, TimelineEventIn
-from app.services.sse import sse_event
+from app.schemas import BillReviewIn, ChecklistUpdate, DisputePreparation, QueryHelpRequest, ReplyRequest, TimelineEventIn
 from app.services import case_store, policy_store
 from app.services.case_builder import build_case
 from app.services.bill_policy import analyse_bill_policy, fingerprint
@@ -39,37 +34,6 @@ def get_case():
 def get_dispute_inputs():
     """Guest-owned source readiness and arithmetic for the upcoming ADK review."""
     return current_dispute_inputs()
-
-
-@router.post('/case/dispute/review', response_model=DisputeReview)
-async def review_dispute(body: AskRequest):
-    from app.services.dispute_review import run_review
-    return await run_review(body.question.strip())
-
-
-@router.post('/case/dispute/review/stream')
-def stream_dispute_review(body: AskRequest):
-    from app.services.dispute_review import run_review
-    events = queue.Queue()
-
-    def work():
-        try:
-            result = asyncio.run(run_review(body.question.strip(),
-                on_step=lambda step: events.put({'type': 'step', 'step': step.model_dump()})))
-            events.put({'type': 'review', 'review': result.model_dump()})
-        except Exception:
-            events.put({'type': 'error', 'message': 'The decision review could not complete. Please retry.'})
-        finally:
-            events.put(None)
-
-    threading.Thread(target=contextvars.copy_context().run, args=(work,), daemon=True).start()
-
-    def stream():
-        while (event := events.get()) is not None:
-            yield sse_event(event)
-
-    return StreamingResponse(stream(), media_type='text/event-stream',
-        headers={'Cache-Control': 'no-cache', 'X-Accel-Buffering': 'no'})
 
 
 @router.get("/case/bill")

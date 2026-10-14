@@ -4,7 +4,7 @@ import { Observable, BehaviorSubject, catchError, combineLatest, concat, concatM
 import { postEventStream } from './sse';
 import { SettingsService } from './settings.service';
 import {
-  TreatmentPlanInput, TreatmentPlanPreparation, DisputeReviewEvent, DisputePreparation, BillPolicyAnalysis, CoverageEstimate, AgentStep, AnswerCard, AskEvent, Bill, BillItem, BillReview, ChecklistStatus, ClaimCase, ClaimStatus, ClaimSummary, LetterDraft, LetterKind,
+  DisputePreparation, BillPolicyAnalysis, CoverageEstimate, AgentStep, AnswerCard, AskEvent, Bill, BillItem, BillReview, ChecklistStatus, ClaimCase, ClaimStatus, ClaimSummary, LetterDraft, LetterKind,
   MockQa, MockQuery, PastClaimInput, PolicyDetailsInput, PolicyFacts, QueryEvent, QueryHelp, Settlement, TimelineEvent, TimelineEventInput, UploadEvent,
 } from '../models/models';
 import { diaryStage, guessReply, sortedTimeline, todayIso } from '../shared/claim-diary';
@@ -250,14 +250,6 @@ export class ApiService {
     return next;
   }
   getSettlement(): Observable<Settlement | null> { return this.settlement.stream; }
-
-  prepareTreatmentPlan(input: TreatmentPlanInput): Observable<TreatmentPlanPreparation> {
-    return this.http.post<TreatmentPlanPreparation>('/api/policy/treatment-plan/prepare', input);
-  }
-
-  reviewDispute(question: string): Observable<DisputeReviewEvent> {
-    return postEventStream<DisputeReviewEvent>('/api/case/dispute/review/stream', { question, language: this.settings.lang() });
-  }
 
   getDisputePreparation(): Observable<DisputePreparation | null> {
     if (!isLive('settlement')) return of(null);
