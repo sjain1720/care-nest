@@ -135,6 +135,12 @@ def build_team(data, bundle, budget, emit):
         # AgentTool creates child runners; RunConfig alone does not bound their calls.
         if budget['modelCalls'] >= 8:
             raise RuntimeError('Shared model-call budget reached')
+        # Reserve a final root response rather than let an optional consultation
+        # consume the last call and discard otherwise useful collected evidence.
+        if getattr(callback_context, 'agent_name', None) == 'claim_copilot' and budget['modelCalls'] >= 6:
+            llm_request.config.tools = None
+            llm_request.config.tool_config = None
+            llm_request.tools_dict.clear()
         budget['modelCalls'] += 1
 
     def after_model(callback_context, llm_response):

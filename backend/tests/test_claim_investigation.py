@@ -25,6 +25,17 @@ class InvestigationTests(unittest.TestCase):
         with self.assertRaises(RuntimeError): callbacks[-1](None, None)
         self.assertEqual(budget['modelCalls'], 8)
 
+    def test_last_root_turn_cannot_spend_its_response_slot_on_more_tools(self):
+        from types import SimpleNamespace
+        from google.genai import types
+        budget = {'modelCalls': 6, 'toolCalls': 0}
+        root = dispute_review.build_team({'rows': [], 'scope': 'a'}, {}, budget, lambda *args: None)
+        request = SimpleNamespace(config=types.GenerateContentConfig(), tools_dict={'optional': object()})
+        root.before_model_callback(SimpleNamespace(agent_name='claim_copilot'), request)
+        self.assertIsNone(request.config.tools)
+        self.assertEqual(request.tools_dict, {})
+        self.assertEqual(budget['modelCalls'], 7)
+
     def test_letter_uses_verified_questions_and_ignores_old_ai_readings(self):
         case = {'policyId': 'p', 'bill': {'reviewed': True}, 'documents': [],
                 'settlement': {'claimedAmount': 10000.25, 'approvedAmount': 8000,
