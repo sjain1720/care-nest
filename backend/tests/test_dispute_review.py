@@ -44,9 +44,17 @@ class VerificationTests(unittest.TestCase):
         self.assertEqual(review.verify_rows(bundle(), selected, readings, verification)[0].assessment, 'unverified')
 
     def test_no_reason_is_not_inferred_by_agents(self):
-        data = bundle(); data['rows'][0]['insurerReason'] = 'Other deductions'
-        row = review.verify_rows(data, *proposed())[0]
-        self.assertEqual(row.assessment, 'no_stated_reason'); self.assertFalse(row.citations)
+        for reason in ('Other deductions', 'No reason or clause stated.', 'No clear reason stated.', None):
+            with self.subTest(reason=reason):
+                data = bundle(); data['rows'][0]['insurerReason'] = reason
+                row = review.verify_rows(data, *proposed())[0]
+                self.assertEqual(row.assessment, 'no_stated_reason'); self.assertFalse(row.citations)
+
+    def test_related_wording_still_requests_applicability_calculation(self):
+        selected, readings, verification = proposed(); readings.rows[0].missingInformation = []
+        row = review.verify_rows(bundle(), selected, readings, verification)[0]
+        self.assertEqual(row.assessment, 'related_wording')
+        self.assertTrue(row.missingInformation)
 
     def test_missing_verifier_result_and_payment_promise_are_withheld(self):
         selected, readings, verification = proposed()

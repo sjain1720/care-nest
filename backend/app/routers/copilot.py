@@ -1,3 +1,4 @@
+import asyncio
 import contextvars
 import logging
 import queue
@@ -66,7 +67,9 @@ async def ask_agent(body: AskRequest):
     from app.adk_copilot import run_copilot_agent  # imported lazily so the API starts even if ADK has a problem
 
     try:
-        return await run_copilot_agent(body.question.strip())
+        question, _ = await asyncio.to_thread(prepare, body.question.strip(), body.conversationId)
+        # Read the same owned thread, but do not persist unverified agent text as findings.
+        return await run_copilot_agent(question)
     except _GOOGLE_ERRORS as exc:
         raise HTTPException(502, f"A Google service failed in the agent: {exc.__class__.__name__}") from exc
 

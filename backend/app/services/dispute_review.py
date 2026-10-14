@@ -184,7 +184,9 @@ def verify_rows(bundle, selected, readings, verification):
             questions = ['Ask the insurer for the itemized reason, calculation and applicable policy clause in writing.']
         elif valid and citations:
             assessment = 'related_wording'
-            explanation, questions = reading.explanation, reading.missingInformation
+            explanation = reading.explanation
+            questions = reading.missingInformation or [
+                "Ask the insurer for the itemized charges and calculation to check how this clause was applied."]
         elif valid:
             assessment = 'needs_information'
             explanation = 'No applicable policy wording was verified for this stated reason. The insurer needs to clarify the clause and calculation.'
