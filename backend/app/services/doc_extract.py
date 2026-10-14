@@ -64,7 +64,8 @@ class SettlementOut(BaseModel):
     rejectionReasonPage: int | None = None
 
 
-BILL_PROMPT = """This document is an Indian hospital or pharmacy bill: a PDF, or a phone photo of a paper bill (it may be scanned,
+BILL_PROMPT = """Inspect this uploaded file. It may be blank, unreadable or unrelated. If no bill charge lines are visible, return items=[], statedTotal=null and unknown header fields=null; never supply sample values.
+When readable, this document is an Indian hospital or pharmacy bill: a PDF, or a phone photo of a paper bill (it may be scanned,
 skewed or handwritten). Extract it as JSON. Rules:
 - items: every individual charge line, NOT subtotals, section totals or the grand total. Copy the description as printed.
   amount, rate and qty are plain numbers in rupees (no commas). page = page number within THIS document (a photo is page 1).

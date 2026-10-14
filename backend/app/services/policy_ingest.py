@@ -38,10 +38,12 @@ def classify(pages: list[dict]) -> str:
 
 
 def process_upload(data: bytes, filename: str, doc_type: str = "auto", mime: str = PDF) -> UploadResult:
+    source_text = None
     if doc_type not in DOC_TYPES:
-        doc_type = classify([{"page": 1, "text": ocr_first_page(data, mime)}])
+        source_text = ocr_first_page(data, mime)
+        doc_type = classify([{"page": 1, "text": source_text}])
     if doc_type != "Policy document":
-        return process_case_document(data, filename, doc_type, mime)
+        return process_case_document(data, filename, doc_type, mime, source_text=source_text)
     if is_image(mime):
         raise UnsupportedFileError("This looks like a policy document. Upload the policy as a PDF – photos work for bills and letters.")
     return ingest_policy(data, filename)

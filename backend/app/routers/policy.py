@@ -7,7 +7,7 @@ from pypdf.errors import PdfReadError
 from app.schemas import PolicyDetailsInput, PolicyFacts, TreatmentPlanInput, TreatmentPlanPreparation, UploadResult
 from app.services.treatment_planning import current_plan
 from app.services import policy_store as store
-from app.services.file_types import detect_mime, is_image
+from app.services.file_types import detect_mime, is_image, UnreadableDocumentError
 from app.services.ocr import PdfTooLongError
 from app.services.policy_details import apply_user_details
 from app.services.policy_ingest import UnsupportedFileError, process_upload
@@ -31,7 +31,7 @@ def upload_document(file: UploadFile = File(...), docType: str = Form("auto")):
         raise HTTPException(415, "Upload the policy as a PDF. Photos work for bills and letters.")
     try:
         return process_upload(data, file.filename or "document", docType, mime)
-    except (PdfTooLongError, UnsupportedFileError) as exc:
+    except (PdfTooLongError, UnsupportedFileError, UnreadableDocumentError) as exc:
         raise HTTPException(422, str(exc)) from exc
     except (PdfReadError, IndexError) as exc:
         raise HTTPException(422, "This PDF is empty, encrypted or unreadable. Upload an unlocked, readable PDF.") from exc
