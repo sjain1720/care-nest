@@ -76,7 +76,7 @@ class TwoVisitorTests(unittest.TestCase):
             issued.setdefault(sid, datetime.now(timezone.utc) + session.TTL)
             return sid, issued[sid]
 
-        def answer(question, on_step=None, language="en"):
+        def answer(question, on_step=None, language="en", original_question=None):
             from app.schemas import AnswerCard, AskResponse
             return AskResponse(steps=[], answer=AnswerCard(
                 verdict="info", headline="Selected document", summary=policies.get(session.session_id(), "No policy"),

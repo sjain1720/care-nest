@@ -1,4 +1,5 @@
 """Claim Copilot: routes each question to the right specialist (Gemini router, keyword fallback)."""
+import asyncio
 import logging
 import re
 from collections.abc import Callable
@@ -55,7 +56,7 @@ def route(question: str) -> tuple[str, str, str]:
         return keyword_intent(question), keyword_about(question), "keywords"
 
 
-def answer(question: str, on_step: Callable[[AgentStep], None] | None = None, language: str = "en") -> AskResponse:
+def answer(question: str, on_step: Callable[[AgentStep], None] | None = None, language: str = "en", original_question: str | None = None) -> AskResponse:
     """on_step is called as each step happens, so the API can stream progress."""
     log = StepLog(on_step)
     log.add("Claim Copilot", "Understanding your question")
@@ -72,6 +73,10 @@ def answer(question: str, on_step: Callable[[AgentStep], None] | None = None, la
         return AskResponse(steps=log.steps, answer=AnswerCard(verdict='cant_confirm',
             headline='Ask your treating clinician', summary='I can explain insurance documents, but cannot recommend medicines or doses.',
             citations=[], toConfirm=['Ask your treating clinician about medicines and recovery.'], nextAction=None))
+    from app.services.claim_investigation import wants_investigation, investigate
+    if wants_investigation(original_question or question):
+        log.add('Claim Copilot', 'Starting a bounded multi-document ADK investigation')
+        return asyncio.run(investigate(question, on_step))
     intent, about, how = route(question)
     log.add("Claim Copilot", f"Passing your question to the {_NAMES[intent]}" + (" (keyword match)" if how == "keywords" else ""))
     if intent in ("policy", "cashless_query"):

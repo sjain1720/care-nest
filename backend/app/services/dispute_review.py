@@ -4,13 +4,14 @@ import hashlib
 import json
 import logging
 import re
+import time
 from functools import cached_property
 
 from google import genai
 from google.genai import types
-from google.adk.agents import BaseAgent, LlmAgent, SequentialAgent
+from google.adk.agents import LlmAgent
+from google.adk.tools.agent_tool import AgentTool
 from google.adk.agents.run_config import RunConfig
-from google.adk.events import Event, EventActions
 from google.adk.models.google_llm import Gemini
 from google.adk.runners import Runner
 from google.adk.sessions import InMemorySessionService
@@ -25,6 +26,7 @@ from app.services.embeddings import embed_texts
 from app.services.grounding import quote_in_text
 from app.services.privacy import mask_pii
 from app.services.settlement_checks import has_reason
+from app.services.answer_support import check_rows
 
 MAX_ROWS = 12
 log = logging.getLogger(__name__)
@@ -46,7 +48,7 @@ class SelectedEvidence(BaseModel):
 
 
 class Quote(BaseModel):
-    ref: str
+    ref: str = Field(pattern=r"^P[1-9][0-9]*$")
     quote: str
 
 
@@ -100,7 +102,7 @@ def snapshot():
                                                    'sumInsured', 'roomRent', 'coPay', 'deductible', 'subLimits', 'waitingPeriods')},
             'documents': [{k: d.get(k) for k in ('id', 'type', 'pages')} for d in case.get('documents', [])],
             'claimIdentity': case.get('conversationKey') or case.get('id')}
-    data['scope'] = hashlib.sha256(json.dumps(data, sort_keys=True, default=str).encode()).hexdigest()
+    data['scope'] = hashlib.sha256(json.dumps({'snapshot': data, 'claimHeader': case.get('billHeader'), 'policyFacts': facts}, sort_keys=True, default=str).encode()).hexdigest()
     return data
 
 
@@ -119,36 +121,64 @@ def collect_sources(data):
     return {**data, 'candidates': candidates, 'sources': sources}
 
 
-class PolicySources(BaseAgent):
-    async def _run_async_impl(self, ctx):
-        yield Event(author=self.name, content=types.Content(role='model', parts=[types.Part(text='Retrieving policy evidence')]))
-        data = json.loads(ctx.session.state['input_snapshot'])
-        bundle = await asyncio.to_thread(collect_sources, data)
-        encoded = json.dumps(bundle, ensure_ascii=False, default=str)
-        ctx.session.state['source_bundle'] = encoded
-        yield Event(author=self.name, actions=EventActions(state_delta={'source_bundle': encoded}))
+def build_team(data, bundle, budget, emit):
+    """Existing root/policy/bill/claim roles; root chooses specialists and retrieval."""
+    def guard(tool, args, tool_context):
+        if budget['toolCalls'] >= 10:
+            raise RuntimeError('Tool budget reached')
+        budget['toolCalls'] += 1
+        emit(getattr(tool_context, 'agent_name', 'ADK Tool'), 'Executing tool ' + tool.name)
+        if snapshot()['scope'] != data['scope']:
+            raise RuntimeError('Inputs changed')
 
+    def before_model(callback_context, llm_request):
+        # AgentTool creates child runners; RunConfig alone does not bound their calls.
+        if budget['modelCalls'] >= 8:
+            raise RuntimeError('Shared model-call budget reached')
+        budget['modelCalls'] += 1
 
-def build_team():
-    def specialist(name, instruction, schema, key):
+    def after_model(callback_context, llm_response):
+        usage = getattr(llm_response, 'usage_metadata', None)
+        if usage:
+            budget['modelResponsesWithUsage'] += 1
+            for key, field in (('inputTokens', 'prompt_token_count'), ('outputTokens', 'candidates_token_count'), ('totalTokens', 'total_token_count'), ('reasoningTokens', 'thoughts_token_count')):
+                budget[key] += getattr(usage, field, None) or 0
+
+    def search_policy(row_id: str, question: str) -> dict:
+        """Retrieve exact selected-policy evidence for one original deduction id; never change policy scope."""
+        row = next((r for r in data['rows'] if r['id'] == row_id), None)
+        if not row:
+            return {'error': 'Unknown deduction id. Use only original IDs.'}
+        if not has_reason(row['insurerReason']):
+            return {'rowId': row_id, 'sources': [], 'status': 'no_stated_reason', 'nextStep': 'Request the insurer reason; do not infer a clause.'}
+        hits = policy_store.search_clauses(data['policyId'], embed_texts([question[:500]], 'RETRIEVAL_QUERY')[0], 3)
+        results = []
+        for hit in hits:
+            ref = f"P{len(bundle['sources']) + 1}"
+            source = {'page': hit['page'], 'label': hit['label'], 'text': hit['text'][:2400]}
+            bundle['sources'][ref] = source
+            bundle['candidates'].setdefault(row_id, []).append(ref)
+            results.append({'ref': ref, **source})
+        emit('Policy Specialist', 'Retrieved policy evidence for ' + row['label'])
+        return {'rowId': row_id, 'sources': results}
+
+    def specialist(name, instruction, tools=None):
         return LlmAgent(name=name, model=VertexModel(model=get_settings().gemini_model),
-            instruction=RULES + '\n' + instruction, include_contents='none', output_schema=schema, output_key=key,
-            generate_content_config=types.GenerateContentConfig(temperature=0, max_output_tokens=5000))
-    return SequentialAgent(name='dispute_copilot', sub_agents=[
-        PolicySources(name='policy_sources'),
-        specialist('policy_specialist', '''Review {source_bundle}. For each row select only relevant clauseRefs from
-its own candidates. Return an empty list when the cited wording does not address the stated reason.
-Do not infer a reason when the insurer provided none.''', SelectedEvidence, 'selected_evidence'),
-        specialist('deduction_analyst', '''Review {source_bundle} using policy specialist output {selected_evidence}.
-Explain each row in at most 70 words. Copy exact 8-40 word source quotes for policy statements; use only
-selected refs for that row. If wording or facts are insufficient, say so and ask up to three specific
-questions. A matching bill charge supports arithmetic only, not coverage. No final admissibility verdict.''', Readings, 'readings'),
-        specialist('evidence_verifier', '''Independently review {source_bundle} and proposed readings {readings}.
-For every row, supported=true only if EVERY material statement in its explanation and missingInformation
-is supported or clearly framed as an unanswered question. Check exact source relevance, missing schedule,
-riders, medical history and whether insurer reason is stated. Reject whole-policy absence conclusions from
-retrieved excerpts and unjustified policy applicability. List unsupportedClaims. Never repair/invent facts.''', Verification, 'verification'),
-    ])
+            instruction=RULES + '\n' + instruction + '\nOwned source snapshot: {input_snapshot}',
+            tools=tools or [], before_tool_callback=guard, before_model_callback=before_model, after_model_callback=after_model,
+            generate_content_config=types.GenerateContentConfig(temperature=0, max_output_tokens=2500))
+    policy = specialist('policy_specialist',
+        'In ONE consultation, call search_policy for ALL deductions with stated reasons from the owned snapshot. Batch independent searches in one model turn. Return one structured reading per original row. Citation ref MUST be the exact returned P-number (e.g. P1); never use a clause label as ref. Copy exact 8-40 word policy-source quotes, NEVER quote insurer reasons as policy wording. Explain only what the quoted wording states, qualified by missing schedule/history. Do not assert a numerical cause or that an item is excluded/payable. No reason means no inferred clause.', [search_policy])
+    policy.output_schema = Readings
+    bill = specialist('bill_analyst',
+        'Inspect reviewed bill rows and decision rows. Use only preparation.reconciliation for monetary conclusions. Identify mismatches and missing original facts. Do not infer a daily rate from a bill total or state a numerical cause absent an explicit backend calculation. Do not infer payability from matching charges.')
+    claim = specialist('claim_assistant',
+        'Suggest targeted clarification questions: identify who supplies each missing fact/document and why. These are suggested clarification evidence, not mandatory insurer requirements. Do not draft unsupported accusations.')
+    return LlmAgent(name='claim_copilot', model=VertexModel(model=get_settings().gemini_model),
+        instruction=RULES + '\nInvestigate the original claim decision in {input_snapshot}. Use bill_analyst to examine the bill and\nbackend reconciliation; use policy_specialist to retrieve clauses for stated reasons; use claim_assistant\nif additional action planning helps. Consult each specialist at most ONCE, covering ALL original rows in that request. Batch independent bill/policy consultations (and claim assistance if needed) in the SAME tool-call turn. Do not consult the policy specialist separately for each row. Choose retrieval and follow-up questions based on evidence. You have eight model calls shared by all specialists; reserve your final response.\nReturn one structured reading for EVERY original row ID. Explanations: <=70 words, qualified.\nCitations must use exact returned P-number refs (P1, P2, etc.), never clause labels, and exact 8-40 word policy-source quotes for that row. Copy the policy specialist\'s qualified explanation and citations; do not convert the insurer\'s allegation into an established cause or exclusion. Ask <=3 actionable\nmissing-information questions per row. For unstated reasons do not infer applicability. Describe quoted wording narrowly; numerical causes need backend calculations. Treat extracted insurer reasons as allegations, not verified applicability. No final\nadmissibility verdict. Do not output a letter yet; backend builds it from verified findings.',
+        tools=[AgentTool(agent=bill), AgentTool(agent=policy), AgentTool(agent=claim)],
+        before_tool_callback=guard, before_model_callback=before_model, after_model_callback=after_model, output_schema=Readings, output_key='readings',
+        generate_content_config=types.GenerateContentConfig(temperature=0, max_output_tokens=5000))
 
 
 def _parse(schema, value):
@@ -177,6 +207,10 @@ def verify_rows(bundle, selected, readings, verification):
                 valid = False
             else:
                 citations.append(Citation(page=source['page'], clause=source['label'], quote=quote.quote))
+        if not valid:
+            log.info('Claim row quote/reference validation withheld a reading')
+        elif not (support and support.supported and not support.unsupportedClaims):
+            log.info('Claim row semantic validation withheld a reading')
         valid = valid and bool(support and support.supported and not support.unsupportedClaims)
         valid = valid and not unsafe.search((reading.explanation + ' ' + ' '.join(reading.missingInformation)) if reading else '')
         if not has_reason(row['insurerReason']):
@@ -202,52 +236,70 @@ def verify_rows(bundle, selected, readings, verification):
 
 async def run_review(question, on_step=None):
     from app.schemas import AgentStep
+    started = time.monotonic()
     steps = []
+    budget = {'toolCalls': 0, 'modelCalls': 0, 'modelResponsesWithUsage': 0, 'inputTokens': 0, 'outputTokens': 0, 'totalTokens': 0, 'reasoningTokens': 0}
     def step(agent, label):
-        s = AgentStep(agent=agent, label=label); steps.append(s)
-        if on_step: on_step(s)
+        value = AgentStep(agent=agent, label=label); steps.append(value)
+        if on_step: on_step(value)
     data = await asyncio.to_thread(snapshot)
     preparation = data['preparation']
-    step('Document Inspector', 'Checking documents, policy association and reconciled amounts')
+    step('Document Inspector', 'Checking documents, policy association and backend reconciliation')
     if preparation['status'] != 'ready_for_review':
         return DisputeReview(status='needs_inputs', preparation=preparation, steps=steps)
     if not data['rows'] or len(data['rows']) > MAX_ROWS:
         return DisputeReview(status='unavailable', preparation=preparation, steps=steps,
-            warnings=[f'This prototype reviews 1–{MAX_ROWS} deduction rows at a time. Ask for an itemized decision if none are recorded.'])
-    data['userClarification'] = mask_pii(question[:500])
+            warnings=[f'This prototype reviews 1–{MAX_ROWS} deduction rows at a time.'])
+    data['userClarification'] = mask_pii(question[:3000])
+    bundle = {**data, 'sources': {}, 'candidates': {r['id']: [] for r in data['rows']}}
     service = InMemorySessionService()
     user = 'guest-' + hashlib.sha256(session_id().encode()).hexdigest()[:24]
     session = await service.create_session(app_name='carenest_dispute', user_id=user,
         state={'input_snapshot': json.dumps(data, ensure_ascii=False, default=str)})
-    runner = Runner(agent=build_team(), app_name='carenest_dispute', session_service=service)
-    names = {'policy_sources': ('Policy Sources', 'Retrieving clauses from the selected policy'),
-             'policy_specialist': ('Policy Specialist', 'Received structured policy evidence selection'),
-             'deduction_analyst': ('Deduction Analyst', 'Received explanations and targeted missing-fact questions'),
-             'evidence_verifier': ('Evidence Verifier', 'Received independent source-support review')}
-    seen = set()
-    async def execute():
-        async for event in runner.run_async(user_id=user, session_id=session.id,
-                new_message=types.Content(role='user', parts=[types.Part(text='Review this claim decision using the supplied source snapshot.')]),
-                run_config=RunConfig(max_llm_calls=3)):
-            if event.author in names and event.author not in seen:
-                seen.add(event.author); step(*names[event.author])
-        return await service.get_session(app_name='carenest_dispute', user_id=user, session_id=session.id)
     try:
-        final = await asyncio.wait_for(execute(), timeout=220)
-        state = final.state
-        bundle = json.loads(state['source_bundle'])
-        rows = verify_rows(bundle, _parse(SelectedEvidence, state['selected_evidence']),
-                           _parse(Readings, state['readings']), _parse(Verification, state['verification']))
+        runner = Runner(agent=build_team(data, bundle, budget, step), app_name='carenest_dispute', session_service=service)
+        async def execute():
+            async for event in runner.run_async(user_id=user, session_id=session.id,
+                    new_message=types.Content(role='user', parts=[types.Part(text='Investigate this decision using the owned snapshot and tools.')]),
+                    run_config=RunConfig(max_llm_calls=8)):
+                for call in event.get_function_calls() or []:
+                    step(event.author, 'Requested tool ' + call.name)
+                for result in event.get_function_responses() or []:
+                    step(event.author, 'Received tool result ' + result.name)
+            final = await service.get_session(app_name='carenest_dispute', user_id=user, session_id=session.id)
+            readings = _parse(Readings, final.state['readings'])
+            _unique(readings.rows)
+            if {r.id for r in readings.rows} != {r['id'] for r in data['rows']}:
+                raise ValueError('Agent omitted or invented rows')
+            step('Shared Verifier', 'Checking every interpretation against original facts and retrieved evidence')
+            budget['modelCalls'] += 1
+            support, usage = await asyncio.to_thread(check_rows, question, readings.model_dump()['rows'],
+                {'policy': data.get('policyFacts', {}), 'decision': data['rows'], 'bill': data.get('billRows', []), 'preparation': preparation}, bundle['sources'])
+            if usage:
+                budget['modelResponsesWithUsage'] += 1
+                for key in ('inputTokens', 'outputTokens', 'totalTokens', 'reasoningTokens'): budget[key] += usage.get(key, 0)
+            selected = SelectedEvidence(rows=[Selection(id=r['id'], clauseRefs=bundle['candidates'][r['id']][:3]) for r in data['rows']])
+            # Every retrieved ref for a row may be considered; code still enforces row association and quote identity.
+            for row in selected.rows:
+                used = [c.ref for reading in readings.rows if reading.id == row.id for c in reading.citations]
+                row.clauseRefs = [ref for ref in used if ref in bundle['candidates'][row.id]][:3]
+            return verify_rows(bundle, selected, readings, Verification(rows=support))
+        rows = await asyncio.wait_for(execute(), timeout=220)
         current = await asyncio.to_thread(snapshot)
         if current['scope'] != data['scope']:
             return DisputeReview(status='stale', preparation=current['preparation'], steps=steps,
-                warnings=['The policy or claim inputs changed during review. Run the review again.'])
-        step('Source Verifier', 'Checked quote matches, row references and support flags in code')
-        return DisputeReview(status='reviewed', preparation=preparation, rows=rows, steps=steps,
-            warnings=['Related wording does not establish that the deduction is justified. Insurer reasons are extracted data: check the original letter.'])
+                warnings=['Policy or claim inputs changed. Run the review again.'])
+        step('Source Verifier', 'Checked exact quotes, row references and scope in code')
+        budget.update(route='adk', model=get_settings().gemini_model, elapsedSeconds=round(time.monotonic()-started, 3))
+        budget['usageComplete'] = budget['modelResponsesWithUsage'] == budget['modelCalls']
+        budget['estimatedInferenceUsd'] = round((budget['inputTokens'] * .25 + (budget['outputTokens'] + budget['reasoningTokens']) * 1.50) / 1_000_000, 6) if budget['usageComplete'] and get_settings().gemini_model == 'gemini-3.1-flash-lite' else None
+        budget['costBasis'] = 'Global standard text rates checked 2026-10-14; excludes OCR, embeddings, storage, retries and thread routing; not billed spend'
+        return DisputeReview(status='reviewed', preparation=preparation, rows=rows, steps=steps, metrics=budget,
+            warnings=['Related wording does not establish that the deduction is justified. Check extracted insurer reasons against the original letter.'])
     except Exception as exc:
-        log.warning('ADK dispute review unavailable (%s)', type(exc).__name__)
-        return DisputeReview(status='unavailable', preparation=preparation, steps=steps,
-            warnings=['The agent review did not complete. Existing bill checks and source documents remain available; no verified ADK result is claimed.'])
+        log.warning('ADK review unavailable (%s)', type(exc).__name__)
+        budget.update(route='adk', model=get_settings().gemini_model, elapsedSeconds=round(time.monotonic()-started, 3))
+        return DisputeReview(status='unavailable', preparation=preparation, steps=steps, metrics=budget,
+            warnings=['The investigation did not complete within its limits. No verified agent explanation is claimed.'])
     finally:
         await service.delete_session(app_name='carenest_dispute', user_id=user, session_id=session.id)

@@ -1,4 +1,5 @@
 """API response models. They mirror frontend/src/app/models/models.ts – keep both in sync."""
+from __future__ import annotations
 from typing import Literal
 from datetime import date
 
@@ -120,6 +121,7 @@ class AnswerCard(BaseModel):
     secondaryAction: NextAction | None = None
     # True when the answer comes from general insurance knowledge, not the user's own documents.
     general: bool = False
+    investigation: DisputeReview | None = None
 
 
 class AskRequest(BaseModel):
@@ -285,8 +287,10 @@ class DisputeReviewRow(BaseModel):
 
 class DisputeReview(BaseModel):
     status: Literal['needs_inputs', 'reviewed', 'unavailable', 'stale']
-    engine: Literal['adk_sequential'] = 'adk_sequential'
+    engine: Literal['adk_investigation'] = 'adk_investigation'
     preparation: DisputePreparation
+    metrics: dict = Field(default_factory=dict)
+    actions: list[dict] = Field(default_factory=list)
     rows: list[DisputeReviewRow] = Field(default_factory=list)
     steps: list[AgentStep] = Field(default_factory=list)
     warnings: list[str] = Field(default_factory=list)
@@ -326,3 +330,6 @@ class TreatmentPlanPreparation(BaseModel):
     deductible: LimitFact | None = None
     questionsToConfirm: list[str] = Field(default_factory=list)
     warnings: list[str] = Field(default_factory=list)
+
+
+AnswerCard.model_rebuild()

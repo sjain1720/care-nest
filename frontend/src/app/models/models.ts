@@ -106,6 +106,7 @@ export interface AnswerCard {
   secondaryAction?: { label: string; route: string } | null;
   /** From general insurance knowledge, not from the user's own documents. */
   general?: boolean;
+  investigation?: DisputeReview | null;
 }
 
 /** Streamed by /api/copilot/ask: progress steps first, then one answer. */
@@ -413,7 +414,9 @@ export interface DisputeReviewRow {
 }
 export interface DisputeReview {
   status: 'needs_inputs' | 'reviewed' | 'unavailable' | 'stale';
-  engine: 'adk_sequential'; preparation: DisputePreparation;
+  engine: 'adk_investigation'; preparation: DisputePreparation;
+  metrics: Record<string, string | number | boolean | null>;
+  actions: { rowId: string; question: string; source: string; why: string; status: string; basis: string }[];
   rows: DisputeReviewRow[]; steps: AgentStep[]; warnings: string[];
 }
 export type DisputeReviewEvent = {type: 'step'; step: AgentStep} | {type: 'review'; review: DisputeReview};

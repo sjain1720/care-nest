@@ -80,13 +80,10 @@ class StateAgent(BaseAgent):
         yield Event(author=self.name, actions=EventActions(state_delta=self.updates))
 
 
-def scripted_team():
-    selected, readings, verification = proposed()
-    return SequentialAgent(name='test_dispute', sub_agents=[
-        StateAgent(name='policy_sources', updates={'source_bundle': json.dumps(bundle())}),
-        StateAgent(name='policy_specialist', updates={'selected_evidence': selected.model_dump()}),
-        StateAgent(name='deduction_analyst', updates={'readings': readings.model_dump()}),
-        StateAgent(name='evidence_verifier', updates={'verification': verification.model_dump()})])
+def scripted_team(data, evidence, budget, emit):
+    evidence['sources'] = bundle()['sources']; evidence['candidates'] = bundle()['candidates']
+    _, readings, _ = proposed()
+    return StateAgent(name='claim_copilot', updates={'readings': readings.model_dump()})
 
 
 class ExecutionTests(unittest.IsolatedAsyncioTestCase):
@@ -99,18 +96,19 @@ class ExecutionTests(unittest.IsolatedAsyncioTestCase):
     async def test_actual_adk_runner_shares_structured_state_and_progress(self):
         with patch.object(review, 'snapshot', return_value=bundle()), \
              patch.object(review, 'session_id', return_value='a'*32), \
-             patch.object(review, 'build_team', side_effect=scripted_team):
+             patch.object(review, 'build_team', side_effect=scripted_team), \
+             patch.object(review, 'check_rows', return_value=([{'id': 'd1', 'supported': True, 'unsupportedClaims': []}], None)):
             result = await review.run_review('Why was money cut?')
         self.assertEqual(result.status, 'reviewed')
         self.assertEqual(result.rows[0].assessment, 'related_wording')
-        self.assertEqual([s.agent for s in result.steps], ['Document Inspector', 'Policy Sources',
-            'Policy Specialist', 'Deduction Analyst', 'Evidence Verifier', 'Source Verifier'])
+        self.assertEqual([s.agent for s in result.steps], ['Document Inspector', 'Shared Verifier', 'Source Verifier'])
 
     async def test_policy_or_claim_change_discards_completed_result(self):
         changed = bundle(); changed['scope'] = 'different'
         with patch.object(review, 'snapshot', side_effect=[bundle(), changed]), \
              patch.object(review, 'session_id', return_value='a'*32), \
-             patch.object(review, 'build_team', side_effect=scripted_team):
+             patch.object(review, 'build_team', side_effect=scripted_team), \
+             patch.object(review, 'check_rows', return_value=([{'id': 'd1', 'supported': True, 'unsupportedClaims': []}], None)):
             result = await review.run_review('Why was money cut?')
         self.assertEqual(result.status, 'stale'); self.assertFalse(result.rows)
 

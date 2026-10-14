@@ -54,7 +54,8 @@ def remember(context, answer):
     identity=db().collection('guestSessions').document(session_id()).get()
     if not identity.exists or identity.to_dict().get('revoked'): return
     turns=(context['turns']+[{'user':mask_pii(context['original'])[:500],
-            'assistant':mask_pii(answer.summary)[:600], 'clarifications':mask_all(answer.toConfirm[:3])}])[-4:]
+            'assistant':mask_pii(answer.summary)[:600], 'clarifications':mask_all(answer.toConfirm[:3]),
+            'sourceReferences':mask_all([{'page': c.page, 'clause': c.clause, 'quote': c.quote[:350]} for c in answer.citations[:6]])}])[-4:]
     parent=db().collection('conversations').document(session_id())
     parent.set({'expireAt':expiry()})
     context['ref'].set({'scope':context['scope'],'turns':turns,'expireAt':expiry()})
