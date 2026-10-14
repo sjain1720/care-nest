@@ -404,3 +404,32 @@ export interface DisputePreparation {
   } | null;
   deductionsWithoutReason: string[];
 }
+
+
+export interface DisputeReviewRow {
+  id: string; label: string; amount: number | null; insurerReason: string;
+  assessment: 'related_wording' | 'needs_information' | 'no_stated_reason' | 'unverified';
+  explanation: string; citations: Citation[]; missingInformation: string[];
+}
+export interface DisputeReview {
+  status: 'needs_inputs' | 'reviewed' | 'unavailable' | 'stale';
+  engine: 'adk_sequential'; preparation: DisputePreparation;
+  rows: DisputeReviewRow[]; steps: AgentStep[]; warnings: string[];
+}
+export type DisputeReviewEvent = {type: 'step'; step: AgentStep} | {type: 'review'; review: DisputeReview};
+
+
+export interface TreatmentPlanInput {
+  procedure: string; plannedAdmission?: string; normalRoomRatePerDay?: number;
+}
+export interface TreatmentPlanPreparation {
+  status: 'needs_policy' | 'prepared'; engine: 'backend_calculations';
+  procedure: string; plannedAdmission: string | null;
+  waitingPeriods: { label: string; appliesTo: string; endDate: string | null;
+    dateStatus: 'ends_by_planned_date' | 'running_on_planned_date' | 'end_date_unknown' | 'planned_date_missing';
+    daysRemainingAtAdmission: number | null; citation: Citation | null; }[];
+  roomRisk: { status: 'above_recorded_limit' | 'within_recorded_limit'; recordedLimitPerDay: number;
+    proposedRatePerDay: number; dailyExcess: number; citation: Citation | null; } | null;
+  coPay: LimitFact | null; deductible: LimitFact | null;
+  questionsToConfirm: string[]; warnings: string[];
+}
