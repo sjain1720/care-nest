@@ -16,6 +16,7 @@ import { NextStep, NextStepsComponent } from '../../shared/next-steps.component'
 import { EmptyStateComponent, SkeletonComponent } from '../../shared/page-states.component';
 import { eventText, todayIso } from '../../shared/claim-diary';
 import { ClaimsListComponent } from './claims-list.component';
+import { InrPipe } from '../../shared/inr.pipe';
 
 const STATUS_META: Record<ChecklistStatus, { label: string; icon: string; tone: string }> = {
   collected: { label: 'Have it', icon: 'check_circle', tone: 'ok' },
@@ -26,8 +27,9 @@ const STATUS_META: Record<ChecklistStatus, { label: string; icon: string; tone: 
 @Component({
   selector: 'app-case',
   standalone: true,
-  imports: [DatePipe, NgTemplateOutlet, FormsModule, RouterLink, MatButtonModule, MatIconModule, MatProgressBarModule, NextStepsComponent, SkeletonComponent, EmptyStateComponent, ClaimsListComponent, TranslatePipe],
+  imports: [DatePipe, NgTemplateOutlet, FormsModule, RouterLink, MatButtonModule, MatIconModule, MatProgressBarModule, NextStepsComponent, SkeletonComponent, EmptyStateComponent, ClaimsListComponent, TranslatePipe, InrPipe],
   templateUrl: './case.component.html',
+  styleUrl: './case-overview.css',
   styles: `
     .head-row { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 12px 16px; }
     .head-text { min-width: 0; }
@@ -78,6 +80,17 @@ export class CaseComponent {
   collected = computed(() => this.claimItems().filter((i) => i.status === 'collected').length);
   progressPct = computed(() => (this.claimItems().length ? (this.collected() / this.claimItems().length) * 100 : 0));
   private bill = toSignal(this.api.getBill());
+  readonly settlement = toSignal(this.api.getSettlement());
+  readonly tools = [
+    { label: 'Check my bill', icon: 'receipt_long', route: '/case/bill', fragment: undefined },
+    { label: 'Why money was cut', icon: 'stacked_bar_chart', route: '/case/settlement', fragment: undefined },
+    { label: 'Write to the insurer', icon: 'edit_note', route: '/case/letter', fragment: undefined },
+    { label: "Insurer's reply", icon: 'mark_email_read', route: '/case/reply', fragment: undefined },
+    { label: "Insurer's question", icon: 'quiz', route: '/case/query', fragment: undefined },
+    { label: 'Papers checklist', icon: 'checklist', route: '/case', fragment: 'checklist' },
+    { label: 'Claim diary', icon: 'history_edu', route: '/case', fragment: 'diary' },
+    { label: 'Add documents', icon: 'upload_file', route: '/upload', fragment: undefined },
+  ];
   /** Nothing uploaded, ticked off in the diary or read from a bill yet: show how to start instead of empty sections. */
   readonly isEmpty = computed(() => {
     const c = this.claimCase();

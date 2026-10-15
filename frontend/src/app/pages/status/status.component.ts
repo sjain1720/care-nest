@@ -45,7 +45,7 @@ export class StatusComponent {
     this.demoLoading.set(true);
     this.actionError.set(null);
     this.api.loadDemoCase().subscribe({
-      next: () => { setAllLive(true); location.assign('/'); },
+      next: () => { setAllLive(true); location.assign('/case'); },
       error: (e) => { this.demoLoading.set(false); this.actionError.set(e?.error?.detail || 'Live demo failed. Please retry.'); },
     });
   }

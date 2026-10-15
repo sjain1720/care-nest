@@ -1,3 +1,5 @@
+import logging
+
 from fastapi import APIRouter, File, Form, HTTPException, UploadFile
 from fastapi.responses import Response
 from google.api_core.exceptions import GoogleAPIError
@@ -16,6 +18,7 @@ router = APIRouter(tags=["policy"])
 
 MAX_UPLOAD_BYTES = 20 * 1024 * 1024
 _GOOGLE_ERRORS = (GoogleAPIError, genai_errors.APIError)
+log = logging.getLogger(__name__)
 
 
 @router.post("/documents", response_model=UploadResult)
@@ -36,7 +39,14 @@ def upload_document(file: UploadFile = File(...), docType: str = Form("auto")):
     except (PdfReadError, IndexError) as exc:
         raise HTTPException(422, "This PDF is empty, encrypted or unreadable. Upload an unlocked, readable PDF.") from exc
     except _GOOGLE_ERRORS as exc:
-        raise HTTPException(502, f"A Google service failed while reading the file: {exc.__class__.__name__}") from exc
+        code = getattr(exc, 'code', None)
+        code = code if isinstance(code, int) else None
+        log.warning('Document service failed error=%s code=%s', type(exc).__name__, code)
+        reason = ('Google AI is busy right now' if code == 429 else
+                  'Google refused access to document processing' if code in (401, 403) else
+                  'Google could not complete document processing')
+        detail = f'{reason}' + (f' (code {code})' if code else '')
+        raise HTTPException(502, detail + '. Retry the same file; complete policy pages already saved will be reused.') from exc
 
 
 def _active_policy() -> tuple[str, dict]:

@@ -86,8 +86,8 @@ function check(name, ok) { report.checks.push({ check: name, passed: !!ok }); co
     const demo = page.locator('button.action-card').filter({ has: page.getByRole('heading', { name: 'Explore demo', exact: true }) });
     await demo.click(); await page.getByRole('alert').waitFor();
     check('failed demo stays on landing with retry', new URL(page.url()).pathname === '/' && await demo.isEnabled());
-    await demo.click(); await page.waitForURL('**/case/settlement');
-    check('explicit successful demo loads then opens settlement', state.demoPosts === 2 && state.demo);
+    await demo.click(); await page.waitForURL('**/case');
+    check('explicit successful demo loads then opens claim overview', state.demoPosts === 2 && state.demo);
     await page.getByRole('link', { name: 'CareNest home', exact: true }).click();
     await page.getByRole('heading', { name: 'Health insurance, made simple.' }).waitFor();
     check('loaded demo remains a landing page without sample figures', !(await page.locator('main').innerText()).match(/₹|Ravi Sharma|Kamala/));

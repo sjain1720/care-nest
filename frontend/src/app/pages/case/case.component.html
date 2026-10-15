@@ -1,4 +1,9 @@
 <div class="page">
+  <nav class="claim-tools card" aria-label="Claim tools">
+    @for (tool of tools; track tool.label) {
+      <a [routerLink]="tool.route" [fragment]="tool.fragment"><mat-icon>{{ tool.icon }}</mat-icon><span>{{ tool.label | t }}</span></a>
+    }
+  </nav>
   @if (claimCase(); as c) {
     <div class="page-head head-row">
       <div class="head-text">
@@ -28,6 +33,29 @@
       </div>
     </section>
     } @else {
+    <section class="card claim-overview" aria-label="Claim overview">
+      <div class="overview-heading"><h2>{{ 'Your claim at a glance' | t }}</h2><span>{{ c.stage }}</span></div>
+      <div class="overview-fields">
+        <div><span>{{ 'Patient' | t }}</span><strong>{{ c.patient.name }}</strong><small>{{ c.patient.relation }} · {{ c.hospital }}</small></div>
+        <div><span>{{ 'Hospital stay' | t }}</span><strong>{{ (c.admissionDate | date: 'd MMM') || 'Not recorded' }} – {{ (c.dischargeDate | date: 'd MMM y') || 'Not recorded' }}</strong><small>{{ c.diagnosis }}</small></div>
+        @if (settlement(); as decision) {
+          <a routerLink="/case/settlement"><span>{{ 'Claimed' | t }}</span><strong>{{ decision.claimedAmount | inr }}</strong><small>{{ 'From the insurer decision' | t }}</small></a>
+          <a routerLink="/case/settlement"><span>{{ 'Insurer approved' | t }}</span><strong class="approved">{{ decision.approvedAmount | inr }}</strong><small>{{ 'Approval is not proof of payment' | t }}</small></a>
+          <a class="deduction-shortcut" routerLink="/case/settlement"><span>{{ 'Itemized deductions' | t }}</span><strong class="deducted">{{ decision.reconciliation ? (decision.reconciliation.deductedTotal | inr) : 'Not reconciled yet' }}</strong><small>{{ 'See why money was cut' | t }} →</small></a>
+        } @else {
+          <a class="deduction-shortcut" routerLink="/case/settlement"><span>{{ 'Insurer decision' | t }}</span><strong>{{ (c.rejection ? 'Claim refused' : 'Not added yet') | t }}</strong><small>{{ 'Explain deductions or rejection' | t }} →</small></a>
+        }
+      </div>
+      @if (settlement()?.reconciliation; as amounts) { @if (!amounts.arithmeticOk) {
+        <p class="tone-warn">The decision amounts do not reconcile. Open Why money was cut to review the discrepancy.</p>
+      } }
+      <div class="overview-steps"><strong>{{ 'Your claim steps' | t }} · {{ journey.doneCount() }}/{{ journey.steps().length }}</strong>
+        <ol>@for (step of journey.steps(); track step.label) {
+          <li><a [class.complete]="step.done" [routerLink]="step.route" [fragment]="step.fragment" [queryParams]="step.query"><span>{{ step.label | t }}</span><small>{{ (step.done ? 'Done' : 'To do') | t }}</small></a></li>
+        }</ol>
+      </div>
+      <a mat-flat-button class="btn-teal" routerLink="/case/settlement">{{ 'Explain deductions or rejection' | t }} <mat-icon>arrow_forward</mat-icon></a>
+    </section>
     <section class="card">
       <div class="facts">
         <div><span>{{ 'Illness' | t }}</span>{{ c.diagnosis }}</div>

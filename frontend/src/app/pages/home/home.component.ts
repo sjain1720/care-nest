@@ -39,7 +39,7 @@ export class HomeComponent {
       return;
     }
     if (!this.ready()) return;
-    if (this.demoContext()) { void this.router.navigateByUrl('/case/settlement'); return; }
+    if (this.demoContext()) { void this.router.navigateByUrl('/case'); return; }
     if (this.hasDocuments()) {
       this.demoBlocked.set(true);
       this.demoError.set('This guest session already has documents. Loading the demo can change your selected policy and claim. Review the demo/session settings first.');
@@ -47,7 +47,7 @@ export class HomeComponent {
     }
     this.demoLoading.set(true);
     this.api.loadDemoCase().subscribe({
-      next: () => { this.demoLoading.set(false); void this.router.navigateByUrl('/case/settlement'); },
+      next: () => { this.demoLoading.set(false); void this.router.navigateByUrl('/case'); },
       error: (error) => {
         this.demoLoading.set(false);
         this.demoError.set(error?.error?.detail ?? 'Could not load the demo. Please retry.');

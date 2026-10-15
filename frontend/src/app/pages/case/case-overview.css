@@ -1,0 +1,22 @@
+.claim-tools { display: grid; grid-template-columns: repeat(8, minmax(0, 1fr)); gap: 8px; padding: 12px; }
+.claim-tools a { display: flex; flex-direction: column; align-items: center; justify-content: flex-start; gap: 8px; padding: 10px 4px; min-height: 76px; text-align: center; color: var(--cn-strong); text-decoration: none; border-radius: 10px; font-size: .8rem; }
+.claim-tools a:hover, .claim-tools a:focus-visible { background: var(--cn-green-soft); outline: 2px solid var(--cn-primary); }
+.claim-tools mat-icon { color: var(--cn-primary); }
+.overview-heading { display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; margin-bottom: 16px; }
+.overview-heading h2 { margin: 0; }
+.overview-heading>span { color: var(--cn-muted); font-size: .85rem; }
+.overview-fields { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); border: 1px solid var(--cn-border); border-radius: 14px; overflow: hidden; }
+.overview-fields>div, .overview-fields>a { padding: 16px; min-width: 0; color: inherit; text-decoration: none; border-right: 1px solid var(--cn-border); overflow-wrap: anywhere; }
+.overview-fields>a:hover { background: var(--cn-green-soft); }
+.overview-fields span, .overview-fields strong, .overview-fields small { display: block; }
+.overview-fields span, .overview-fields small { color: var(--cn-muted); font-size: .8rem; }
+.overview-fields strong { margin: 8px 0; font-size: 1.15rem; }
+.overview-fields .approved { color: var(--cn-primary); }
+.overview-fields .deducted { color: var(--cn-bad); }
+.overview-steps { margin: 20px 0; font-size: .85rem; }
+.overview-steps ol { display: flex; flex-wrap: wrap; gap: 8px; padding: 0; list-style: none; }
+.overview-steps a { display: flex; flex-direction: column; gap: 4px; padding: 10px 12px; border-radius: 10px; color: var(--cn-strong); background: var(--cn-bg); text-decoration: none; }
+.overview-steps .complete { background: var(--cn-green-soft); }
+.overview-steps small { color: var(--cn-muted); }
+@media(max-width: 1000px) { .claim-tools { grid-template-columns: repeat(4,minmax(0,1fr)); } .overview-fields { grid-template-columns: repeat(2,minmax(0,1fr)); } }
+@media(max-width: 599px) { .claim-tools { gap: 4px; padding: 8px; } .claim-tools a { font-size: .72rem; } .overview-fields>div, .overview-fields>a { padding: 12px; } }

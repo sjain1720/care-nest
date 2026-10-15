@@ -1,5 +1,6 @@
 """Upload -> (detect type) -> policy pipeline (OCR, clauses, embeddings, verified facts) or bill/letter pipeline."""
 import hashlib
+import logging
 
 from app.schemas import UploadResult
 from app.core.session import session_id, expiry
@@ -10,6 +11,8 @@ from app.services.embeddings import embed_texts
 from app.services.file_types import PDF, is_image
 from app.services.ocr import ocr_first_page, ocr_pdf
 from app.services.policy_extract import build_policy_facts, extract_policy_facts
+
+log = logging.getLogger(__name__)
 
 DOC_TYPES = ("Policy document", "Hospital bill", "Settlement letter", "Rejection letter", "Insurer reply", "Discharge summary", "Other")
 
@@ -61,18 +64,45 @@ def ingest_policy(pdf_bytes: bytes, filename: str, shared_demo: bool = False) ->
 
     store.save_policy(doc_id, {"status": "processing", "ownerSessionId": None if shared_demo else session_id(),
                                "isDemoTemplate": shared_demo, "expireAt": None if shared_demo else expiry()})
-    pages = ocr_pdf(pdf_bytes)
-    store.save_original(doc_id, pdf_bytes)
-    store.save_policy(doc_id, {"status": "processing", "filename": filename, "pageCount": len(pages)})
-    store.save_pages(doc_id, pages)
+    stage = "reading_pages"
+    try:
+        # Only this guest's content-hash policy (or the exact shared demo) can be resumed.
+        # A partial page write is never treated as a complete reading.
+        saved = store.load_pages(doc_id) if existing and existing.get("pageCount") else {}
+        expected = (existing or {}).get("pageCount", 0)
+        complete = expected > 0 and set(saved) == set(range(1, expected + 1))
+        if complete:
+            pages = [{"page": n, "text": saved[n]} for n in sorted(saved)]
+        else:
+            store.save_policy(doc_id, {"processingStage": stage})
+            pages = ocr_pdf(pdf_bytes)
+            store.save_original(doc_id, pdf_bytes)
+            store.save_policy(doc_id, {"filename": filename, "pageCount": len(pages)})
+            store.save_pages(doc_id, pages)
 
-    clauses = split_into_clauses(pages)
-    vectors = embed_texts([f"{c.label} {c.title}\n{c.text}" for c in clauses], "RETRIEVAL_DOCUMENT")
-    store.save_clauses(doc_id, clauses, vectors)
+        stage = "embedding_clauses"
+        store.save_policy(doc_id, {"processingStage": stage})
+        clauses = split_into_clauses(pages)
+        vectors = embed_texts([f"{c.label} {c.title}\n{c.text}" for c in clauses], "RETRIEVAL_DOCUMENT")
+        if len(vectors) != len(clauses):
+            raise RuntimeError("Policy indexing returned an incomplete result")
+        store.save_clauses(doc_id, clauses, vectors)
 
-    facts = build_policy_facts(doc_id, extract_policy_facts(pages), pages)
-    # baseFacts = what the document says; facts = baseFacts + details the user types in later.
-    store.save_policy(doc_id, {"status": "ready", "baseFacts": facts.model_dump(), "facts": facts.model_dump(),
-                               "clauseCount": len(clauses)})
-    store.set_active_policy(doc_id)
-    return UploadResult(detectedType="Policy document", pages=len(pages), policyId=doc_id)
+        stage = "extracting_facts"
+        store.save_policy(doc_id, {"processingStage": stage})
+        facts = build_policy_facts(doc_id, extract_policy_facts(pages), pages)
+        # baseFacts = document facts; personal details stay in the guest session.
+        store.save_policy(doc_id, {"status": "ready", "processingStage": "ready", "lastErrorCode": None,
+                                   "baseFacts": facts.model_dump(), "facts": facts.model_dump(), "clauseCount": len(clauses)})
+        store.set_active_policy(doc_id)
+        return UploadResult(detectedType="Policy document", pages=len(pages), policyId=doc_id)
+    except Exception as exc:
+        code = getattr(exc, "code", None)
+        code = code if isinstance(code, int) else None
+        # Deliberately omit exception messages, document text and guest identity.
+        log.warning("Policy ingestion failed stage=%s error=%s code=%s", stage, type(exc).__name__, code)
+        try:
+            store.save_policy(doc_id, {"status": "failed", "processingStage": stage, "lastErrorCode": code})
+        except Exception:
+            log.warning("Could not save policy failure status")
+        raise

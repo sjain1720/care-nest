@@ -63,7 +63,7 @@ class TwoVisitorTests(unittest.TestCase):
                 try:
                     result = policy_ingest.ingest_policy(b'same synthetic bytes', 'wording.pdf')
                     results.append(result.policyId)
-                    self.assertEqual(save.call_args_list[-3].args[1]['ownerSessionId'], sid)
+                    self.assertEqual(next(call.args[1]['ownerSessionId'] for call in reversed(save.call_args_list) if 'ownerSessionId' in call.args[1]), sid)
                 finally:
                     session.reset_session(token)
         self.assertNotEqual(results[0], results[1])

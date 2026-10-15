@@ -79,7 +79,7 @@ export class JourneyService {
     const skip = this.nothingToQuestion();
     return [
       { label: 'Policy read', todo: 'Add your policy', done: !!this.policy(), route: '/policy' },
-      { label: 'Bill checked', todo: 'Check your bill', done: !!this.bill(), route: '/case/bill' },
+      { label: 'Bill checked', todo: 'Check your bill', done: this.bill()?.reviewed === true, route: '/case/bill' },
       { label: 'Papers ready', todo: 'Collect your papers', done: collected, route: '/case', fragment: 'checklist' },
       { label: 'Claim sent', todo: 'Send your claim', done: sent, route: '/case/letter', query: { kind: 'cover_letter' } },
       { label: 'Insurer decided', todo: 'Wait for their decision', done: this.decided(), route: '/case/settlement' },
