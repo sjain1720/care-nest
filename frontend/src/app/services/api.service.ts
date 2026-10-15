@@ -28,9 +28,11 @@ const LIVE_KEY = 'carenest.live';
 // Read once at start-up; /status saves a new list and reloads the page.
 const LIVE = ((): Set<Feature> => {
   try {
-    return new Set(JSON.parse(localStorage.getItem(LIVE_KEY) ?? '[]') as Feature[]);
+    const saved = localStorage.getItem(LIVE_KEY);
+    const defaults = FEATURES.filter((f) => f.backendReady).map((f) => f.id);
+    return new Set(saved === null ? defaults : JSON.parse(saved) as Feature[]);
   } catch {
-    return new Set<Feature>();
+    return new Set(FEATURES.filter((f) => f.backendReady).map((f) => f.id));
   }
 })();
 

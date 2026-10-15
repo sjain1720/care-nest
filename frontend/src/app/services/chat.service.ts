@@ -1,9 +1,10 @@
 import { Injectable, inject, signal } from '@angular/core';
-import { Subscription } from 'rxjs';
+import { Subscription, filter } from 'rxjs';
+import { NavigationEnd, Router } from '@angular/router';
 import { ApiService, isLive } from './api.service';
 import { ChatMessage } from '../models/models';
 
-const GENERAL_PROMPTS = ["Is my father's cataract surgery covered?", 'What is my room-rent limit?', 'Why was money deducted from my claim?', 'Which documents am I missing?'];
+const GENERAL_PROMPTS = ['What is a waiting period?', 'How do I question a deduction?', 'What documents help prepare a claim?'];
 
 const CONTEXT: { prefix: string; label: string; prompts: string[] }[] = [
   { prefix: '/case/settlement', label: 'Ask about your deductions', prompts: ['Why was money deducted from my claim?', 'Which deduction can I challenge?', 'What should I ask the insurer?'] },
@@ -39,6 +40,9 @@ export function followUps(route: string | undefined, asked: string): string[] {
 @Injectable({ providedIn: 'root' })
 export class ChatService {
   private api = inject(ApiService);
+  private router = inject(Router);
+  private returnUrl = '/';
+  private previousPath = '/';
   private sub?: Subscription;
   private nextId = 1;
   private conversationId = crypto.randomUUID();
@@ -53,6 +57,35 @@ export class ChatService {
   readonly live = isLive('ask');
   /** False after a question failed, until the next one gets through. */
   readonly reachable = signal(true);
+
+  constructor() {
+    this.router.events.pipe(filter((event): event is NavigationEnd => event instanceof NavigationEnd)).subscribe((event) => {
+      const url = event.urlAfterRedirects;
+      const path = url.split(/[?#]/)[0];
+      if (path === '/ask') {
+        this.closePanel();
+      } else {
+        this.returnUrl = url;
+        if (this.previousPath === '/ask' && (this.messages().length || this.busy())) {
+          this.panelOpen.set(innerWidth >= 900);
+        } else if (innerWidth < 900) {
+          this.closePanel();
+        }
+      }
+      this.previousPath = path;
+    });
+  }
+
+  expand(): void {
+    if (this.router.url.split(/[?#]/)[0] !== '/ask') this.returnUrl = this.router.url;
+    void this.router.navigateByUrl('/ask');
+  }
+
+  returnToPanel(): void {
+    void this.router.navigateByUrl(this.returnUrl, { replaceUrl: true }).then((navigated) => {
+      if (navigated) this.openPanel();
+    });
+  }
 
   openPanel(question?: string): void {
     this.panelOpen.set(true);

@@ -17,9 +17,12 @@ const check = (name, ok) => {
   try {
     browser = await chromium.launch({ headless: true, executablePath: process.env.CARENEST_CHROME || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome' });
     context = await browser.newContext({ viewport: { width: 1280, height: 900 }, colorScheme: 'light' });
-    await context.addInitScript(() => localStorage.setItem('carenest.live', JSON.stringify(['policy','ask','upload','case','bill','settlement','letter','query'])));
+
     const page = await context.newPage();
     await page.goto(base, { waitUntil: 'domcontentloaded' });
+    await page.getByRole('heading', { name: 'Health insurance, made simple.' }).waitFor();
+    check('fresh guest sees landing without fictional figures', !(await page.locator('main').innerText()).match(/₹|Ravi Sharma|Kamala/));
+    check('fresh browser defaults to live guest', (await page.locator('.mode').innerText()).includes('Guest'));
     const seeded = await context.request.post(base + '/api/demo/load', { timeout: 180000 });
     check('fictional browser guest seeded', seeded.ok());
     const read = await context.request.get(base + '/api/case/bill');

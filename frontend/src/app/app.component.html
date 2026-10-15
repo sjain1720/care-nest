@@ -6,7 +6,7 @@
           [attr.aria-label]="(menuOpen() ? 'Close menu' : 'Open menu') | t" [title]="(menuOpen() ? 'Close menu' : 'Open menu') | t">
     <mat-icon>{{ menuOpen() ? 'close' : 'menu' }}</mat-icon>
   </button>
-  <a routerLink="/" class="brand" [attr.aria-label]="'CareNest dashboard' | t">
+  <a routerLink="/" class="brand" [attr.aria-label]="'CareNest home' | t">
     <span class="logo"><mat-icon>health_and_safety</mat-icon></span>
     <span class="brand-word">Care<span class="brand-accent">Nest</span></span>
   </a>
@@ -28,7 +28,7 @@
   }
   <!-- Claim pages only; the dashboard has its own step row. -->
   @if (showProgress() && !onHome()) {
-  <a class="journey" routerLink="/" fragment="journey" [attr.aria-label]="journeyLabel()" [title]="journeyLabel()">
+  <a class="journey" routerLink="/case" [attr.aria-label]="journeyLabel()" [title]="journeyLabel()">
     <span class="dots" aria-hidden="true">
       @for (s of journey.steps(); track s.label; let i = $index) {
         <span class="dot" [class.done]="s.done" [class.now]="i === journey.currentIndex()"></span>
@@ -49,17 +49,16 @@
           [title]="(theme.theme() === 'dark' ? 'Switch to light mode' : 'Switch to dark mode') | t">
     @if (theme.theme() === 'dark') { <mat-icon class="spin-in">light_mode</mat-icon> } @else { <mat-icon class="spin-in">dark_mode</mat-icon> }
   </button>
-  <a class="mode" [class.live]="live" routerLink="/status"
-     [attr.aria-label]="((live ? 'Using your own documents' : 'Showing a sample claim') | t) + '. ' + ('Demo and live settings' | t)"
-     [title]="(live ? 'Using your own documents on the live service. Open the demo and live settings.' : 'Showing a sample claim. Open the demo and live settings to use your own documents.') | t">
-    <mat-icon class="icon-sm">{{ live ? 'cloud_done' : 'science' }}</mat-icon>
-    <span class="mode-long">{{ (liveDemo() ? 'Live AI · fictional demo' : live ? 'Your documents' : partlyLive ? 'Demo (partly live)' : 'Demo case') | t }}</span>
-    <span class="mode-short">{{ (liveDemo() ? 'AI demo' : live ? 'Live' : 'Mock') | t }}</span>
+  <a class="mode" [class.live]="live" routerLink="/status" aria-label="Guest session and demo settings"
+     title="Guest session, fictional demo and data controls">
+    <mat-icon class="icon-sm">{{ live ? 'person_outline' : 'science' }}</mat-icon>
+    <span class="mode-long">{{ liveDemo() ? 'Guest · fictional demo' : live ? 'Guest session' : partlyLive ? 'Mixed preview' : 'Mock preview' }}</span>
+    <span class="mode-short">{{ liveDemo() ? 'AI demo' : live ? 'Guest' : 'Mock' }}</span>
   </a>
   </div>
 </header>
 
-<div class="layout" [class.chat-side]="chat.panelOpen()">
+<div class="layout" [class.chat-side]="chat.panelOpen() && !onAskPage()" [class.chat-page]="onAskPage()">
   <main id="main" class="content">
     <!-- Phones: the header has no room for the progress chip, so it shows here on the dashboard and the claim pages. -->
     @if (journey.claimCase() && showProgress()) {
@@ -95,6 +94,9 @@
     }
     <router-outlet />
     @if (!onAskPage()) {
+    @if (onHome()) {
+      <footer class="landing-footer"><span>CareNest · Your health insurance, in plain words.</span><a routerLink="/status">Demo and session controls</a><p>Guidance based on available evidence. Only your insurer can confirm a claim decision.</p></footer>
+    } @else {
     <footer class="site-footer no-print">
       <div class="sf-inner">
         <div class="sf-brand">
@@ -109,15 +111,17 @@
         </nav>
         <div>
           <h3>{{ 'Privacy' | t }}</h3>
-          <p>{{ 'Documents are processed using Google Cloud AI and private storage. Some extracted text is masked; original files may contain personal details. Use synthetic documents for this prototype. Automatic deletion is not yet verified.' | t }}</p>
+          <p>{{ 'Documents are processed using Google Cloud AI and private storage. Some extracted text is masked; original files may contain personal details. Use synthetic documents for this prototype. Guest sessions have a fixed expiry, with scheduled cleanup. Session settings show expiry and deletion controls.' | t }}</p>
         </div>
       </div>
       <p class="sf-legal">{{ "CareNest gives guidance based on your documents. Only your insurer's decision confirms what is paid. This is not medical or legal advice." | t }}</p>
     </footer>
     }
+    }
   </main>
 </div>
 
+@if (!onAskPage()) {
 <nav class="bottomnav no-print" [attr.aria-label]="'Main' | t">
   @for (item of tabsLeft; track item.path) {
     <a [routerLink]="item.path" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }" [attr.aria-label]="item.label | t">
@@ -125,8 +129,8 @@
     </a>
   }
   <button type="button" class="ask-tab" [class.active]="chat.panelOpen() || onAskPage()" (click)="toggleAsk()"
-          [attr.aria-label]="'Ask CareNest' | t" [attr.aria-expanded]="chat.panelOpen()">
-    <span class="ask-orb"><ng-container *ngTemplateOutlet="stars" /></span><span aria-hidden="true">{{ 'Ask' | t }}</span>
+          [attr.aria-label]="chat.busy() ? 'CareNest is thinking' : chat.unread() ? 'Open chat, new answer' : 'Ask CareNest'" [attr.aria-expanded]="chat.panelOpen()">
+    <span class="ask-orb"><ng-container *ngTemplateOutlet="stars" /></span><span aria-hidden="true">{{ chat.busy() ? 'Thinking…' : chat.unread() ? 'New answer' : 'Ask' }}</span>
   </button>
   @for (item of tabsRight; track item.path) {
     <a [routerLink]="item.path" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: true }" [attr.aria-label]="item.label | t">
@@ -138,6 +142,7 @@
     <mat-icon>menu</mat-icon><span>{{ 'More' | t }}</span>
   </button>
 </nav>
+}
 
 <!-- Menu: claim tools and settings that aren't in the main navigation. A dropdown under the header on wide screens, a bottom sheet on phones. -->
 @if (menuOpen()) {
@@ -177,27 +182,14 @@
 }
 
 <app-citation-drawer />
-<app-chat-bar />
+@if (!onAskPage()) { <app-chat-bar /> }
 
-<!-- Wide screens: Nessi, the helper in the corner that opens the chat. -->
 @if (!chat.panelOpen() && !onAskPage()) {
-  <div class="helper no-print">
-    <!-- Always shown on the dashboard; elsewhere, once closed, it comes back while the pointer is over the button. -->
-    <div class="nessi-bubble" [class.dismissed]="!helperHint() && !onHome()">
-      <button type="button" class="nb-body" (click)="openHelper()" [attr.tabindex]="helperHint() || onHome() ? null : -1">
-        <!-- Each branch is a new element, so the pop-in replays when the line changes. -->
-        @if (nessiLine() === 0) {
-          <span class="ns-line"><span class="ns-hey">{{ 'Hey' | t }}</span><span class="ns-name">{{ 'I am Nessi' | t }}</span></span>
-        } @else {
-          <span class="ns-line"><span class="ns-ask">{{ 'Ask me anything' | t }}</span></span>
-        }
-      </button>
-      @if (helperHint() && !onHome()) {
-        <button type="button" class="nb-x" (click)="hideHint()" [attr.aria-label]="'Hide' | t"><mat-icon>close</mat-icon></button>
-      }
-    </div>
-    <button type="button" class="helper-orb" (click)="openHelper()" [attr.aria-label]="'Ask Nessi' | t" [title]="'Ask Nessi' | t">
-      <ng-container *ngTemplateOutlet="stars" />
+  <div class="helper no-print" [class.has-activity]="chat.busy() || chat.unread() > 0">
+    <button type="button" class="chat-launcher" (click)="openHelper()"
+      [attr.aria-label]="chat.busy() ? 'Open chat, CareNest is thinking' : chat.unread() ? 'Open chat, new answer' : 'Talk to CareNest AI'">
+      <mat-icon>{{ chat.busy() ? 'hourglass_top' : chat.unread() ? 'mark_chat_unread' : 'auto_awesome' }}</mat-icon>
+      <span aria-live="polite">{{ chat.busy() ? 'Thinking…' : chat.unread() ? 'New answer' : 'CareNest AI' }}</span>
     </button>
   </div>
 }

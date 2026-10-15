@@ -218,7 +218,7 @@
   /* Phones: the menu opens from the More tab in the bottom bar, so the header has no menu button. */
   .menu-btn { display: none; }
   /* Top: room for the chat bar docked under the header. Bottom: room for the tab bar. */
-  .content { padding-top: 61px; padding-bottom: calc(76px + env(safe-area-inset-bottom)); }
+  .content { padding-top: 0; padding-bottom: calc(76px + env(safe-area-inset-bottom)); }
   .bottomnav { display: flex; position: fixed; left: 0; right: 0; bottom: 0; z-index: 35; height: calc(60px + env(safe-area-inset-bottom));
                padding: 0 4px env(safe-area-inset-bottom); background: var(--cn-surface); border-top: 1px solid var(--cn-border);
                box-shadow: 0 -6px 18px rgba(4, 12, 24, .14); }
@@ -315,3 +315,16 @@
 }
 @keyframes sheet-up { from { transform: translateY(100%); } to { transform: none; } }
 @keyframes menu-drop { from { opacity: 0; transform: translate(-50%, -12px); } to { opacity: 1; transform: translateX(-50%); } }
+
+.chat-page .content { padding: 0; }
+.chat-launcher { display: inline-flex; align-items: center; gap: 8px; padding: 12px 18px; min-height: 48px; border: 1px solid var(--cn-border); border-radius: 28px; font: inherit; font-size: .85rem; font-weight: 650; color: var(--cn-green-strong); background: var(--cn-surface); box-shadow: var(--cn-shadow-lg); cursor: pointer; }
+.chat-launcher:hover { background: var(--cn-green-soft); }
+.chat-launcher:focus-visible { outline: 2px solid var(--cn-green-strong); outline-offset: 3px; }
+.landing-footer { max-width: var(--cn-page-w); margin: 0 auto; padding: 20px var(--cn-gutter); color: var(--cn-muted); font-size: .75rem; display: flex; flex-wrap: wrap; gap: 8px 24px; border-top: 1px solid var(--cn-border); }
+.landing-footer a { margin-left: auto; color: var(--cn-link); }
+.landing-footer p { flex-basis: 100%; margin: 0; }
+@media (max-width: 899px) {
+  .helper { display: none; position: fixed; right: 12px; bottom: calc(74px + env(safe-area-inset-bottom)); z-index: 32; }
+  .helper.has-activity { display: flex; }
+  .chat-launcher { padding: 9px 12px; min-height: 42px; font-size: .75rem; }
+}

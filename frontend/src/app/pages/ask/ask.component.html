@@ -1,14 +1,37 @@
-<div class="page">
-  <div class="page-head row">
-    <div>
-      <h1>{{ 'Ask CareNest' | t }}</h1>
-      <p>{{ 'Answers come from your own policy, bill and settlement letter, with the page and clause.' | t }}</p>
+<div class="chat-workspace">
+  <aside class="suggestions" aria-labelledby="suggestions-title">
+    <h2 id="suggestions-title">Suggested questions</h2>
+    <div class="suggested-list">
+      @for (prompt of prompts(); track prompt) { <button type="button" (click)="send(prompt)" [disabled]="chat.busy()">{{ prompt }}</button> }
     </div>
-    <span class="spacer"></span>
-    @if (chat.messages().length) {
-      <button mat-button type="button" (click)="chat.clear()"><mat-icon>restart_alt</mat-icon> New chat</button>
-    }
-  </div>
-
-  <app-chat-thread [prompts]="prompts" (pick)="send($event)" />
+    <div class="document-context">
+      <mat-icon>description</mat-icon>
+      <strong>{{ !chat.live ? 'Mock preview' : policy() ? 'Selected policy' : 'Your guest session' }}</strong>
+      <p>{{ policy()?.planName ?? 'Ask a general question, or add documents for answers about your situation.' }}</p>
+      <a routerLink="/upload">Add documents <mat-icon>arrow_forward</mat-icon></a>
+    </div>
+  </aside>
+  <section class="conversation" aria-label="CareNest conversation">
+    <header class="chat-header">
+      <span class="assistant-icon"><mat-icon>health_and_safety</mat-icon></span>
+      <div><h1>Nessi · CareNest AI</h1><p>{{ chat.busy() ? 'Working with the available evidence…' : 'Your health insurance assistant' }}</p></div>
+      <span class="spacer"></span>
+      @if (chat.messages().length) { <button mat-icon-button type="button" (click)="chat.clear()" [disabled]="chat.busy()" aria-label="Start a new conversation" title="New conversation"><mat-icon>add_comment</mat-icon></button> }
+      <button mat-stroked-button type="button" (click)="chat.returnToPanel()" aria-label="Return to side panel"><mat-icon>close_fullscreen</mat-icon><span class="return-label">Return to side panel</span></button>
+    </header>
+    <div class="messages">
+      @if (chat.messages().length) {
+        <app-chat-thread [prompts]="prompts()" (pick)="send($event)" />
+      } @else {
+        <div class="chat-welcome">
+          <span class="welcome-eyebrow">WELCOME TO CARENEST</span>
+          <h2>What would you like to understand?</h2>
+          <p>I can explain insurance terms, help review your policy and bills, and prepare questions or a letter about your insurer’s decision.</p>
+          <p>Add your documents when you’re ready. I’ll ask for missing information and show sources when available.</p>
+          <a routerLink="/upload">Add a policy or claim document <mat-icon>arrow_forward</mat-icon></a>
+        </div>
+      }
+    </div>
+    <div class="composer"><app-chat-bar [inline]="true" /><p>For policy-specific answers, add your policy or choose the fictional demo from Home.</p></div>
+  </section>
 </div>

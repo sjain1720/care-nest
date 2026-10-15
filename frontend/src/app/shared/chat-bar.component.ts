@@ -1,7 +1,7 @@
 import { Component, DestroyRef, ElementRef, HostListener, computed, effect, inject, input, signal, viewChild } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
-import { NavigationEnd, Router, RouterLink } from '@angular/router';
+import { NavigationEnd, Router } from '@angular/router';
 import { MatAutocompleteModule, MatAutocompleteSelectedEvent, MatAutocompleteTrigger } from '@angular/material/autocomplete';
 import { MatButtonModule } from '@angular/material/button';
 import { MatIconModule } from '@angular/material/icon';
@@ -11,8 +11,6 @@ import { SearchItem, SearchService } from '../services/search.service';
 import { ChatThreadComponent } from './chat-thread.component';
 import { TranslatePipe } from './translate.pipe';
 
-const PLACEHOLDER_TOPICS = ['health policy', 'bill claim preparations', 'explain rejected claim', 'waiting periods for diseases'];
-
 /**
  * One bar at the bottom of every page for asking AND finding (like ChatGPT/Gemini).
  * Typing shows places and facts to jump to; Enter asks the assistant. Answers open in a sheet above the bar.
@@ -20,21 +18,21 @@ const PLACEHOLDER_TOPICS = ['health policy', 'bill claim preparations', 'explain
 @Component({
   selector: 'app-chat-bar',
   standalone: true,
-  imports: [FormsModule, RouterLink, MatAutocompleteModule, MatButtonModule, MatIconModule, ChatThreadComponent, TranslatePipe],
+  imports: [FormsModule, MatAutocompleteModule, MatButtonModule, MatIconModule, ChatThreadComponent, TranslatePipe],
   template: `
     @if (!inline() && chat.panelOpen() && !onAskPage()) {
       <section class="sheet" role="dialog" aria-modal="false" aria-labelledby="chat-title">
         <header class="sheet-head">
           <span class="avatar" aria-hidden="true"><mat-icon>auto_awesome</mat-icon></span>
           <div class="titles">
-            <h2 id="chat-title">{{ 'Nessi' | t }}</h2>
+            <h2 id="chat-title">Nessi · CareNest AI</h2>
             <span [class]="'state ' + (!chat.live ? 'demo' : chat.reachable() ? 'on' : 'off')">{{ (!chat.live ? 'Demo: answers from the sample claim' : chat.reachable() ? 'General guidance or answers from your selected documents' : "Can't reach CareNest right now") | t }}</span>
           </div>
           @if (chat.messages().length) {
-            <button mat-icon-button type="button" (click)="chat.clear()" aria-label="Start a new chat" title="New chat"><mat-icon>add_comment</mat-icon></button>
+            <button mat-icon-button type="button" (click)="chat.clear()" [disabled]="chat.busy()" aria-label="Start a new chat" title="New chat"><mat-icon>add_comment</mat-icon></button>
           }
-          <a mat-icon-button class="full-page" routerLink="/ask" aria-label="Open the chat as a full page" title="Full page"><mat-icon>open_in_full</mat-icon></a>
-          <button mat-icon-button type="button" (click)="close()" aria-label="Close the chat" title="Close"><mat-icon>expand_more</mat-icon></button>
+          <button mat-icon-button class="full-page" type="button" (click)="chat.expand()" aria-label="Open the chat as a full page" title="Full page"><mat-icon>open_in_full</mat-icon></button>
+          <button mat-icon-button type="button" (click)="close()" aria-label="Hide the chat" title="Hide chat; response continues"><mat-icon>expand_more</mat-icon></button>
         </header>
         <div class="sheet-body">
           <app-chat-thread [prompts]="context().prompts" [compact]="true" (pick)="ask($event)" />
@@ -42,6 +40,7 @@ const PLACEHOLDER_TOPICS = ['health policy', 'bill claim preparations', 'explain
       </section>
     }
 
+    @if (inline() || chat.panelOpen()) {
     <div class="dock no-print" [class.inline]="inline()" [class.with-side]="!inline() && chat.panelOpen() && !onAskPage()" [class.away]="!inline() && !docked()">
       <form class="bar" [class.busy]="chat.busy()" [class.unread]="chat.unread() > 0" matAutocompleteOrigin #origin="matAutocompleteOrigin"
             (ngSubmit)="submit()" role="search">
@@ -52,14 +51,7 @@ const PLACEHOLDER_TOPICS = ['health policy', 'bill claim preparations', 'explain
                  [ngModel]="query()" (ngModelChange)="query.set($event)" (focus)="search.refresh()"
                  [matAutocomplete]="auto" [matAutocompleteConnectedTo]="origin" [matAutocompletePosition]="(phone() && !chat.panelOpen()) || inline() ? 'below' : 'above'">
           @if (!query()) {
-            <span class="ph" aria-hidden="true">{{ 'Ask CareNest about your' | t }}
-              <!-- Each case is a new element, so the fade-in replays on every change. -->
-              @switch (topic()) {
-                @case (0) { <span class="ph-topic">{{ topics[0] | t }}</span> }
-                @case (1) { <span class="ph-topic">{{ topics[1] | t }}</span> }
-                @case (2) { <span class="ph-topic">{{ topics[2] | t }}</span> }
-                @default { <span class="ph-topic">{{ topics[3] | t }}</span> }
-              }</span>
+            <span class="ph" aria-hidden="true">{{ 'Ask about insurance, or find a tool…' | t }}</span>
           }
         </span>
         @if (!inline() && !onAskPage() && chat.messages().length && !chat.panelOpen()) {
@@ -76,7 +68,7 @@ const PLACEHOLDER_TOPICS = ['health policy', 'bill claim preparations', 'explain
       }
     </div>
 
-    <mat-autocomplete #auto="matAutocomplete" class="cn-search-panel" [autoActiveFirstOption]="!!query().trim()" [displayWith]="blank"
+    <mat-autocomplete #auto="matAutocomplete" class="cn-search-panel" [autoActiveFirstOption]="false" [displayWith]="blank"
                       [panelWidth]="inline() || phone() || (chat.panelOpen() && !onAskPage()) ? '' : 560" (optionSelected)="pick($event)">
       @for (g of results(); track g.group) {
         <mat-optgroup [label]="(g.group === 'Ask CareNest' ? (query().trim() ? 'Ask CareNest' : 'Try asking') : g.group) | t">
@@ -94,6 +86,7 @@ const PLACEHOLDER_TOPICS = ['health policy', 'bill claim preparations', 'explain
         </mat-optgroup>
       }
     </mat-autocomplete>
+    }
   `,
   styles: `
     .dock { position: fixed; z-index: 34; left: var(--cn-side-w, 0px); right: 0; bottom: 0; padding: 0 16px 10px;
@@ -130,7 +123,7 @@ const PLACEHOLDER_TOPICS = ['health policy', 'bill claim preparations', 'explain
     /* Inline (dashboard banner): sits in the page flow instead of being fixed to the screen. */
     .dock.inline { position: static; padding: 0; background: none; align-items: flex-start; view-transition-name: none; animation: none; }
     /* Compact pill with a teal edge inside the banner card. */
-    .dock.inline .bar { width: min(560px, 100%); min-height: 44px; gap: 4px; padding: 3px 3px 3px 4px; border-radius: 22px;
+    .dock.inline .bar { width: 100%; min-height: 52px; gap: 4px; padding: 3px 3px 3px 4px; border-radius: 22px;
                         background: var(--cn-field); border: 2px solid var(--cn-search-line); box-shadow: var(--cn-shadow); }
     .dock.inline .bar:hover, .dock.inline .bar:focus-within { box-shadow: 0 0 0 4px rgba(20, 184, 166, .25), var(--cn-shadow); transform: none; }
     .dock.inline .spark { width: 32px; height: 32px; background: linear-gradient(135deg, var(--cn-navy), var(--cn-navy-700)); color: var(--cn-search-icon); }
@@ -191,7 +184,7 @@ const PLACEHOLDER_TOPICS = ['health policy', 'bill claim preparations', 'explain
                border-radius: 0; border-width: 0; box-shadow: none; }
       .dock.with-side { top: auto; bottom: 0; z-index: 39; padding: 8px 12px calc(8px + env(safe-area-inset-bottom));
                         background: var(--cn-surface); border-bottom: 0; border-top: 1px solid var(--cn-border); box-shadow: 0 -6px 16px rgba(0, 0, 0, .08); }
-      .full-page { display: none !important; }
+
       .sheet-head { padding: 6px 4px 6px 10px; gap: 2px; }
       .avatar { width: 32px; height: 32px; }
       .titles h2 { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -202,7 +195,7 @@ const PLACEHOLDER_TOPICS = ['health policy', 'bill claim preparations', 'explain
     }
     @media (max-width: 399px) { .avatar { display: none; } }
     /* Wide screens: the chat is a side panel with the input at its foot, so the page stays visible. */
-    @media (min-width: 1200px) {
+    @media (min-width: 900px) {
       .sheet { left: auto; right: 0; margin: 0; width: var(--cn-chat-w); top: var(--cn-topbar-h); bottom: 0; padding-bottom: 92px;
                border-radius: 0; border-width: 0 0 0 1px; }
       .dock.with-side { left: auto; right: 0; width: var(--cn-chat-w); padding: 12px 12px 10px; background: var(--cn-bg); }
@@ -235,8 +228,9 @@ export class ChatBarComponent {
   readonly chat = inject(ChatService);
   readonly search = inject(SearchService);
   private router = inject(Router);
-  private box = viewChild.required<ElementRef<HTMLInputElement>>('box');
-  private trigger = viewChild.required(MatAutocompleteTrigger);
+  private destroyRef = inject(DestroyRef);
+  private box = viewChild<ElementRef<HTMLInputElement>>('box');
+  private trigger = viewChild(MatAutocompleteTrigger);
 
   private path = toSignal(
     this.router.events.pipe(filter((e): e is NavigationEnd => e instanceof NavigationEnd), map((e) => e.urlAfterRedirects.split(/[?#]/)[0])),
@@ -246,32 +240,25 @@ export class ChatBarComponent {
   readonly context = computed(() => chatContext(this.path()));
   /** Phones and small tablets: the bar sits at the top, under the header. */
   readonly phone = signal(matchMedia('(max-width: 899px)').matches);
-  /** The input is shown on phones (under the header), with the open chat, and on the Ask page. */
-  readonly docked = computed(() => this.phone() || this.chat.panelOpen() || this.onAskPage());
-  readonly topics = PLACEHOLDER_TOPICS;
-  readonly topic = signal(0);
+  /** The shell composer is visible only with the open panel. Home/Ask own their inline entry. */
+  readonly docked = computed(() => this.chat.panelOpen());
 
   readonly query = signal('');
   readonly results = computed(() => this.search.search(this.query(), this.context().prompts));
   readonly blank = () => '';
 
   constructor() {
-    matchMedia('(max-width: 899px)').addEventListener('change', (e) => this.phone.set(e.matches));
-    // Cycle the placeholder topic; stays on the first one for reduced motion.
-    if (!matchMedia('(prefers-reduced-motion: reduce)').matches) {
-      const timer = setInterval(() => this.topic.set((this.topic() + 1) % PLACEHOLDER_TOPICS.length), 1600);
-      inject(DestroyRef).onDestroy(() => clearInterval(timer));
-    }
-    effect(() => {
-      this.path();
-      if (!this.inline() && innerWidth < 900) this.chat.closePanel();
-    });
+    const media = matchMedia('(max-width: 899px)');
+    const resized = (event: MediaQueryListEvent) => this.phone.set(event.matches);
+    media.addEventListener('change', resized);
+    this.destroyRef.onDestroy(() => media.removeEventListener('change', resized));
     // Wide screens: the chat's input only appears when it opens, so put the cursor there.
     effect(() => {
       if (!this.inline() && this.chat.panelOpen() && !this.phone()) setTimeout(() => {
-        this.box().nativeElement.focus();
+        if (this.destroyRef.destroyed || !this.chat.panelOpen()) return;
+        this.box()?.nativeElement.focus();
         // Opening an answer should not cover its actions with search suggestions.
-        this.trigger().closePanel();
+        this.trigger()?.closePanel();
       });
     });
   }
@@ -285,9 +272,9 @@ export class ChatBarComponent {
     if (!q || this.chat.busy()) return;
     this.chat.ask(q);
     this.query.set('');
-    this.trigger().closePanel();
+    this.trigger()?.closePanel();
     // Phones: drop the keyboard so the answer has the whole screen.
-    if (innerWidth < 900) this.box().nativeElement.blur();
+    if (innerWidth < 900) this.box()?.nativeElement.blur();
   }
 
   pick(event: MatAutocompleteSelectedEvent): void {
@@ -296,13 +283,14 @@ export class ChatBarComponent {
     else {
       this.search.open(item);
       this.query.set('');
-      this.box().nativeElement.blur();
+      this.box()?.nativeElement.blur();
     }
   }
 
   close(): void {
     this.chat.closePanel();
-    if (this.docked()) this.box().nativeElement.focus();
+    this.box()?.nativeElement.blur();
+    this.trigger()?.closePanel();
   }
 
   @HostListener('document:keydown', ['$event'])
@@ -313,7 +301,7 @@ export class ChatBarComponent {
     if ((e.key === '/' && !typing) || (e.key.toLowerCase() === 'k' && (e.ctrlKey || e.metaKey))) {
       e.preventDefault();
       const hero = document.getElementById('ask-bar-hero');
-      if (this.docked()) this.box().nativeElement.focus();
+      if (this.docked()) this.box()?.nativeElement.focus();
       else if (hero?.offsetParent) hero.focus();
       else this.chat.openPanel();
     } else if (e.key === 'Escape' && this.chat.panelOpen()) {

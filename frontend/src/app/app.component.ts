@@ -3,7 +3,7 @@ import { NgTemplateOutlet, ViewportScroller } from '@angular/common';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { MatIconModule } from '@angular/material/icon';
-import { filter, map } from 'rxjs';
+import { catchError, filter, map, of } from 'rxjs';
 import { CitationDrawerComponent } from './shared/citation-drawer.component';
 import { ChatBarComponent } from './shared/chat-bar.component';
 import { CLAIM_TOOLS } from './shared/claim-tools';
@@ -29,15 +29,6 @@ interface NavItem {
 const SIZE_LABELS = { sm: '94%', md: '100%', lg: '113%', xl: '125%' } as const;
 /** Scroll distance after which the header swaps its text links for the full icon row. */
 const SCROLL_REVEAL_PX = 120;
-const HINT_KEY = 'carenest.helperHidden';
-
-function sessionHint(): boolean {
-  try {
-    return !sessionStorage.getItem(HINT_KEY);
-  } catch {
-    return true;
-  }
-}
 
 @Component({
   selector: 'app-root',
@@ -53,7 +44,7 @@ export class AppComponent {
   readonly chat = inject(ChatService);
   private translate = new TranslatePipe();
   readonly live = isFullyLive();
-  readonly sessionInfo = toSignal(inject(ApiService).getSessionInfo());
+  readonly sessionInfo = toSignal(inject(ApiService).getSessionInfo().pipe(catchError(() => of(null))));
   readonly liveDemo = computed(() => this.live && this.sessionInfo()?.mode === 'live_demo');
   readonly partlyLive = !this.live && FEATURES.some((f) => isLive(f.id));
   readonly menuOpen = signal(false);
@@ -66,12 +57,12 @@ export class AppComponent {
   readonly onClaimSubpage = computed(() => CLAIM_TOOLS.some((n) => n.path === this.path()));
   readonly onAskPage = computed(() => this.path() === '/ask');
   readonly onHome = computed(() => this.path() === '/');
-  /** Claim progress shows on the dashboard and the claim pages only, not on Ask, Add documents, My policy or settings. */
-  readonly showProgress = computed(() => this.onHome() || this.path() === '/case' || (this.onClaimSubpage() && this.path() !== '/upload'));
+  /** Claim progress belongs to the claim workspace, never the public landing page. */
+  readonly showProgress = computed(() => !!this.journey.claimCase()?.documents.length && (this.path() === '/case' || (this.onClaimSubpage() && this.path() !== '/upload')));
   /** Home › Section › Page, for the slim banner on inner pages. */
   readonly crumbs = computed<{ label: string; path: string; icon: string }[]>(() => {
     const p = this.path();
-    const home = { label: 'Dashboard', path: '/', icon: 'dashboard' };
+    const home = { label: 'Home', path: '/', icon: 'dashboard' };
     const main = this.mainNav.find((n) => n.path === p && p !== '/');
     if (main) return [home, { label: main.label, path: p, icon: main.icon }];
     const sub = CLAIM_TOOLS.find((n) => n.path === p);
@@ -79,10 +70,6 @@ export class AppComponent {
     if (p === '/status') return [home, { label: 'Demo and live settings', path: p, icon: 'tune' }];
     return [];
   });
-  /** The corner helper's greeting shows until hidden for this visit. */
-  readonly helperHint = signal(sessionHint());
-  /** Nessi's bubble alternates "Hey, I am Nessi" and "Ask me anything". */
-  readonly nessiLine = signal(0);
   readonly sizeLabel = computed(() => SIZE_LABELS[this.settings.textSize()]);
   readonly journeyLabel = computed(() => {
     this.settings.lang();
@@ -113,8 +100,6 @@ export class AppComponent {
         const fragment = e.urlAfterRedirects.split('#')[1];
         if (fragment) scrollToSection(decodeURIComponent(fragment));
       });
-    const lines = setInterval(() => this.nessiLine.set(1 - this.nessiLine()), 3000);
-    inject(DestroyRef).onDestroy(() => clearInterval(lines));
   }
 
   @HostListener('document:keydown.escape')
@@ -128,15 +113,7 @@ export class AppComponent {
     if (past !== this.scrolled()) this.scrolled.set(past);
   }
 
-  openHelper(): void {
-    this.hideHint();
-    this.chat.openPanel();
-  }
-
-  hideHint(): void {
-    this.helperHint.set(false);
-    try { sessionStorage.setItem(HINT_KEY, '1'); } catch { /* private mode */ }
-  }
+  openHelper(): void { this.chat.openPanel(); }
 
   /** Centre tab on phones: opens or closes the chat (the Ask page already shows it). */
   toggleAsk(): void {
@@ -147,10 +124,10 @@ export class AppComponent {
   }
 
   readonly mainNav: NavItem[] = [
-    { path: '/', label: 'Dashboard', short: 'Home', icon: 'dashboard', exact: true, desc: 'Your claim at a glance' },
+    { path: '/', label: 'Home', short: 'Home', icon: 'dashboard', exact: true, desc: 'Start here or continue your session' },
     { path: '/policy', label: 'My policy', short: 'Policy', icon: 'policy', exact: true, desc: 'Cover, limits, waiting times' },
     { path: '/case', label: 'My claim', short: 'Claim', icon: 'folder_shared', exact: false, desc: 'Papers, diary, your files' },
-    { path: '/ask', label: 'Ask', icon: 'forum', exact: true, desc: 'Answers from your own papers' },
+    { path: '/ask', label: 'Chat', icon: 'forum', exact: true, desc: 'Answers from your own papers' },
   ];
   /** Phone tab bar: Home, Policy | centre Ask | Claim, More. */
   readonly tabsLeft = this.mainNav.slice(0, 2);
