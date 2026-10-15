@@ -1,4 +1,4 @@
-import { Component, input } from '@angular/core';
+import { Component, input, output } from '@angular/core';
 import { RouterLink } from '@angular/router';
 import { GlossComponent } from './gloss.component';
 import { MatButtonModule } from '@angular/material/button';
@@ -79,10 +79,10 @@ import { TranslatePipe } from './translate.pipe';
 
       <div class="row actions">
         @if (answer().nextAction; as next) {
-          <a mat-flat-button [routerLink]="next.route">{{ next.label | t }} <mat-icon iconPositionEnd>arrow_forward</mat-icon></a>
+          <a mat-flat-button [routerLink]="next.route" (click)="actionSelected.emit()">{{ next.label | t }} <mat-icon iconPositionEnd>arrow_forward</mat-icon></a>
         }
         @if (answer().secondaryAction; as alt) {
-          <a mat-stroked-button class="btn-violet" [routerLink]="alt.route">{{ alt.label | t }}</a>
+          <a mat-stroked-button class="btn-violet" [routerLink]="alt.route" (click)="actionSelected.emit()">{{ alt.label | t }}</a>
         }
       </div>
     </article>
@@ -104,4 +104,5 @@ import { TranslatePipe } from './translate.pipe';
 })
 export class AnswerCardComponent {
   answer = input.required<AnswerCard>();
+  actionSelected = output<void>();
 }

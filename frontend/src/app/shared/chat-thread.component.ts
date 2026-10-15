@@ -29,7 +29,7 @@ import { TranslatePipe } from './translate.pipe';
             }
             @if (m.answer; as a) {
               <hr>
-              <app-answer-card [answer]="a" />
+              <app-answer-card [answer]="a" (actionSelected)="chat.closePanel()" />
             }
             @if (m.text) { <p class="error">{{ m.text }}</p> }
           </div>

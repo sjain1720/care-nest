@@ -157,6 +157,13 @@ function check(name, ok) { report.checks.push({ check: name, passed: !!ok }); co
     const phoneBounds = await phoneSuggestions.boundingBox();
     check('full-chat phone suggestions fit inside visible screen', phoneBounds && phoneBounds.y >= 0 && phoneBounds.y + phoneBounds.height <= mobile.page.viewportSize().height);
     await mobile.page.screenshot({ path: path.join(folder, 'chat-suggestions-phone.png') });
+    await mobile.page.getByRole('combobox').press('Escape');
+    await mobile.page.getByRole('link', { name: 'Add your policy', exact: true }).click();
+    await mobile.page.waitForURL('**/upload');
+    await mobile.page.getByRole('button', { name: 'Ask CareNest', exact: true }).click();
+    await mobile.page.getByRole('link', { name: 'Add your policy', exact: true }).click();
+    await mobile.page.getByRole('dialog').waitFor({ state: 'hidden' });
+    check('phone chat action reveals upload even when already on that route', new URL(mobile.page.url()).pathname === '/upload' && mobile.state.posts.length === 1);
     check('no browser runtime errors across fresh, demo, personal, mock and phone states', states.every(s => s.errors.length === 0));
     report.allPassed = true;
   } catch (error) { report.error = String(error.message).slice(0, 2200); report.debug = states.map(s => ({ errors: s.errors, requests: s.posts.length })); if (activePage) report.inputs = await activePage.locator('input').evaluateAll(inputs => inputs.map(i => ({id:i.id,value:i.value,visible:!!i.offsetParent,form:!!i.form,expanded:i.getAttribute('aria-expanded')}))); if (activePage) await activePage.screenshot({ path: path.join(folder, 'failure.png') }); console.log('ERROR', report.error, JSON.stringify(report.debug)); }

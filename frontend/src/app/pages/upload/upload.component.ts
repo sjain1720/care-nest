@@ -49,6 +49,9 @@ interface UploadItem {
     .types { display: flex; flex-wrap: wrap; gap: 6px; justify-content: center; }
     .file-head { display: flex; align-items: center; gap: 10px; margin-bottom: 8px; }
     .file-head mat-icon { color: var(--cn-pdf); }
+    .file-head .spacer { min-width: 0; overflow-wrap: anywhere; }
+    #upload-results { scroll-margin-top: calc(var(--cn-topbar-h) + 16px); }
+    #upload-results:empty { display: none; }
     .error { color: var(--cn-bad); margin: 0; }
     .type-select { min-height: 44px; padding: 0 10px; font: inherit; color: var(--cn-ink); border: 1px solid var(--cn-border); border-radius: 10px; background: var(--cn-field); }
     .photo-btn { display: none; align-items: center; justify-content: center; gap: 8px; width: 100%; min-height: 48px; margin: 0 0 12px; padding: 0 16px;
@@ -62,6 +65,7 @@ export class UploadComponent {
   private destroyRef = inject(DestroyRef);
 
   items = signal<UploadItem[]>([]);
+  readonly completedUpload = computed(() => this.items().some((it) => it.done));
   dragOver = signal(false);
   private hasPolicy = toSignal(this.api.getPolicy());
   private hasBill = toSignal(this.api.getBill());
@@ -124,6 +128,9 @@ export class UploadComponent {
       this.items.update((list) => [item, ...list]);
       if (!item.error) this.process(id, file);
     }
+    if (files?.length) requestAnimationFrame(() => {
+      if (!this.destroyRef.destroyed) document.getElementById('upload-results')?.scrollIntoView({ block: 'start' });
+    });
   }
 
   private process(id: number, file: File): void {
