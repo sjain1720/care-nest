@@ -11,6 +11,15 @@ import { SearchItem, SearchService } from '../services/search.service';
 import { ChatThreadComponent } from './chat-thread.component';
 import { TranslatePipe } from './translate.pipe';
 
+const SEARCH_PROMPTS = [
+  'Ask Nessi about your policy…',
+  'Explain a claim deduction…',
+  'Check waiting periods…',
+  'Find your uploaded documents…',
+  'Find bill checks or letter tools…',
+  'Ask which documents are missing…',
+];
+
 /**
  * One bar at the bottom of every page for asking AND finding (like ChatGPT/Gemini).
  * Typing shows places and facts to jump to; Enter asks the assistant. Answers open in a sheet above the bar.
@@ -48,10 +57,14 @@ import { TranslatePipe } from './translate.pipe';
         <label [attr.for]="inputId()" class="sr-only">{{ 'Ask CareNest a question, or find something' | t }}</label>
         <span class="field">
           <input #box [id]="inputId()" name="q" autocomplete="off" spellcheck="false" enterkeyhint="send"
-                 [ngModel]="query()" (ngModelChange)="query.set($event)" (focus)="search.refresh()"
-                 [matAutocomplete]="auto" [matAutocompleteConnectedTo]="origin" [matAutocompletePosition]="(phone() && !chat.panelOpen()) || inline() ? 'below' : 'above'">
+                 [ngModel]="query()" (ngModelChange)="query.set($event)" (focus)="inputFocused.set(true); search.refresh()" (blur)="inputFocused.set(false)"
+                 [matAutocomplete]="auto" [matAutocompleteConnectedTo]="origin" [matAutocompletePosition]="inline() && !onAskPage() ? 'auto' : 'above'">
           @if (!query()) {
-            <span class="ph" aria-hidden="true">{{ 'Ask about insurance, or find a tool…' | t }}</span>
+            <span class="ph" aria-hidden="true">
+              @for (prompt of searchPrompts; track prompt; let i = $index) {
+                @if (promptIndex() === i) { <span class="ph-topic">{{ prompt | t }}</span> }
+              }
+            </span>
           }
         </span>
         @if (!inline() && !onAskPage() && chat.messages().length && !chat.panelOpen()) {
@@ -244,6 +257,9 @@ export class ChatBarComponent {
   readonly docked = computed(() => this.chat.panelOpen());
 
   readonly query = signal('');
+  readonly searchPrompts = SEARCH_PROMPTS;
+  readonly promptIndex = signal(0);
+  readonly inputFocused = signal(false);
   readonly results = computed(() => this.search.search(this.query(), this.context().prompts));
   readonly blank = () => '';
 
@@ -252,6 +268,15 @@ export class ChatBarComponent {
     const resized = (event: MediaQueryListEvent) => this.phone.set(event.matches);
     media.addEventListener('change', resized);
     this.destroyRef.onDestroy(() => media.removeEventListener('change', resized));
+    // Decorative suggestions never change typed text or announce repeated prompts.
+    if (!matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      const timer = setInterval(() => {
+        if (!document.hidden && !this.query() && !this.inputFocused() && (this.inline() || this.chat.panelOpen())) {
+          this.promptIndex.update((index) => (index + 1) % SEARCH_PROMPTS.length);
+        }
+      }, 3200);
+      this.destroyRef.onDestroy(() => clearInterval(timer));
+    }
     // Wide screens: the chat's input only appears when it opens, so put the cursor there.
     effect(() => {
       if (!this.inline() && this.chat.panelOpen() && !this.phone()) setTimeout(() => {

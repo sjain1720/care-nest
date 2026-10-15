@@ -8,15 +8,14 @@ const report = { mode: 'controlled synthetic API fixtures; not live AI evidence'
 fs.mkdirSync(folder, { recursive: true });
 const fixture = name => JSON.parse(fs.readFileSync(path.join(__dirname, '../frontend/public/mocks', name + '.json'), 'utf8'));
 function check(name, ok) { report.checks.push({ check: name, passed: !!ok }); console.log(`${ok ? 'PASS' : 'FAIL'} ${name}`); if (!ok) throw new Error(name); }
-const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
 (async () => {
   let browser, activePage;
   const states = [];
   const contexts = [];
   try {
     browser = await chromium.launch({ headless: true, executablePath: process.env.CARENEST_CHROME || '/Applications/Google Chrome.app/Contents/MacOS/Google Chrome' });
-    async function guest({ phone = false, personal = false, mock = false } = {}) {
-      const context = await browser.newContext({ viewport: phone ? { width: 390, height: 844 } : { width: 1440, height: 1000 }, reducedMotion: 'reduce' }); contexts.push(context);
+    async function guest({ phone = false, personal = false, mock = false, motion = 'reduce' } = {}) {
+      const context = await browser.newContext({ viewport: phone ? { width: 390, height: 844 } : { width: 1440, height: 1000 }, reducedMotion: motion }); contexts.push(context);
       if (mock) await context.addInitScript(() => localStorage.setItem('carenest.live', '[]'));
       const state = { loaded: personal, demo: false, posts: [], mockReads: 0, demoPosts: 0, failDemo: false, errors: [] };
       await context.route('**/mocks/**', async route => { state.mockReads++; await route.continue(); });
@@ -130,7 +129,35 @@ const pause = ms => new Promise(resolve => setTimeout(resolve, ms));
     await mobile.page.getByRole('heading', { name: 'A waiting period needs a policy start date', exact: true }).waitFor();
     check('phone receives the same response after navigation', mobile.state.posts.length === 1);
     await mobile.page.screenshot({ path: path.join(folder, 'conversation-phone.png'), fullPage: false });
-    check('no browser runtime errors across fresh, demo, personal, mock and phone states', [state, own.state, preview.state, mobile.state].every(s => s.errors.length === 0));
+    const reduced = await guest();
+    const reducedPrompt = await reduced.page.locator('.ph-topic').innerText();
+    const animated = await guest({ motion: 'no-preference' });
+    const firstPrompt = await animated.page.locator('.ph-topic').innerText();
+    await animated.page.waitForFunction(first => document.querySelector('.ph-topic')?.textContent.trim() !== first, firstPrompt, { timeout: 7000 });
+    check('search suggestions rotate when idle', true);
+    await animated.page.getByRole('combobox').focus();
+    const focusedPrompt = await animated.page.locator('.ph-topic').innerText();
+    await animated.page.waitForTimeout(3500);
+    check('search suggestions pause while input is focused', await animated.page.locator('.ph-topic').innerText() === focusedPrompt);
+    await animated.page.getByRole('combobox').fill('room rent');
+    check('suggestions never replace typed search text', await animated.page.getByRole('combobox').inputValue() === 'room rent');
+    check('reduced motion keeps a stable suggestion', await reduced.page.locator('.ph-topic').innerText() === reducedPrompt);
+    await animated.page.getByRole('link', { name: 'Chat', exact: true }).click();
+    await animated.page.waitForURL('**/ask');
+    await animated.page.getByRole('combobox').focus();
+    const desktopSuggestions = animated.page.getByRole('listbox');
+    await desktopSuggestions.waitFor();
+    const desktopBounds = await desktopSuggestions.boundingBox();
+    check('full-chat desktop suggestions fit inside visible screen', desktopBounds && desktopBounds.y >= 0 && desktopBounds.y + desktopBounds.height <= animated.page.viewportSize().height);
+    await mobile.page.getByRole('button', { name: 'Open the chat as a full page' }).click();
+    await mobile.page.waitForURL('**/ask');
+    await mobile.page.getByRole('combobox').focus();
+    const phoneSuggestions = mobile.page.getByRole('listbox');
+    await phoneSuggestions.waitFor();
+    const phoneBounds = await phoneSuggestions.boundingBox();
+    check('full-chat phone suggestions fit inside visible screen', phoneBounds && phoneBounds.y >= 0 && phoneBounds.y + phoneBounds.height <= mobile.page.viewportSize().height);
+    await mobile.page.screenshot({ path: path.join(folder, 'chat-suggestions-phone.png') });
+    check('no browser runtime errors across fresh, demo, personal, mock and phone states', states.every(s => s.errors.length === 0));
     report.allPassed = true;
   } catch (error) { report.error = String(error.message).slice(0, 2200); report.debug = states.map(s => ({ errors: s.errors, requests: s.posts.length })); if (activePage) report.inputs = await activePage.locator('input').evaluateAll(inputs => inputs.map(i => ({id:i.id,value:i.value,visible:!!i.offsetParent,form:!!i.form,expanded:i.getAttribute('aria-expanded')}))); if (activePage) await activePage.screenshot({ path: path.join(folder, 'failure.png') }); console.log('ERROR', report.error, JSON.stringify(report.debug)); }
   finally {
