@@ -1,6 +1,6 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable, BehaviorSubject, catchError, combineLatest, concat, concatMap, delay, from, map, of, shareReplay, switchMap, tap } from 'rxjs';
+import { Observable, BehaviorSubject, catchError, combineLatest, concat, concatMap, delay, from, map, of, shareReplay, switchMap, tap, timeout } from 'rxjs';
 import { postEventStream } from './sse';
 import { SettingsService } from './settings.service';
 import {
@@ -360,6 +360,7 @@ export class ApiService {
       body.append('file', file);
       body.append('docType', docType);
       return this.http.post<{ detectedType: string; pages: number; message?: string | null }>('/api/documents', body).pipe(
+        timeout(285000),
         map((r): UploadEvent => ({ type: 'done', detectedType: r.detectedType, pages: r.pages, message: r.message ?? undefined })),
       );
     }

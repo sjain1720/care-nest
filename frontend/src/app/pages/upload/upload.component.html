@@ -43,7 +43,8 @@
       @if (it.error) {
         <p class="error">{{ it.error }}</p>
       } @else if (!it.done && !it.steps.length) {
-        <p class="muted small" style="margin:0">{{ 'Reading every page and finding the important parts… this can take up to a minute.' | t }}</p>
+        <p class="muted small" style="margin:0" role="status">{{ 'Uploading and processing your document…' | t }} @if (it.startedAt) { {{ elapsed(it.startedAt) }}s }</p>
+        <p class="muted small">{{ 'Long policies can take several minutes. Keep this page open until processing finishes.' | t }}</p>
       } @else {
         <app-agent-progress [steps]="it.steps" [running]="!it.done" />
       }

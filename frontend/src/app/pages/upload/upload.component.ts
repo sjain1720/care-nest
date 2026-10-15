@@ -33,6 +33,7 @@ interface UploadItem {
   pages?: number;
   message?: string;
   error?: string;
+  startedAt?: number;
 }
 
 @Component({
@@ -76,10 +77,13 @@ export class UploadComponent {
   readonly docTypes = DOC_TYPES;
   readonly accept = ACCEPTED_TYPES.join(',');
   private nextId = 1;
+  readonly now = signal(Date.now());
 
   readonly acceptedTypes = ['Policy papers', 'Hospital bill', 'Discharge summary', "Insurer's letter (payment or refusal)", "Insurer's reply"];
 
   constructor() {
+    const timer = setInterval(() => this.now.set(Date.now()), 1000);
+    this.destroyRef.onDestroy(() => clearInterval(timer));
     const wanted = inject(ActivatedRoute).snapshot.queryParamMap.get('type');
     if (wanted && (DOC_TYPES as readonly string[]).includes(wanted)) this.docType = wanted as DocType;
   }
@@ -123,6 +127,7 @@ export class UploadComponent {
   }
 
   private process(id: number, file: File): void {
+    this.patch(id, (it) => ({ ...it, startedAt: Date.now() }));
     this.api.uploadDocument(file, this.docType).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: (event) => {
         if (event.type === 'done') {
@@ -133,9 +138,15 @@ export class UploadComponent {
         ? { ...it, steps: [...it.steps, { agent: 'Ingestion', label: event.label }] }
         : { ...it, done: true, detectedType: event.detectedType, pages: event.pages, message: event.message });
       },
-      error: (e) => this.patch(id, (it) => ({ ...it, error: e?.error?.detail ?? 'Upload failed. Please try again.' })),
+      error: (e) => this.patch(id, (it) => ({ ...it, error: e?.name === 'TimeoutError'
+        ? 'Processing took too long. Check My policy before retrying this file; it may have finished on the server.'
+        : e?.error?.detail ?? (e?.status === 0
+          ? 'The connection was interrupted. Check My policy or My claim, then retry if your document is missing.'
+          : 'Upload failed. Please try again.') })),
     });
   }
+
+  elapsed(startedAt: number): number { return Math.max(0, Math.floor((this.now() - startedAt) / 1000)); }
 
   private patch(id: number, fn: (it: UploadItem) => UploadItem): void {
     this.items.update((list) => list.map((it) => (it.id === id ? fn(it) : it)));

@@ -12,6 +12,7 @@ from app.core.config import get_settings
 from app.core.session import session_id, expiry
 from app.services import policy_store, case_store
 from app.services.privacy import mask_pii, mask_all
+from app.services.greetings import is_greeting
 
 class Resolved(BaseModel):
     question: str = Field(min_length=2, max_length=500)
@@ -29,6 +30,7 @@ def scope_key():
     return hashlib.sha256(json.dumps(state,sort_keys=True).encode()).hexdigest()
 
 def prepare(question, thread_id):
+    if is_greeting(question): return question, None
     if not thread_id or re.search(r'guarantee|definitely.*(approved|paid|covered)', question, re.I): return question, None
     scope=scope_key()
     ref=db().collection('conversations').document(session_id()).collection('threads').document(thread_id)

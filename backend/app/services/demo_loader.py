@@ -1,5 +1,5 @@
 """Loads the synthetic demo case through the REAL pipeline (Document AI, embeddings, Gemini), so anyone can try live AI
-without their own documents. Files that were already processed are reused, so repeat clicks cost nothing."""
+without their own documents. Ready policy data and guest results are reused. Exact fictional bill/letter extractions are cached on warm instances; guest checks and storage still run."""
 from pathlib import Path
 
 from app.services import policy_store

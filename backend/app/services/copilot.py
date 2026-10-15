@@ -17,6 +17,7 @@ from app.services.policy_qa import answer_question
 from app.services.steps import StepLog
 from app.services.coverage import coverage_answer
 from app.services import policy_store
+from app.services.greetings import is_greeting
 
 log = logging.getLogger(__name__)
 
@@ -58,6 +59,14 @@ def route(question: str) -> tuple[str, str, str]:
 
 def answer(question: str, on_step: Callable[[AgentStep], None] | None = None, language: str = "en", original_question: str | None = None) -> AskResponse:
     """on_step is called as each step happens, so the API can stream progress."""
+    if is_greeting(question):
+        hindi = language == 'hi'
+        return AskResponse(steps=[], answer=AnswerCard(
+            verdict='info', general=True,
+            headline='नमस्ते! मैं नेसी हूँ।' if hindi else "Hi! I'm Nessi.",
+            summary=('मैं पॉलिसी, वेटिंग पीरियड, अस्पताल के बिल और क्लेम में कटौती समझने में मदद कर सकती हूँ। आप क्या जानना चाहते हैं?'
+                     if hindi else 'I can help you understand a policy, check waiting periods, review a hospital bill, or question a claim deduction. What would you like help with?'),
+            citations=[], toConfirm=[], nextAction=None))
     log = StepLog(on_step)
     log.add("Claim Copilot", "Understanding your question")
     if re.search(r"\bdefinitely\b.{0,30}\b(approved|paid|covered)\b|\bguarantee\w*\b.{0,30}\b(claim|approval|payout)\b", question, re.I):

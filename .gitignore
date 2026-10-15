@@ -50,6 +50,7 @@ policies-data-set/
 training/*
 !training/README.md
 eval/results/
+ui-page-review-*/
 tmp/
 
 # Supplied planning documents and cloud setup records (keep local)

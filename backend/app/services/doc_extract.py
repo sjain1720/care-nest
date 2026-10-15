@@ -7,6 +7,7 @@ from pydantic import BaseModel
 from app.core.config import get_settings
 from app.core.gcp import gemini
 from app.schemas import BillCategory as Category
+from app.services.demo_extraction_cache import reuse_demo_extraction
 
 
 class BillItemOut(BaseModel):
@@ -99,9 +100,11 @@ def _read_document(data: bytes, mime: str, prompt: str, schema: type[BaseModel])
     return response.parsed if isinstance(response.parsed, schema) else schema.model_validate_json(response.text)
 
 
+@reuse_demo_extraction
 def extract_bill(data: bytes, mime: str = "application/pdf") -> BillOut:
     return _read_document(data, mime, BILL_PROMPT, BillOut)
 
 
+@reuse_demo_extraction
 def extract_settlement(data: bytes, mime: str = "application/pdf") -> SettlementOut:
     return _read_document(data, mime, SETTLEMENT_PROMPT, SettlementOut)
