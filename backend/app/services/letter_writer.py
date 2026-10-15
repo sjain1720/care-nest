@@ -19,6 +19,10 @@ class LetterBody(BaseModel):
 
 
 def draft_letter(kind: str) -> dict:
+    from app.services.claim_investigation import cached_draft
+    prepared = cached_draft(kind)
+    if prepared:
+        return prepared
     case_doc = case_store.get_case()
     case = {**build_case(case_doc), "settlement": case_doc.get("settlement"), "bill": case_doc.get("bill"),
             "rejection": case_doc.get("rejection")}

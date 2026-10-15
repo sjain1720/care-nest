@@ -1,13 +1,19 @@
 import re
+import asyncio
+import contextvars
+import queue
+import threading
 
 from fastapi import APIRouter, HTTPException, Query
-from fastapi.responses import Response
+from fastapi.responses import Response, StreamingResponse
 from google.api_core.exceptions import GoogleAPIError, NotFound
 from google.genai import errors as genai_errors
 
-from app.schemas import BillReviewIn, ChecklistUpdate, QueryHelpRequest, ReplyRequest, TimelineEventIn
-from app.services import case_store
+from app.schemas import AskRequest, BillReviewIn, ChecklistUpdate, DisputePreparation, DisputeReview, QueryHelpRequest, ReplyRequest, TimelineEventIn
+from app.services.sse import sse_event
+from app.services import case_store, policy_store
 from app.services.case_builder import build_case
+from app.services.bill_policy import analyse_bill_policy, fingerprint
 from app.services.case_ingest import apply_bill_review
 from app.services.claim_tracker import new_event_id
 from app.services.letter_writer import draft_letter
@@ -15,6 +21,7 @@ from app.services.letters import LETTER_KINDS
 from app.services.privacy import mask_all
 from app.services.query_help import explain_query
 from app.services.reply_reader import read_reply_text
+from app.services.dispute_inputs import current_dispute_inputs
 
 router = APIRouter(tags=["case"])
 
@@ -28,11 +35,53 @@ def get_case():
     return build_case(case_store.get_case())
 
 
+@router.get('/case/dispute/inputs', response_model=DisputePreparation)
+def get_dispute_inputs():
+    """Guest-owned source readiness and arithmetic for the upcoming ADK review."""
+    return current_dispute_inputs()
+
+
+@router.post('/case/dispute/review', response_model=DisputeReview)
+async def review_dispute(body: AskRequest):
+    from app.services.dispute_review import run_review
+    return await run_review(body.question.strip())
+
+
+@router.post('/case/dispute/review/stream')
+def stream_dispute_review(body: AskRequest):
+    from app.services.dispute_review import run_review
+    events = queue.Queue()
+
+    def work():
+        try:
+            result = asyncio.run(run_review(body.question.strip(),
+                on_step=lambda step: events.put({'type': 'step', 'step': step.model_dump()})))
+            events.put({'type': 'review', 'review': result.model_dump()})
+        except Exception:
+            events.put({'type': 'error', 'message': 'The decision review could not complete. Please retry.'})
+        finally:
+            events.put(None)
+
+    threading.Thread(target=contextvars.copy_context().run, args=(work,), daemon=True).start()
+
+    def stream():
+        while (event := events.get()) is not None:
+            yield sse_event(event)
+
+    return StreamingResponse(stream(), media_type='text/event-stream',
+        headers={'Cache-Control': 'no-cache', 'X-Accel-Buffering': 'no'})
+
+
 @router.get("/case/bill")
 def get_bill():
     bill = case_store.get_case().get("bill")
     if not bill:
         raise HTTPException(404, "No hospital bill has been uploaded yet.")
+    analysis = bill.get('policyAnalysis')
+    if analysis:
+        active = policy_store.get_active_policy()
+        if not active or analysis.get('fingerprint') != fingerprint(active[0], active[1]['facts'], bill):
+            bill = {**bill, 'policyAnalysis': None}
     return bill
 
 
@@ -114,3 +163,13 @@ def query_help(body: QueryHelpRequest):
         return explain_query(body.queryText.strip())
     except _GOOGLE_ERRORS as exc:
         raise HTTPException(502, f"A Google service failed while reading the query: {exc.__class__.__name__}") from exc
+
+
+@router.post('/case/bill/evidence')
+def get_bill_policy_evidence():
+    try:
+        return analyse_bill_policy()
+    except LookupError as exc:
+        raise HTTPException(409, str(exc)) from exc
+    except _GOOGLE_ERRORS as exc:
+        raise HTTPException(502, 'Policy comparison service failed. Please retry.') from exc

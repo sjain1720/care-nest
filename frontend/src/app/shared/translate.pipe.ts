@@ -392,6 +392,9 @@ const HI: Record<string, string> = {
   'Restoration (refill) benefits, sub-limits, co-pay and deductibles can change the real figure.': 'रीस्टोरेशन (फिर से भरने वाला) लाभ, उप-सीमाएँ, को-पे और डिडक्टिबल असली राशि बदल सकते हैं।',
   "This is not the insurer's official balance. Ask the insurer or TPA to confirm it.": 'यह बीमा कंपनी का आधिकारिक बैलेंस नहीं है। पुष्टि के लिए बीमा कंपनी या TPA से पूछें।',
   'Add the sum insured from your policy schedule to see an estimate.': 'अनुमान देखने के लिए अपनी पॉलिसी शेड्यूल से बीमा राशि जोड़ें।',
+  'No account needed. This browser uses a guest session. The demo case is fictional. Use synthetic documents while retention and deletion controls are being verified.': 'खाता बनाने की ज़रूरत नहीं। यह ब्राउज़र गेस्ट सेशन का उपयोग करता है। डेमो काल्पनिक है। डेटा रखने और हटाने की जाँच पूरी होने तक केवल काल्पनिक दस्तावेज़ इस्तेमाल करें।',
+  'General guidance or answers from your selected documents': 'सामान्य जानकारी या आपके चुने हुए दस्तावेज़ों से जवाब',
+  'Documents are processed using Google Cloud AI and private storage. Some extracted text is masked; original files may contain personal details. Use synthetic documents for this prototype. Automatic deletion is not yet verified.': 'दस्तावेज़ Google Cloud AI और निजी स्टोरेज में प्रोसेस होते हैं। कुछ निकाले गए टेक्स्ट को छिपाया जाता है; मूल फ़ाइलों में निजी जानकारी हो सकती है। इस प्रोटोटाइप में काल्पनिक दस्तावेज़ इस्तेमाल करें। अपने आप डेटा हटने की जाँच अभी बाकी है।',
   'No account needed. Each visitor gets a separate guest session: uploaded documents are private and kept apart from other visitors, and are deleted after 7 days. The demo case is fictional.': 'खाता बनाने की ज़रूरत नहीं। हर विज़िटर को अलग गेस्ट सेशन मिलता है: अपलोड किए दस्तावेज़ निजी रहते हैं, दूसरों से अलग रखे जाते हैं और 7 दिन बाद हटा दिए जाते हैं। डेमो केस काल्पनिक है।',
   // Claims list
   'Your claims': 'आपके क्लेम',

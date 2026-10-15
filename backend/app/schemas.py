@@ -1,5 +1,7 @@
 """API response models. They mirror frontend/src/app/models/models.ts – keep both in sync."""
+from __future__ import annotations
 from typing import Literal
+from datetime import date
 
 from pydantic import BaseModel, Field
 
@@ -119,11 +121,13 @@ class AnswerCard(BaseModel):
     secondaryAction: NextAction | None = None
     # True when the answer comes from general insurance knowledge, not the user's own documents.
     general: bool = False
+    investigation: DisputeReview | None = None
 
 
 class AskRequest(BaseModel):
     question: str = Field(min_length=2, max_length=500)
     language: Literal["en", "hi"] = "en"
+    conversationId: str | None = Field(default=None, pattern=r"^[A-Za-z0-9_-]{8,64}$")
 
 
 class ChecklistUpdate(BaseModel):
@@ -193,3 +197,139 @@ class UploadResult(BaseModel):
     policyId: str | None = None
     reused: bool = False
     message: str | None = None
+
+
+class CoverageClaim(BaseModel):
+    id: str
+    title: str = ''
+    date: str = ''
+    approvedAmount: float | None = None
+
+
+class CoverageExcluded(BaseModel):
+    id: str
+    reason: str
+
+
+class CoverageYear(BaseModel):
+    from_: str = Field(alias='from')
+    to: str
+
+
+class CoverageEstimate(BaseModel):
+    status: Literal['missing_policy', 'missing_sum_insured', 'missing_start_date', 'not_started', 'unsupported_product', 'recorded_only']
+    policyId: str | None
+    asOf: str
+    year: CoverageYear | None
+    sumInsured: float | None
+    used: float | None
+    remaining: float | None
+    pct: int | None
+    counted: list[CoverageClaim]
+    excluded: list[CoverageExcluded]
+    pending: bool
+    floater: bool
+    demo: bool
+    historyComplete: bool
+    warnings: list[str]
+
+
+class PreviewClaim(BaseModel):
+    id: str = Field(max_length=100)
+    title: str = Field(default='', max_length=200)
+    policyId: str | None = Field(default=None, max_length=100)
+    date: str = Field(default='', max_length=10)
+    approvedAmount: float | None = Field(default=None, ge=0, le=100_000_000, allow_inf_nan=False)
+    status: Literal['paid', 'part_paid', 'refused', 'in_progress']
+    claimNumber: str = Field(default='', max_length=100)
+
+
+class CoveragePreviewInput(BaseModel):
+    policy: PolicyFacts
+    claims: list[PreviewClaim] = Field(max_length=200)
+
+
+class DisputeInputIssue(BaseModel):
+    code: str
+    message: str
+    route: str
+
+
+class DisputeReconciliation(BaseModel):
+    claimedAmount: float
+    approvedAmount: float
+    decisionDifference: float
+    itemizedDeductions: float
+    unexplainedGap: float
+    arithmeticOk: bool
+
+
+class DisputePreparation(BaseModel):
+    status: Literal['needs_inputs', 'ready_for_review']
+    decision: Literal['none', 'settlement', 'rejection', 'conflicting']
+    availableDocuments: list[str]
+    missingInputs: list[DisputeInputIssue]
+    warnings: list[str]
+    reconciliation: DisputeReconciliation | None = None
+    deductionsWithoutReason: list[str]
+
+
+class DisputeReviewRow(BaseModel):
+    id: str
+    label: str
+    amount: float | None = None
+    insurerReason: str
+    assessment: Literal['related_wording', 'needs_information', 'no_stated_reason', 'unverified']
+    explanation: str
+    citations: list[Citation]
+    missingInformation: list[str]
+
+
+class DisputeReview(BaseModel):
+    status: Literal['needs_inputs', 'reviewed', 'unavailable', 'stale']
+    engine: Literal['adk_investigation'] = 'adk_investigation'
+    preparation: DisputePreparation
+    metrics: dict = Field(default_factory=dict)
+    actions: list[dict] = Field(default_factory=list)
+    rows: list[DisputeReviewRow] = Field(default_factory=list)
+    steps: list[AgentStep] = Field(default_factory=list)
+    warnings: list[str] = Field(default_factory=list)
+
+
+class TreatmentPlanInput(BaseModel):
+    procedure: str = Field(min_length=2, max_length=200)
+    plannedAdmission: date | None = None
+    normalRoomRatePerDay: float | None = Field(default=None, gt=0, le=1_000_000, allow_inf_nan=False)
+
+
+class PlannedWaitingPeriod(BaseModel):
+    label: str
+    appliesTo: str
+    endDate: str | None = None
+    dateStatus: Literal['ends_by_planned_date', 'running_on_planned_date', 'end_date_unknown', 'planned_date_missing']
+    daysRemainingAtAdmission: int | None = None
+    citation: Citation | None = None
+
+
+class PlannedRoomRisk(BaseModel):
+    status: Literal['above_recorded_limit', 'within_recorded_limit']
+    recordedLimitPerDay: float
+    proposedRatePerDay: float
+    dailyExcess: float
+    citation: Citation | None = None
+
+
+class TreatmentPlanPreparation(BaseModel):
+    status: Literal['needs_policy', 'prepared']
+    engine: Literal['backend_calculations'] = 'backend_calculations'
+    procedure: str
+    plannedAdmission: str | None = None
+    waitingPeriods: list[PlannedWaitingPeriod] = Field(default_factory=list)
+    roomRisk: PlannedRoomRisk | None = None
+    coPay: LimitFact | None = None
+    deductible: LimitFact | None = None
+    questionsToConfirm: list[str] = Field(default_factory=list)
+    warnings: list[str] = Field(default_factory=list)
+
+
+AnswerCard.model_rebuild()

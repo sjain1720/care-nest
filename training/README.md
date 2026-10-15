@@ -51,8 +51,31 @@ Suggested annotation record (internal format, not a Vertex upload schema):
 
 Split by entire policy/product, not random passages: for an initial experiment, use three selected PDFs for training, one for validation, and one for a held-out test. Confirm insurer/product identities and revisions before assigning these splits; related wordings must not leak across them. More independent products from the remaining folder can broaden the test set. The existing demo's 12 golden questions remain separate.
 
-Before a job: validate exact evidence matches and page numbers, review answers for factual correctness, confirm supported tuning model and regional job location, estimate training tokens multiplied by epochs, and establish the retrieval baseline. Global inference approval does not establish support for a global tuning job; tuning uses a supported regional endpoint. Export reviewed records into the currently documented Vertex tuning schema. No training job is launched by either script.
+Before a job: validate exact evidence matches and page numbers, review answers for factual correctness, confirm supported tuning model and regional job location, estimate training tokens multiplied by epochs, and establish the retrieval baseline. Global inference approval does not establish support for a global tuning job; tuning uses a supported regional endpoint. Export reviewed records into the currently documented Vertex tuning schema. Corpus preparation does not launch training. The tuning script launches a job only with `--submit`; an existing saved job is resumed without resubmission.
 
 After a job: compare tuned and untuned models on identical held-out retrieval inputs for answer accuracy, citation correctness, unsupported-claim rate, and missing-information handling. Use measured scores in the hackathon presentation.
 
 Official guidance: https://docs.cloud.google.com/gemini-enterprise-agent-platform/models/tuning/supervised-tuning/use
+
+## 14 October experiment update
+
+Six policies now contribute synthetic, machine-checked drafts: 124 training, 31
+validation (Navi), 34 held-out tests (ICICI). Bajaj supplements the training split.
+Teacher provenance is per example; older drafts used 3.5 Flash, newer drafts
+used 3.1 Flash-Lite. These are not human-verified ground truth.
+
+One epoch of Gemini 3.1 Flash-Lite was submitted in us-central1; token counting
+uses the working global inference endpoint. Preflight: 138,562 tokens including
+JSON overhead, approximately US$0.4157 training only. Job metadata, label files
+and reports are ignored/local. The live app still uses the untuned model.
+
+Comparison runner: `eval/compare_tuned.py` uses identical ICICI evidence for
+both models, minimal thinking and the same output contract. The baseline has
+34/34 parseable JSON outputs and 33/34 exact-quote checks; all 26 policy-fact
+examples have some verified citation. These checks do not establish semantic
+insurance accuracy. Run the tuned arm only after the saved job succeeds.
+
+
+The existing job subsequently succeeded. Both held-out arms completed; see
+`docs/TUNING_COMPARISON.md`. Keep the baseline active: quotation improvement alone
+is insufficient evidence for promotion.

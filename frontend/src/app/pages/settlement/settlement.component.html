@@ -1,4 +1,28 @@
 <div class="page">
+  <app-dispute-review />
+  @if (preparation(); as inputs) {
+    <section class="card" aria-labelledby="dispute-preparation">
+      <h2 id="dispute-preparation">Before reviewing the decision</h2>
+      <p class="small muted">We check the documents and amounts first. This does not confirm whether a deduction is justified.</p>
+      @if (inputs.missingInputs.length) {
+        <ul class="plain">
+          @for (issue of inputs.missingInputs; track issue.code) {
+            <li>{{ issue.message }} <a [routerLink]="issue.route">Open</a></li>
+          }
+        </ul>
+      } @else {
+        <p>The source inputs are ready for an evidence review.</p>
+      }
+      @if (inputs.reconciliation; as amounts) {
+        <p>Claimed minus approved: <strong>{{ amounts.decisionDifference | inr }}</strong>.
+          Itemized deductions: <strong>{{ amounts.itemizedDeductions | inr }}</strong>.</p>
+        @if (!amounts.arithmeticOk) {
+          <p class="pill tone-warn">Unreconciled difference: {{ amounts.unexplainedGap | inr }}. Confirm the figures and breakdown with the insurer.</p>
+        }
+      }
+      @for (warning of inputs.warnings; track warning) { <p class="small muted">{{ warning }}</p> }
+    </section>
+  }
   @if (journey.lastReply(); as r) {
     <a class="card reply-banner" routerLink="/case/reply">
       <mat-icon>mark_email_read</mat-icon>
@@ -17,7 +41,7 @@
     <section class="card">
       <div class="totals">
         <div class="stat"><div class="label">{{ 'You claimed' | t }}</div><div class="value amount">{{ s.claimedAmount | inr }}</div></div>
-        <div class="stat"><div class="label">{{ 'Insurer paid' | t }}</div><div class="value amount">{{ s.approvedAmount | inr }}</div></div>
+        <div class="stat"><div class="label">{{ 'Insurer approved' | t }}</div><div class="value amount">{{ s.approvedAmount | inr }}</div></div>
         <div class="stat deducted"><div class="label">{{ 'Cut' | t }}</div><div class="value amount">{{ totalDeducted() | inr }}</div></div>
       </div>
       <div class="math row small">
@@ -33,7 +57,7 @@
                      [selected]="open()" (select)="select($event)" />
       <p class="small muted" style="margin:0 0 8px">{{ 'Tap a cut to see why it happened.' | t }}</p>
       <p class="small" style="margin-bottom:0">
-        <strong>{{ explained() | inr }}</strong> {{ 'of the cut matches your policy rules.' | t }}
+        <strong>{{ explained() | inr }}</strong> {{ 'of the cut has an explanation to check; this does not prove policy applicability.' | t }}
         @if (totalDeducted() - explained() > 0) { <strong>{{ totalDeducted() - explained() | inr }}</strong> {{ 'has no clear reason.' | t }} }
       </p>
     </section>

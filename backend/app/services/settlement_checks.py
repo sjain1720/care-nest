@@ -2,7 +2,7 @@
 from app.services.policy_details import format_inr as _rupees
 
 TOLERANCE = 2.0
-_NO_REASON = {"", "-", "--", "na", "n/a", "nil", "none", "other", "others", "other deductions", "misc", "miscellaneous"}
+_NO_REASON = {"", "-", "--", "na", "n/a", "nil", "none", "other", "others", "other deductions", "misc", "miscellaneous", "no reason or clause stated", "no clear reason stated", "no reason stated", "reason not provided", "not specified"}
 
 
 def has_reason(reason: str | None) -> bool:

@@ -1,4 +1,4 @@
-import { Component, computed, inject } from '@angular/core';
+import { Component, computed, inject, signal } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { RouterLink } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
@@ -11,10 +11,11 @@ import { NextStep, NextStepsComponent } from '../../shared/next-steps.component'
 import { EmptyStateComponent, SkeletonComponent } from '../../shared/page-states.component';
 import { GlossComponent } from '../../shared/gloss.component';
 import { CitationViewerService } from '../../services/citation-viewer.service';
+import { CitationChipComponent } from '../../shared/citation-chip.component';
 import { BillReviewComponent } from './bill-review.component';
 
 const TAGS: Record<BillTag, { label: string; tone: string }> = {
-  likely_payable: { label: 'Likely paid', tone: 'ok' },
+  likely_payable: { label: 'No heuristic flag', tone: 'ok' },
   possibly_non_payable: { label: 'May not be paid', tone: 'bad' },
   needs_clarification: { label: 'Not clear yet', tone: 'warn' },
 };
@@ -29,7 +30,7 @@ const SEVERITY: Record<BillCheck['severity'], { icon: string; tone: string }> = 
 @Component({
   selector: 'app-bill-check',
   standalone: true,
-  imports: [RouterLink, MatButtonModule, MatIconModule, InrPipe, NextStepsComponent, SkeletonComponent, EmptyStateComponent, GlossComponent, BillReviewComponent, TranslatePipe],
+  imports: [RouterLink, MatButtonModule, MatIconModule, InrPipe, NextStepsComponent, SkeletonComponent, EmptyStateComponent, GlossComponent, BillReviewComponent, TranslatePipe, CitationChipComponent],
   templateUrl: './bill-check.component.html',
   styles: `
     .totals { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; }
@@ -47,6 +48,16 @@ const SEVERITY: Record<BillCheck['severity'], { icon: string; tone: string }> = 
   `,
 })
 export class BillCheckComponent {
+  evidenceLoading = signal(false);
+  evidenceError = signal<string | null>(null);
+  comparePolicy(): void {
+    this.evidenceLoading.set(true); this.evidenceError.set(null);
+    this.api.compareBillPolicy().subscribe({
+      next: () => this.evidenceLoading.set(false),
+      error: (e) => { this.evidenceLoading.set(false); this.evidenceError.set(e?.error?.detail || 'Comparison failed. Please retry.'); },
+    });
+  }
+
   private api = inject(ApiService);
   private viewer = inject(CitationViewerService);
   bill = toSignal(this.api.getBill());

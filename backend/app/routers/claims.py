@@ -4,7 +4,7 @@ import re
 from fastapi import APIRouter, HTTPException
 
 from app.schemas import PastClaimIn
-from app.services import case_store
+from app.services import case_store, policy_store
 from app.services.claim_history import has_content, manual_claim, new_claim_id, newest_first, summarize_case
 from app.services.privacy import mask_all
 
@@ -41,7 +41,11 @@ def start_new_claim():
 
 @router.post("/claims/past")
 def add_past_claim(body: PastClaimIn):
-    case_store.add_past_claim(manual_claim(mask_all(body.model_dump(exclude_none=True)), new_claim_id()))
+    active = policy_store.get_active_policy_id()
+    if not active:
+        raise HTTPException(409, "Select a policy before adding a past claim.")
+    entry = {**body.model_dump(exclude_none=True), "policyId": active}
+    case_store.add_past_claim(manual_claim(mask_all(entry), new_claim_id()))
     return _all_claims()
 
 

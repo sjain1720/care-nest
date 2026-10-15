@@ -5,8 +5,8 @@ policies/{policyId}/pages/{NNN}     page, text
 policies/{policyId}/clauses/{id}    page, label, title, text, embedding (768-dim vector)
 sessions/{sessionId}                activePolicyId, policyDetails (schedule details this guest typed in), expireAt
 
-A policy document is shared by content hash (same file = same wording), but each guest's choice of policy and their
-personal schedule details live only in their own session.
+Private policy documents are scoped by guest and hash. Only synthetic demo wordings are shared.
+Personal schedule details live only in the guest session.
 """
 from google.cloud import firestore
 from google.cloud.firestore_v1.base_vector_query import DistanceMeasure

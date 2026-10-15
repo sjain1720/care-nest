@@ -1,3 +1,4 @@
+import asyncio
 import contextvars
 import logging
 import queue
@@ -10,6 +11,7 @@ from google.genai import errors as genai_errors
 
 from app.schemas import AskRequest, AskResponse
 from app.services.copilot import answer
+from app.services.conversation import prepare, remember, clear_threads
 from app.services.sse import sse_event
 
 router = APIRouter(tags=["copilot"])
@@ -22,7 +24,10 @@ _GOOGLE_ERRORS = (GoogleAPIError, genai_errors.APIError)
 def ask(body: AskRequest):
     """Claim Copilot: routes to the policy, bill/settlement or claim specialist; every quote is verified."""
     try:
-        return answer(body.question.strip(), language=body.language)
+        question, context = prepare(body.question.strip(), body.conversationId)
+        result = answer(question, language=body.language, original_question=body.question)
+        remember(context, result.answer)
+        return result
     except _GOOGLE_ERRORS as exc:
         raise HTTPException(502, f"A Google service failed while answering: {exc.__class__.__name__}") from exc
 
@@ -34,7 +39,9 @@ def ask_stream(body: AskRequest):
 
     def work() -> None:
         try:
-            result = answer(body.question.strip(), on_step=lambda s: events.put({"type": "step", "step": s.model_dump()}), language=body.language)
+            question, context = prepare(body.question.strip(), body.conversationId)
+            result = answer(question, on_step=lambda s: events.put({"type": "step", "step": s.model_dump()}), language=body.language, original_question=body.question)
+            remember(context, result.answer)
             events.put({"type": "answer", "answer": result.answer.model_dump()})
         except Exception as exc:  # report any failure to the browser instead of leaving the stream hanging
             log.exception("Streaming answer failed")
@@ -56,10 +63,20 @@ def ask_stream(body: AskRequest):
 
 @router.post("/copilot/agent")
 async def ask_agent(body: AskRequest):
-    """Experimental: the same question answered by the Google ADK agent team (free text, not verified like /ask)."""
-    from app.adk_copilot import run_copilot_agent  # imported lazily so the API starts even if ADK has a problem
-
+    """Legacy URL normalized through the same verified hybrid chat boundary."""
+    def work():
+        question, context = prepare(body.question.strip(), body.conversationId)
+        result = answer(question, language=body.language, original_question=body.question)
+        remember(context, result.answer)
+        return {'steps': [step.model_dump() for step in result.steps],
+                'text': result.answer.summary, 'answer': result.answer.model_dump()}
     try:
-        return await run_copilot_agent(body.question.strip())
+        return await asyncio.to_thread(work)
     except _GOOGLE_ERRORS as exc:
-        raise HTTPException(502, f"A Google service failed in the agent: {exc.__class__.__name__}") from exc
+        raise HTTPException(502, f"A Google service failed while answering: {exc.__class__.__name__}") from exc
+
+
+
+@router.delete('/copilot/conversation', status_code=204)
+def reset_conversation():
+    clear_threads()

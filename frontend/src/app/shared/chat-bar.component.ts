@@ -28,7 +28,7 @@ const PLACEHOLDER_TOPICS = ['health policy', 'bill claim preparations', 'explain
           <span class="avatar" aria-hidden="true"><mat-icon>auto_awesome</mat-icon></span>
           <div class="titles">
             <h2 id="chat-title">{{ 'Nessi' | t }}</h2>
-            <span [class]="'state ' + (!chat.live ? 'demo' : chat.reachable() ? 'on' : 'off')">{{ (!chat.live ? 'Demo: answers from the sample claim' : chat.reachable() ? 'Answers come from your own papers' : "Can't reach CareNest right now") | t }}</span>
+            <span [class]="'state ' + (!chat.live ? 'demo' : chat.reachable() ? 'on' : 'off')">{{ (!chat.live ? 'Demo: answers from the sample claim' : chat.reachable() ? 'General guidance or answers from your selected documents' : "Can't reach CareNest right now") | t }}</span>
           </div>
           @if (chat.messages().length) {
             <button mat-icon-button type="button" (click)="chat.clear()" aria-label="Start a new chat" title="New chat"><mat-icon>add_comment</mat-icon></button>
@@ -195,7 +195,7 @@ const PLACEHOLDER_TOPICS = ['health policy', 'bill claim preparations', 'explain
       .sheet-head { padding: 6px 4px 6px 10px; gap: 2px; }
       .avatar { width: 32px; height: 32px; }
       .titles h2 { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-      .sheet-head .mat-mdc-icon-button { width: 40px; height: 40px; padding: 8px; --mdc-icon-button-state-layer-size: 40px; }
+      .sheet-head .mat-mdc-icon-button { width: 40px; height: 40px; padding: 8px; --mat-icon-button-state-layer-size: 40px; }
       .sheet-body { padding: 12px 10px; }
       .opt-label { white-space: normal; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; line-height: 1.3; }
       .opt-icon { margin-right: 0 !important; }
@@ -268,7 +268,11 @@ export class ChatBarComponent {
     });
     // Wide screens: the chat's input only appears when it opens, so put the cursor there.
     effect(() => {
-      if (!this.inline() && this.chat.panelOpen() && !this.phone()) setTimeout(() => this.box().nativeElement.focus());
+      if (!this.inline() && this.chat.panelOpen() && !this.phone()) setTimeout(() => {
+        this.box().nativeElement.focus();
+        // Opening an answer should not cover its actions with search suggestions.
+        this.trigger().closePanel();
+      });
     });
   }
 

@@ -19,3 +19,7 @@ def detect_mime(data: bytes) -> str | None:
 
 def is_image(mime: str) -> bool:
     return mime in IMAGE_TYPES
+
+
+class UnreadableDocumentError(ValueError):
+    """A financial document lacks readable source content; do not fabricate extraction."""

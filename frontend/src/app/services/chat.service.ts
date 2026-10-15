@@ -41,6 +41,7 @@ export class ChatService {
   private api = inject(ApiService);
   private sub?: Subscription;
   private nextId = 1;
+  private conversationId = crypto.randomUUID();
 
   readonly messages = signal<ChatMessage[]>([]);
   readonly busy = signal(false);
@@ -87,7 +88,7 @@ export class ChatService {
     ]);
     this.nextId += 2;
 
-    this.sub = this.api.ask(question).subscribe({
+    this.sub = this.api.ask(question, this.conversationId).subscribe({
       next: (event) => {
         this.reachable.set(true);
         this.patch(replyId, (m) => (event.type === 'step' ? { ...m, steps: [...(m.steps ?? []), event.step] } : { ...m, answer: event.answer }));
@@ -103,6 +104,7 @@ export class ChatService {
   }
 
   clear(): void {
+    this.conversationId = crypto.randomUUID();
     this.sub?.unsubscribe();
     this.busy.set(false);
     this.messages.set([]);

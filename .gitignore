@@ -1,6 +1,10 @@
 # Secrets / local config
 .env
+.env.*
 **/.env
+**/.env.*
+!.env.example
+!**/.env.example
 *.key
 *-key.json
 service-account*.json
@@ -56,3 +60,6 @@ googleCloudStepsForThisPhase.md
 Thumbs.db
 .vscode/*
 !.vscode/extensions.json
+
+# Local package manager cache
+.pnpm-store/

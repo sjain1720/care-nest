@@ -2,6 +2,7 @@
 import hashlib
 
 from app.schemas import UploadResult
+from app.core.session import session_id, expiry
 from app.services import policy_store as store
 from app.services.case_ingest import process_case_document
 from app.services.clauses import split_into_clauses
@@ -37,17 +38,20 @@ def classify(pages: list[dict]) -> str:
 
 
 def process_upload(data: bytes, filename: str, doc_type: str = "auto", mime: str = PDF) -> UploadResult:
+    source_text = None
     if doc_type not in DOC_TYPES:
-        doc_type = classify([{"page": 1, "text": ocr_first_page(data, mime)}])
+        source_text = ocr_first_page(data, mime)
+        doc_type = classify([{"page": 1, "text": source_text}])
     if doc_type != "Policy document":
-        return process_case_document(data, filename, doc_type, mime)
+        return process_case_document(data, filename, doc_type, mime, source_text=source_text)
     if is_image(mime):
         raise UnsupportedFileError("This looks like a policy document. Upload the policy as a PDF – photos work for bills and letters.")
     return ingest_policy(data, filename)
 
 
-def ingest_policy(pdf_bytes: bytes, filename: str) -> UploadResult:
-    doc_id = "pol-" + hashlib.sha256(pdf_bytes).hexdigest()[:16]
+def ingest_policy(pdf_bytes: bytes, filename: str, shared_demo: bool = False) -> UploadResult:
+    digest = hashlib.sha256(pdf_bytes).hexdigest()[:16]
+    doc_id = "demo-" + digest if shared_demo else f"pol-{session_id()}-{digest}"
 
     # Same file uploaded again: reuse the earlier result instead of paying for OCR and Gemini twice.
     existing = store.get_policy(doc_id)
@@ -55,6 +59,8 @@ def ingest_policy(pdf_bytes: bytes, filename: str) -> UploadResult:
         store.set_active_policy(doc_id)
         return UploadResult(detectedType="Policy document", pages=existing.get("pageCount", 0), policyId=doc_id, reused=True)
 
+    store.save_policy(doc_id, {"status": "processing", "ownerSessionId": None if shared_demo else session_id(),
+                               "isDemoTemplate": shared_demo, "expireAt": None if shared_demo else expiry()})
     pages = ocr_pdf(pdf_bytes)
     store.save_original(doc_id, pdf_bytes)
     store.save_policy(doc_id, {"status": "processing", "filename": filename, "pageCount": len(pages)})

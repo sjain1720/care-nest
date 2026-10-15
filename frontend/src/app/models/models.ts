@@ -106,6 +106,7 @@ export interface AnswerCard {
   secondaryAction?: { label: string; route: string } | null;
   /** From general insurance knowledge, not from the user's own documents. */
   general?: boolean;
+  investigation?: DisputeReview | null;
 }
 
 /** Streamed by /api/copilot/ask: progress steps first, then one answer. */
@@ -148,6 +149,7 @@ export interface BillEstimate {
 }
 
 export interface Bill {
+  policyAnalysis?: BillPolicyAnalysis;
   hospital: string;
   billNumber: string;
   billDate: string;
@@ -272,6 +274,7 @@ export type ClaimStatus = 'in_progress' | 'paid' | 'part_paid' | 'refused';
 
 /** One line in the list of claims (GET /api/claims), newest first after the current claim. */
 export interface ClaimSummary {
+  policyId?: string | null;
   id: string;
   /** 'carenest' = kept here with its files and can be opened again; 'manual' = typed in from a past payment letter. */
   source: 'carenest' | 'manual';
@@ -367,4 +370,69 @@ export interface MockQa {
   keywords: string[];
   steps: AgentStep[];
   answer: AnswerCard;
+}
+
+export interface CoverageEstimate {
+  status: 'missing_policy' | 'missing_sum_insured' | 'missing_start_date' | 'not_started' | 'unsupported_product' | 'recorded_only';
+  policyId: string | null;
+  asOf: string;
+  year: { from: string; to: string } | null;
+  sumInsured: number | null; used: number | null; remaining: number | null; pct: number | null;
+  counted: { id: string; title: string; date: string; approvedAmount: number | null }[];
+  excluded: { id: string; reason: string }[];
+  pending: boolean; floater: boolean; demo: boolean; historyComplete: boolean; warnings: string[];
+}
+
+export interface BillPolicyRow {
+  id: string; description: string; billPage: number; amount: number; assessment: 'related_clause' | 'needs_checking';
+  explanation: string; citations: Citation[]; missingInformation: string[];
+}
+export interface BillPolicyAnalysis {
+  policyId: string; fingerprint: string; rows: BillPolicyRow[]; omittedRows: number; limitations: string[];
+}
+
+
+/** Source readiness for dispute review; readiness is not a coverage decision. */
+export interface DisputePreparation {
+  status: 'needs_inputs' | 'ready_for_review';
+  decision: 'none' | 'settlement' | 'rejection' | 'conflicting';
+  availableDocuments: string[];
+  missingInputs: { code: string; message: string; route: string }[];
+  warnings: string[];
+  reconciliation: {
+    claimedAmount: number; approvedAmount: number; decisionDifference: number;
+    itemizedDeductions: number; unexplainedGap: number; arithmeticOk: boolean;
+  } | null;
+  deductionsWithoutReason: string[];
+}
+
+
+export interface DisputeReviewRow {
+  id: string; label: string; amount: number | null; insurerReason: string;
+  assessment: 'related_wording' | 'needs_information' | 'no_stated_reason' | 'unverified';
+  explanation: string; citations: Citation[]; missingInformation: string[];
+}
+export interface DisputeReview {
+  status: 'needs_inputs' | 'reviewed' | 'unavailable' | 'stale';
+  engine: 'adk_investigation'; preparation: DisputePreparation;
+  metrics: Record<string, string | number | boolean | null>;
+  actions: { rowId: string; question: string; source: string; why: string; status: string; basis: string }[];
+  rows: DisputeReviewRow[]; steps: AgentStep[]; warnings: string[];
+}
+export type DisputeReviewEvent = {type: 'step'; step: AgentStep} | {type: 'review'; review: DisputeReview};
+
+
+export interface TreatmentPlanInput {
+  procedure: string; plannedAdmission?: string; normalRoomRatePerDay?: number;
+}
+export interface TreatmentPlanPreparation {
+  status: 'needs_policy' | 'prepared'; engine: 'backend_calculations';
+  procedure: string; plannedAdmission: string | null;
+  waitingPeriods: { label: string; appliesTo: string; endDate: string | null;
+    dateStatus: 'ends_by_planned_date' | 'running_on_planned_date' | 'end_date_unknown' | 'planned_date_missing';
+    daysRemainingAtAdmission: number | null; citation: Citation | null; }[];
+  roomRisk: { status: 'above_recorded_limit' | 'within_recorded_limit'; recordedLimitPerDay: number;
+    proposedRatePerDay: number; dailyExcess: number; citation: Citation | null; } | null;
+  coPay: LimitFact | null; deductible: LimitFact | null;
+  questionsToConfirm: string[]; warnings: string[];
 }

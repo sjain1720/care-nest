@@ -9,7 +9,7 @@ import { ChatBarComponent } from './shared/chat-bar.component';
 import { CLAIM_TOOLS } from './shared/claim-tools';
 import { scrollToSection } from './shared/scroll';
 import { TranslatePipe } from './shared/translate.pipe';
-import { FEATURES, isFullyLive, isLive } from './services/api.service';
+import { ApiService, FEATURES, isFullyLive, isLive } from './services/api.service';
 import { ChatService } from './services/chat.service';
 import { JourneyService } from './services/journey.service';
 import { SettingsService } from './services/settings.service';
@@ -53,6 +53,8 @@ export class AppComponent {
   readonly chat = inject(ChatService);
   private translate = new TranslatePipe();
   readonly live = isFullyLive();
+  readonly sessionInfo = toSignal(inject(ApiService).getSessionInfo());
+  readonly liveDemo = computed(() => this.live && this.sessionInfo()?.mode === 'live_demo');
   readonly partlyLive = !this.live && FEATURES.some((f) => isLive(f.id));
   readonly menuOpen = signal(false);
   readonly scrolled = signal(false);

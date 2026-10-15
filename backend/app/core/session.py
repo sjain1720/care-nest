@@ -9,6 +9,7 @@ COOKIE = "cn_session"
 TTL = timedelta(days=7)
 _VALID = re.compile(r"^[A-Za-z0-9_-]{32}$")
 _current: ContextVar[str | None] = ContextVar("cn_session", default=None)
+_deadline: ContextVar[datetime | None] = ContextVar("cn_session_deadline", default=None)
 
 
 def new_session_id() -> str:
@@ -16,7 +17,7 @@ def new_session_id() -> str:
 
 
 def is_valid(session_id: str | None) -> bool:
-    return bool(session_id and _VALID.match(session_id))
+    return bool(session_id and _VALID.fullmatch(session_id))
 
 
 def set_session(session_id: str):
@@ -35,5 +36,13 @@ def session_id() -> str:
 
 
 def expiry() -> datetime:
-    """Stored on every session document; a Firestore TTL policy on `expireAt` deletes it after a week without use."""
-    return datetime.now(timezone.utc) + TTL
+    """Fixed identity expiry; reads/writes do not extend retention indefinitely."""
+    return _deadline.get() or datetime.now(timezone.utc) + TTL
+
+
+def set_deadline(deadline: datetime):
+    return _deadline.set(deadline)
+
+
+def reset_deadline(token) -> None:
+    _deadline.reset(token)

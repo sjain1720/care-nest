@@ -53,8 +53,8 @@
      [attr.aria-label]="((live ? 'Using your own documents' : 'Showing a sample claim') | t) + '. ' + ('Demo and live settings' | t)"
      [title]="(live ? 'Using your own documents on the live service. Open the demo and live settings.' : 'Showing a sample claim. Open the demo and live settings to use your own documents.') | t">
     <mat-icon class="icon-sm">{{ live ? 'cloud_done' : 'science' }}</mat-icon>
-    <span class="mode-long">{{ (live ? 'Your documents' : partlyLive ? 'Demo (partly live)' : 'Demo case') | t }}</span>
-    <span class="mode-short">{{ (live ? 'Live' : 'Demo') | t }}</span>
+    <span class="mode-long">{{ (liveDemo() ? 'Live AI · fictional demo' : live ? 'Your documents' : partlyLive ? 'Demo (partly live)' : 'Demo case') | t }}</span>
+    <span class="mode-short">{{ (liveDemo() ? 'AI demo' : live ? 'Live' : 'Mock') | t }}</span>
   </a>
   </div>
 </header>
@@ -109,7 +109,7 @@
         </nav>
         <div>
           <h3>{{ 'Privacy' | t }}</h3>
-          <p>{{ 'We use your documents only to answer your questions, and we do not share them. Phone numbers, emails and ID numbers are hidden in the text we keep.' | t }}</p>
+          <p>{{ 'Documents are processed using Google Cloud AI and private storage. Some extracted text is masked; original files may contain personal details. Use synthetic documents for this prototype. Automatic deletion is not yet verified.' | t }}</p>
         </div>
       </div>
       <p class="sf-legal">{{ "CareNest gives guidance based on your documents. Only your insurer's decision confirms what is paid. This is not medical or legal advice." | t }}</p>

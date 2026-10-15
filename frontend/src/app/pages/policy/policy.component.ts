@@ -15,6 +15,7 @@ import { CitationChipComponent } from '../../shared/citation-chip.component';
 import { TrustPillComponent } from '../../shared/trust-pill.component';
 import { RoomRentSimulatorComponent } from '../../shared/room-rent-simulator.component';
 import { PolicyDetailsFormComponent } from './policy-details-form.component';
+import { TreatmentPlanningComponent } from '../../shared/treatment-planning.component';
 import { CoverageEstimateComponent } from '../../shared/coverage-estimate.component';
 
 interface TimelineRow extends WaitingPeriod {
@@ -30,7 +31,7 @@ const FLAG_ICONS: Record<string, string> = { missing_pages: 'find_in_page', outd
   standalone: true,
   imports: [DatePipe, RouterLink, MatButtonModule, MatIconModule, InrPipe, CitationChipComponent, TrustPillComponent, TranslatePipe,
             RoomRentSimulatorComponent, PolicyDetailsFormComponent, NextStepsComponent, SkeletonComponent, EmptyStateComponent, GlossComponent,
-            CoverageEstimateComponent],
+            CoverageEstimateComponent, TreatmentPlanningComponent],
   templateUrl: './policy.component.html',
   styles: `
     .members { display: flex; flex-wrap: wrap; gap: 8px; }

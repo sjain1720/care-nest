@@ -1,10 +1,10 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable, BehaviorSubject, catchError, concat, concatMap, delay, from, map, of, shareReplay, switchMap, tap } from 'rxjs';
+import { Observable, BehaviorSubject, catchError, combineLatest, concat, concatMap, delay, from, map, of, shareReplay, switchMap, tap } from 'rxjs';
 import { postEventStream } from './sse';
 import { SettingsService } from './settings.service';
 import {
-  AgentStep, AnswerCard, AskEvent, Bill, BillItem, BillReview, ChecklistStatus, ClaimCase, ClaimStatus, ClaimSummary, LetterDraft, LetterKind,
+  TreatmentPlanInput, TreatmentPlanPreparation, DisputeReviewEvent, DisputePreparation, BillPolicyAnalysis, CoverageEstimate, AgentStep, AnswerCard, AskEvent, Bill, BillItem, BillReview, ChecklistStatus, ClaimCase, ClaimStatus, ClaimSummary, LetterDraft, LetterKind,
   MockQa, MockQuery, PastClaimInput, PolicyDetailsInput, PolicyFacts, QueryEvent, QueryHelp, Settlement, TimelineEvent, TimelineEventInput, UploadEvent,
 } from '../models/models';
 import { diaryStage, guessReply, sortedTimeline, todayIso } from '../shared/claim-diary';
@@ -128,14 +128,29 @@ export class ApiService {
   private settings = inject(SettingsService);
 
   // Live mode: null means "not uploaded yet" (404).
+  private sessionInfo = resource(this.http.get<{ expiresAt: string; mode: 'guest' | 'live_demo' }>('/api/session'));
+  getSessionInfo() { return this.sessionInfo.stream; }
   private policy = resource(this.loadPolicy());
   private claim = resource(this.loadCase());
   private bill = resource(this.loadBill());
   private settlement = resource(this.loadOptional<Settlement>('settlement', 'settlement.json', '/api/case/settlement'));
   private claims = resource(this.loadClaims());
 
+  getCoverage(): Observable<CoverageEstimate | null> {
+    return combineLatest([this.policy.stream, this.claims.stream]).pipe(
+      switchMap(([policy, claims]) => {
+        if (isLive('policy') && isLive('case')) return this.http.get<CoverageEstimate>('/api/coverage');
+        if (isLive('policy') || isLive('case') || !policy) return of(null);
+        return this.http.post<CoverageEstimate>('/api/coverage/preview', {
+          policy, claims: (claims ?? []).map((c) => ({ ...c, policyId: policy.policyId })),
+        });
+      }),
+      catchError(() => of(null)),
+    );
+  }
+
   getPolicy(): Observable<PolicyFacts | null> { return this.policy.stream; }
-  refreshPolicy(): void { this.policy.set(this.loadPolicy()); }
+  refreshPolicy(): void { this.policy.set(this.loadPolicy()); this.sessionInfo.set(this.http.get<{ expiresAt: string; mode: 'guest' | 'live_demo' }>('/api/session')); }
 
   /** Every claim: the current one first, then earlier ones, newest first. */
   getClaims(): Observable<ClaimSummary[] | null> { return this.claims.stream; }
@@ -216,6 +231,10 @@ export class ApiService {
    * Saves what the family checked or corrected on the bill. Live: the backend re-runs every check on it.
    * Demo: kept in this browser and shown on the sample bill (its checks stay as they were).
    */
+  compareBillPolicy(): Observable<BillPolicyAnalysis> {
+    return this.http.post<BillPolicyAnalysis>('/api/case/bill/evidence', {}).pipe(tap(() => this.bill.set(this.loadBill())));
+  }
+
   reviewBill(review: BillReview): Observable<Bill | null> {
     if (isLive('bill')) {
       return this.http.put<Bill>('/api/case/bill', review).pipe(tap((b) => {
@@ -231,6 +250,19 @@ export class ApiService {
     return next;
   }
   getSettlement(): Observable<Settlement | null> { return this.settlement.stream; }
+
+  prepareTreatmentPlan(input: TreatmentPlanInput): Observable<TreatmentPlanPreparation> {
+    return this.http.post<TreatmentPlanPreparation>('/api/policy/treatment-plan/prepare', input);
+  }
+
+  reviewDispute(question: string): Observable<DisputeReviewEvent> {
+    return postEventStream<DisputeReviewEvent>('/api/case/dispute/review/stream', { question, language: this.settings.lang() });
+  }
+
+  getDisputePreparation(): Observable<DisputePreparation | null> {
+    if (!isLive('settlement')) return of(null);
+    return this.http.get<DisputePreparation>('/api/case/dispute/inputs').pipe(catchError(() => of(null)));
+  }
   refreshCase(): void {
     this.reloadClaimData();
     this.claims.set(this.loadClaims());
@@ -306,10 +338,10 @@ export class ApiService {
     return this.http.get<{ sampleReply: string }>('/mocks/reply.json').pipe(map((m) => m.sampleReply), catchError(() => of('')));
   }
 
-  ask(question: string): Observable<AskEvent> {
+  ask(question: string, conversationId?: string): Observable<AskEvent> {
     if (isLive('ask')) {
       // Steps arrive as the backend runs them (Server-Sent Events), then the verified answer.
-      return postEventStream<AskEvent>('/api/copilot/ask/stream', { question, language: this.settings.lang() });
+      return postEventStream<AskEvent>('/api/copilot/ask/stream', { question, language: this.settings.lang(), conversationId });
     }
     return this.http.get<MockQa[]>('/mocks/qa.json').pipe(
       map((list) => pickAnswer(list, question)),
