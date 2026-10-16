@@ -2,6 +2,7 @@
 import hashlib
 import logging
 import time
+from collections import deque
 
 from google.genai.errors import ClientError
 
@@ -10,7 +11,7 @@ from app.core.session import session_id, expiry
 from app.services import policy_store as store
 from app.services.case_ingest import process_case_document
 from app.services.clauses import split_into_clauses
-from app.services.embeddings import embed_texts
+from app.services.embeddings import embedding_batches, embed_texts, is_token_limit_error
 from app.services.file_types import PDF, is_image
 from app.services.ocr import ocr_first_page, ocr_pdf
 from app.services.policy_extract import build_policy_facts, extract_policy_facts
@@ -91,12 +92,24 @@ def ingest_policy(pdf_bytes: bytes, filename: str, shared_demo: bool = False) ->
         pending = [c for c in clauses if indexed.get(c.clause_id) != store.clause_index_stamp(c)]
         completed = len(clauses) - len(pending)
         quota_wait_used = False
-        for start in range(0, len(pending), 25):
-            group = pending[start:start + 25]
+        batches = deque()
+        offset = 0
+        for texts in embedding_batches([f"{c.label} {c.title}\n{c.text}" for c in pending]):
+            batches.append(pending[offset:offset + len(texts)])
+            offset += len(texts)
+        while batches:
+            group = batches.popleft()
             texts = [f"{c.label} {c.title}\n{c.text}" for c in group]
             try:
                 vectors = embed_texts(texts, "RETRIEVAL_DOCUMENT")
             except ClientError as exc:
+                if is_token_limit_error(exc) and len(group) > 1:
+                    # The estimate cannot cover every tokenizer/script. Preserve
+                    # whole passages and checkpoint each smaller successful call.
+                    mid = len(group) // 2
+                    batches.appendleft(group[mid:])
+                    batches.appendleft(group[:mid])
+                    continue
                 # The SDK has already tried short backoff. Give one quota window
                 # to reset, only if time remains for facts within Cloud Run's limit.
                 if exc.code != 429 or quota_wait_used or time.monotonic() - started_at > 120:
@@ -105,7 +118,8 @@ def ingest_policy(pdf_bytes: bytes, filename: str, shared_demo: bool = False) ->
                 store.save_policy(doc_id, {'processingStage': 'waiting_for_embedding_quota'})
                 time.sleep(60)
                 store.save_policy(doc_id, {'processingStage': stage})
-                vectors = embed_texts(texts, "RETRIEVAL_DOCUMENT")
+                batches.appendleft(group)
+                continue
             if len(vectors) != len(group):
                 raise RuntimeError("Policy indexing returned an incomplete result")
             # Save each successful batch before the next Google call can fail.

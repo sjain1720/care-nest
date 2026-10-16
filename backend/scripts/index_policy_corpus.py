@@ -8,7 +8,7 @@ from google.cloud.firestore_v1.vector import Vector
 from google.genai.errors import ClientError
 
 from app.core.gcp import bucket, db
-from app.services.embeddings import embed_texts
+from app.services.embeddings import embedding_batches, embed_texts
 
 
 def main():
@@ -35,10 +35,10 @@ def main():
         texts = [f"{c['label']} {c['title']}\n{c['text']}" for c in selected_clauses]
         vectors = []
         # Pace bulk preparation for projects with low per-model request quotas.
-        for start in range(0, len(texts), 25):
+        for group in embedding_batches(texts):
             for attempt in range(5):
                 try:
-                    vectors.extend(embed_texts(texts[start:start + 25], "RETRIEVAL_DOCUMENT"))
+                    vectors.extend(embed_texts(group, "RETRIEVAL_DOCUMENT"))
                     break
                 except ClientError as exc:
                     if exc.code != 429 or attempt == 4:

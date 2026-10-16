@@ -51,7 +51,7 @@ class PolicyResumeTests(unittest.TestCase):
         self.assertEqual(self.run_ingest({1: 'One', 2: 'Two'}, error=True), 0)
 
     def test_retry_preserves_successful_batches_and_indexes_only_remaining_text(self):
-        clauses = [Clause(f'c{i}', 1, 'Page 1', '', f'Wording {i}') for i in range(26)]
+        clauses = [Clause(f'c{i}', 1, 'Page 1', '', f'Wording {i}') for i in range(51)]
         indexed = {}
         def save_batch(policy_id, group, vectors):
             indexed.update({c.clause_id: policy_ingest.store.clause_index_stamp(c) for c in group})
@@ -66,15 +66,15 @@ class PolicyResumeTests(unittest.TestCase):
              patch.object(policy_ingest, 'extract_policy_facts'), \
              patch.object(policy_ingest, 'build_policy_facts', return_value=Mock(model_dump=lambda: {})), \
              patch.object(policy_ingest.time, 'sleep') as sleep, \
-             patch.object(policy_ingest, 'embed_texts', side_effect=[[[0.0]*768]*25, errors.ClientError(429, {'error': {'message': 'Busy'}}), errors.ClientError(429, {'error': {'message': 'Still busy'}}), [[0.0]*768]]) as embed:
+             patch.object(policy_ingest, 'embed_texts', side_effect=[[[0.0]*768]*50, errors.ClientError(429, {'error': {'message': 'Busy'}}), errors.ClientError(429, {'error': {'message': 'Still busy'}}), [[0.0]*768]]) as embed:
             with self.assertRaises(errors.ClientError):
                 policy_ingest.ingest_policy(b'fixture', 'fixture.pdf')
-            self.assertEqual(len(indexed), 25)
+            self.assertEqual(len(indexed), 50)
             sleep.assert_called_once_with(60)
             active.assert_not_called()
             policy_ingest.ingest_policy(b'fixture', 'fixture.pdf')
             self.assertEqual(len(embed.call_args_list[-1].args[0]), 1)
-            self.assertEqual(len(indexed), 26)
+            self.assertEqual(len(indexed), 51)
             active.assert_called_once()
             ocr.assert_not_called()
 
