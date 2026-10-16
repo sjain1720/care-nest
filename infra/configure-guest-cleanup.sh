@@ -6,7 +6,9 @@ PROJECT="project-796a7c44-1092-4e43-ba6"
 REGION="asia-south1"
 JOB="carenest-guest-cleanup"
 SA="ppm-runner@${PROJECT}.iam.gserviceaccount.com"
-IMAGE="$(gcloud run services describe carenest --project "$PROJECT" --region "$REGION" --format 'value(spec.template.spec.containers[0].image)')"
+REVISION="$(gcloud run services describe carenest --project "$PROJECT" --region "$REGION" --format 'value(status.latestReadyRevisionName)')"
+IMAGE="$(gcloud run revisions describe "$REVISION" --project "$PROJECT" --region "$REGION" --format 'value(status.imageDigest)')"
+gcloud artifacts docker tags add "$IMAGE" "${IMAGE%@*}:runtime-cleanup" --project "$PROJECT" --quiet
 gcloud services enable cloudscheduler.googleapis.com --project "$PROJECT"
 gcloud run jobs deploy "$JOB" --project "$PROJECT" --region "$REGION" \
   --image "$IMAGE" --service-account "$SA" --command python --args=-m,app.cleanup \

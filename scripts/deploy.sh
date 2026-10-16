@@ -25,6 +25,14 @@ gcloud run deploy "$SERVICE" \
   --allow-unauthenticated
 
 URL="$(gcloud run services describe "$SERVICE" --project "$PROJECT" --region "$REGION" --format 'value(status.url)')"
+# The scheduled job must not retain a digest that Artifact Registry later deletes.
+# A moving protected tag retains exactly the image currently used for cleanup.
+if gcloud run jobs describe carenest-guest-cleanup --project "$PROJECT" --region "$REGION" >/dev/null 2>&1; then
+  REVISION="$(gcloud run services describe "$SERVICE" --project "$PROJECT" --region "$REGION" --format 'value(status.latestReadyRevisionName)')"
+  IMAGE="$(gcloud run revisions describe "$REVISION" --project "$PROJECT" --region "$REGION" --format 'value(status.imageDigest)')"
+  gcloud artifacts docker tags add "$IMAGE" "${IMAGE%@*}:runtime-cleanup" --project "$PROJECT" --quiet
+  gcloud run jobs update carenest-guest-cleanup --project "$PROJECT" --region "$REGION" --image "$IMAGE"
+fi
 echo
 echo "Deployed: $URL"
 echo "Check: $URL/api/health  and  $URL/api/diag"
