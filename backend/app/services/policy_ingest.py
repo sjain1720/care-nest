@@ -1,6 +1,9 @@
 """Upload -> (detect type) -> policy pipeline (OCR, clauses, embeddings, verified facts) or bill/letter pipeline."""
 import hashlib
 import logging
+import time
+
+from google.genai.errors import ClientError
 
 from app.schemas import UploadResult
 from app.core.session import session_id, expiry
@@ -53,6 +56,7 @@ def process_upload(data: bytes, filename: str, doc_type: str = "auto", mime: str
 
 
 def ingest_policy(pdf_bytes: bytes, filename: str, shared_demo: bool = False) -> UploadResult:
+    started_at = time.monotonic()
     digest = hashlib.sha256(pdf_bytes).hexdigest()[:16]
     doc_id = "demo-" + digest if shared_demo else f"pol-{session_id()}-{digest}"
 
@@ -83,10 +87,31 @@ def ingest_policy(pdf_bytes: bytes, filename: str, shared_demo: bool = False) ->
         stage = "embedding_clauses"
         store.save_policy(doc_id, {"processingStage": stage})
         clauses = split_into_clauses(pages)
-        vectors = embed_texts([f"{c.label} {c.title}\n{c.text}" for c in clauses], "RETRIEVAL_DOCUMENT")
-        if len(vectors) != len(clauses):
-            raise RuntimeError("Policy indexing returned an incomplete result")
-        store.save_clauses(doc_id, clauses, vectors)
+        indexed = store.load_clause_index(doc_id) if complete else {}
+        pending = [c for c in clauses if indexed.get(c.clause_id) != store.clause_index_stamp(c)]
+        completed = len(clauses) - len(pending)
+        quota_wait_used = False
+        for start in range(0, len(pending), 25):
+            group = pending[start:start + 25]
+            texts = [f"{c.label} {c.title}\n{c.text}" for c in group]
+            try:
+                vectors = embed_texts(texts, "RETRIEVAL_DOCUMENT")
+            except ClientError as exc:
+                # The SDK has already tried short backoff. Give one quota window
+                # to reset, only if time remains for facts within Cloud Run's limit.
+                if exc.code != 429 or quota_wait_used or time.monotonic() - started_at > 120:
+                    raise
+                quota_wait_used = True
+                store.save_policy(doc_id, {'processingStage': 'waiting_for_embedding_quota'})
+                time.sleep(60)
+                store.save_policy(doc_id, {'processingStage': stage})
+                vectors = embed_texts(texts, "RETRIEVAL_DOCUMENT")
+            if len(vectors) != len(group):
+                raise RuntimeError("Policy indexing returned an incomplete result")
+            # Save each successful batch before the next Google call can fail.
+            store.save_clauses(doc_id, group, vectors)
+            completed += len(group)
+            store.save_policy(doc_id, {'indexedClauseCount': completed})
 
         stage = "extracting_facts"
         store.save_policy(doc_id, {"processingStage": stage})

@@ -46,7 +46,8 @@ def upload_document(file: UploadFile = File(...), docType: str = Form("auto")):
                   'Google refused access to document processing' if code in (401, 403) else
                   'Google could not complete document processing')
         detail = f'{reason}' + (f' (code {code})' if code else '')
-        raise HTTPException(502, detail + '. Retry the same file; complete policy pages already saved will be reused.') from exc
+        recovery = ('Wait about a minute, then retry the same file.' if code == 429 else 'Retry the same file.')
+        raise HTTPException(502, detail + f'. {recovery} Saved policy pages and indexing batches will be reused.') from exc
 
 
 def _active_policy() -> tuple[str, dict]:

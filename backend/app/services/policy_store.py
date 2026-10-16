@@ -8,11 +8,14 @@ sessions/{sessionId}                activePolicyId, policyDetails (schedule deta
 Private policy documents are scoped by guest and hash. Only synthetic demo wordings are shared.
 Personal schedule details live only in the guest session.
 """
+import hashlib
+
 from google.cloud import firestore
 from google.cloud.firestore_v1.base_vector_query import DistanceMeasure
 from google.cloud.firestore_v1.vector import Vector
 
 from app.core.gcp import bucket, db
+from app.core.config import get_settings
 from app.core.session import expiry, session_id
 from app.services.clauses import Clause
 from app.services.policy_details import apply_user_details
@@ -63,12 +66,26 @@ def load_pages(policy_id: str) -> dict[int, str]:
 
 
 def save_clauses(policy_id: str, clauses: list[Clause], vectors: list[list[float]]) -> None:
+    if len(clauses) != len(vectors):
+        raise ValueError('Cannot save an incomplete embedding batch')
     col = _policy(policy_id).collection("clauses")
     _write_in_batches([
         (col.document(c.clause_id),
-         {"page": c.page, "label": c.label, "title": c.title, "text": c.text, "embedding": Vector(v)})
+         {"page": c.page, "label": c.label, "title": c.title, "text": c.text, "embedding": Vector(v), **clause_index_stamp(c)})
         for c, v in zip(clauses, vectors)
     ])
+
+
+def clause_index_stamp(clause: Clause) -> dict:
+    text = f'{clause.label} {clause.title}\n{clause.text}'
+    return {'embeddingModel': get_settings().embedding_model,
+            'embeddingTextHash': hashlib.sha256(text.encode()).hexdigest()}
+
+
+def load_clause_index(policy_id: str) -> dict:
+    """Resume only atomically saved batches with matching text and encoder."""
+    rows = _policy(policy_id).collection('clauses').select(['embeddingModel', 'embeddingTextHash']).stream()
+    return {row.id: row.to_dict() for row in rows}
 
 
 def search_clauses(policy_id: str, query_vector: list[float], k: int = 6) -> list[dict]:
@@ -82,6 +99,8 @@ def search_clauses(policy_id: str, query_vector: list[float], k: int = 6) -> lis
     for snap in results:
         d = snap.to_dict()
         d.pop("embedding", None)
+        d.pop('embeddingModel', None)
+        d.pop('embeddingTextHash', None)
         hits.append({"id": snap.id, **d})
     return hits
 
