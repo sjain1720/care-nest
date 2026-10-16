@@ -47,16 +47,21 @@
     <div class="action-grid">
       <button class="action-card" type="button" (click)="chat.openPanel()">
         <span class="action-icon"><mat-icon>forum</mat-icon></span>
-        <h3>Ask Nessi</h3><p>Understand insurance terms, waiting periods and how to question a claim decision. This chat gives general guidance.</p>
+        <h3>Ask Nessi</h3><p>Understand insurance terms, waiting periods and how to question a claim decision. Choose Shubham’s example or ask using your own documents.</p>
         <span class="card-action">Start a conversation <mat-icon>arrow_forward</mat-icon></span>
       </button>
-      <a class="action-card" routerLink="/dashboard">
+      <a class="action-card" routerLink="/dashboard" [queryParams]="{workspace: 'example'}">
         <span class="action-icon"><mat-icon>dashboard</mat-icon></span>
-        <h3>Ravi's dashboard</h3><p>See a fictional family's policy, hospital bill and settlement. Ask questions, inspect the evidence and prepare a clarification letter.</p>
+        <h3>Explore Shubham’s example</h3><p>See a fictional family's policy, hospital bill and settlement. Ask questions, inspect the evidence and prepare a clarification letter.</p>
         <span class="card-action">Open dashboard <mat-icon>arrow_forward</mat-icon></span>
+      </a>
+      <a class="action-card" routerLink="/upload" [queryParams]="{workspace: 'personal'}">
+        <span class="action-icon"><mat-icon>upload_file</mat-icon></span>
+        <h3>Use my own documents</h3><p>Add your policy, hospital bill or insurer’s letter. Nessi uses your private space, separate from the example.</p>
+        <span class="card-action">Add a document <mat-icon>arrow_forward</mat-icon></span>
       </a>
     </div>
   </section>
-  <aside class="guest-note"><mat-icon>info_outline</mat-icon><div><strong>General guidance here. A fictional profile in the dashboard.</strong>
-    <p>No sign-in required. Each visitor has separate conversations and changes. Dashboard figures describe our fictional example, not your personal cover.</p></div></aside>
+  <aside class="guest-note"><mat-icon>info_outline</mat-icon><div><strong>Two separate spaces. One helpful assistant.</strong>
+    <p>No sign-in required. Each visitor has separate conversations and changes. Switch between Shubham’s example and My documents at any time. Returning here does not erase either space.</p></div></aside>
 </div>

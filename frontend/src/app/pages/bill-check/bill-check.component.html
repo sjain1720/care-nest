@@ -1,10 +1,13 @@
 <div class="page">
+  <a class="back-link" routerLink="/bills">← Hospital bills</a>
   @if (bill(); as b) {
     <div class="page-head">
       <h1>{{ 'Your hospital bill, checked' | t }}</h1>
       <p>{{ b.hospital }}@if (b.billNumber) { · {{ 'Bill' | t }} {{ b.billNumber }} } · {{ b.items.length }} {{ 'charges' | t }}@if (b.pagesRead) { · {{ b.pagesRead }} {{ (b.pagesRead === 1 ? 'page read' : 'pages read') | t }} }</p>
     </div>
 
+    <nav class="section-tabs" aria-label="Bill sections"><a routerLink="/case/bill" fragment="checks">Checks</a><a routerLink="/case/bill" fragment="estimate">Estimate</a><a routerLink="/case/bill" fragment="charges">Every charge</a><a routerLink="/case/bill" fragment="review">Correct details</a></nav>
+    @if (b.docUrl) { <details class="card source-disclosure"><summary>Inspect original hospital bill</summary><app-document-preview [url]="b.docUrl" title="Hospital bill" /></details> }
     <app-bill-review [bill]="b" [claim]="claimCase()" />
 
     <section class="card">

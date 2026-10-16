@@ -1,7 +1,7 @@
 <div class="page">
   <div class="page-head">
     <h1>{{ 'Add your documents' | t }}</h1>
-    <p class="muted small">Files added here change only your copy of the fictional workspace. They may replace its selected policy, bill or insurer decision.</p>
+    <p class="muted small">Files are saved in My documents, separate from Shubham’s example. A new policy becomes the selected policy in your private space.</p>
     <p>{{ 'Policies as PDF (up to 100 pages). Bills and insurer letters as PDF or a phone photo (JPG, PNG). We read every page, so answers can show you the exact page.' | t }}</p>
   </div>
 
@@ -52,6 +52,11 @@
   <app-next-steps [steps]="nextSteps()" [title]="'Add these, in this order'" />
 
   <h2>{{ (completedUpload() ? "Add another document" : "Choose a document") | t }}</h2>
+  <div class="upload-categories" aria-label="Choose document type">
+    @for (type of ['Policy document', 'Hospital bill', 'Settlement letter']; track type) {
+      <button type="button" [class.selected]="docType === type" (click)="docType = $any(type)"><mat-icon>{{ type === 'Policy document' ? 'policy' : type === 'Hospital bill' ? 'receipt_long' : 'description' }}</mat-icon>{{ type === 'Settlement letter' ? 'Insurer decision' : type }}</button>
+    }
+  </div>
   <div class="row" style="margin-bottom:12px">
     <label for="doc-type" class="small"><strong>{{ 'What is this document?' | t }}</strong></label>
     <select id="doc-type" name="docType" [(ngModel)]="docType" class="type-select">

@@ -16,6 +16,8 @@ import { NextStep, NextStepsComponent } from '../../shared/next-steps.component'
 import { EmptyStateComponent, SkeletonComponent } from '../../shared/page-states.component';
 import { eventText, todayIso } from '../../shared/claim-diary';
 import { ClaimsListComponent } from './claims-list.component';
+import { DocumentPreviewComponent } from '../../shared/document-preview.component';
+import { CoverageEstimateComponent } from '../../shared/coverage-estimate.component';
 import { InrPipe } from '../../shared/inr.pipe';
 
 const STATUS_META: Record<ChecklistStatus, { label: string; icon: string; tone: string }> = {
@@ -27,7 +29,7 @@ const STATUS_META: Record<ChecklistStatus, { label: string; icon: string; tone: 
 @Component({
   selector: 'app-case',
   standalone: true,
-  imports: [DatePipe, NgTemplateOutlet, FormsModule, RouterLink, MatButtonModule, MatIconModule, MatProgressBarModule, NextStepsComponent, SkeletonComponent, EmptyStateComponent, ClaimsListComponent, TranslatePipe, InrPipe],
+  imports: [DocumentPreviewComponent, CoverageEstimateComponent, DatePipe, NgTemplateOutlet, FormsModule, RouterLink, MatButtonModule, MatIconModule, MatProgressBarModule, NextStepsComponent, SkeletonComponent, EmptyStateComponent, ClaimsListComponent, TranslatePipe, InrPipe],
   templateUrl: './case.component.html',
   styleUrl: './case-overview.css',
   styles: `
@@ -69,6 +71,8 @@ const STATUS_META: Record<ChecklistStatus, { label: string; icon: string; tone: 
 export class CaseComponent {
   readonly dashboard = inject(ActivatedRoute).snapshot.data['dashboard'] === true;
   private api = inject(ApiService);
+  readonly workspace = this.api.workspace;
+  readonly claims = toSignal(this.api.getClaims());
   readonly policy = toSignal(this.api.getPolicy());
   private diary = inject(DiaryActionsService);
   readonly journey = inject(JourneyService);
@@ -77,11 +81,13 @@ export class CaseComponent {
   checklist = signal<ChecklistItem[]>([]);
   claimCase = toSignal(this.api.getCase().pipe(tap((c) => this.checklist.set((c?.checklist ?? []).map((i) => ({ ...i }))))));
 
+  readonly decisionDocument = computed(() => this.claimCase()?.documents.find(d => d.type === 'Settlement letter' || d.type === 'Rejection letter'));
+
   claimItems = computed(() => this.checklist().filter((i) => i.group === 'claim'));
   disputeItems = computed(() => this.checklist().filter((i) => i.group === 'dispute'));
   collected = computed(() => this.claimItems().filter((i) => i.status === 'collected').length);
   progressPct = computed(() => (this.claimItems().length ? (this.collected() / this.claimItems().length) * 100 : 0));
-  private bill = toSignal(this.api.getBill());
+  readonly bill = toSignal(this.api.getBill());
   readonly settlement = toSignal(this.api.getSettlement());
   readonly tools = [
     { label: 'Check my bill', icon: 'receipt_long', route: '/case/bill', fragment: undefined },

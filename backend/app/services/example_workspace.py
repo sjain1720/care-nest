@@ -31,7 +31,7 @@ def template_version() -> str:
 def ensure_example_workspace() -> dict:
     if root_session_id() == session_id():
         raise ValueError('The example workspace selector is required')
-    result = {'ready': True, 'profile': 'Ravi Sharma', 'fictional': True,
+    result = {'ready': True, 'profile': 'Shubham Sharma', 'fictional': True,
               'workspaceKey': sha256(session_id().encode()).hexdigest()[:16]}
     client = db()
     identity = client.collection('guestSessions').document(session_id())
@@ -46,7 +46,7 @@ def ensure_example_workspace() -> dict:
     policy = policy_store.get_policy(policy_id)
     if not policy or policy.get('status') != 'ready' or not policy.get('isDemoTemplate'):
         raise ExampleNotPrepared('The example policy is temporarily unavailable.')
-    case = deepcopy(template['case'])
+    case = json.loads(json.dumps(template['case']).replace('Ravi Sharma', 'Shubham Sharma'))
     storage = bucket()
     # Original PDFs are copied into this visitor's private file paths; existing
     # document authorization and deletion behavior therefore remain unchanged.

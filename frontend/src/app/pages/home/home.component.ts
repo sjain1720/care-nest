@@ -11,5 +11,6 @@ import { ChatBarComponent } from '../../shared/chat-bar.component';
 })
 export class HomeComponent {
   readonly chat = inject(ChatService);
+  readonly workspace = this.chat.workspace;
   readonly prompts = () => ['What is a waiting period?', 'How do I question a deduction?', 'What documents help prepare a claim?'];
 }

@@ -14,6 +14,7 @@ import { ChatService } from './services/chat.service';
 import { JourneyService } from './services/journey.service';
 import { SettingsService } from './services/settings.service';
 import { ThemeService } from './services/theme.service';
+import { WorkspaceChooserComponent } from './shared/workspace-chooser.component';
 import { WorkspaceService } from './services/workspace.service';
 import { CitationViewerService } from './services/citation-viewer.service';
 
@@ -35,7 +36,7 @@ const SCROLL_REVEAL_PX = 120;
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [RouterOutlet, RouterLink, RouterLinkActive, NgTemplateOutlet, MatIconModule, CitationDrawerComponent, ChatBarComponent, TranslatePipe],
+  imports: [WorkspaceChooserComponent, RouterOutlet, RouterLink, RouterLinkActive, NgTemplateOutlet, MatIconModule, CitationDrawerComponent, ChatBarComponent, TranslatePipe],
   templateUrl: './app.component.html',
   styleUrl: './app.component.css',
 })
@@ -131,7 +132,7 @@ export class AppComponent {
 
   readonly mainNav: NavItem[] = [
     { path: '/', label: 'Welcome', short: 'Welcome', icon: 'home', exact: true, desc: 'General insurance guidance from Nessi' },
-    { path: '/dashboard', label: 'Dashboard', short: 'Home', icon: 'dashboard', exact: true, desc: "Ravi's fictional example workspace" },
+    { path: '/dashboard', label: 'Dashboard', short: 'Home', icon: 'dashboard', exact: true, desc: "Shubham's fictional example workspace" },
     { path: '/policy', label: 'My policy', short: 'Policy', icon: 'policy', exact: true, desc: 'Cover, limits, waiting times' },
     { path: '/case', label: 'My claim', short: 'Claim', icon: 'folder_shared', exact: false, desc: 'Papers, diary, your files' },
     { path: '/ask', label: 'Chat', icon: 'forum', exact: true, desc: 'Answers from your own papers' },

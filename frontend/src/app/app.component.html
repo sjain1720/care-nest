@@ -49,12 +49,11 @@
           [title]="(theme.theme() === 'dark' ? 'Switch to light mode' : 'Switch to dark mode') | t">
     @if (theme.theme() === 'dark') { <mat-icon class="spin-in">light_mode</mat-icon> } @else { <mat-icon class="spin-in">dark_mode</mat-icon> }
   </button>
-  <a class="mode" [class.live]="live" routerLink="/status" aria-label="Guest session and demo settings"
-     title="Guest session, fictional demo and data controls">
-    <mat-icon class="icon-sm">{{ live ? 'person_outline' : 'science' }}</mat-icon>
-    <span class="mode-long">{{ !live ? (partlyLive ? 'Mixed preview' : 'Mock preview') : workspace.mode() === 'example' ? 'Ravi · fictional profile' : 'General chat' }}</span>
-    <span class="mode-short">{{ !live ? 'Mock' : workspace.mode() === 'example' ? 'Ravi' : 'Nessi' }}</span>
-  </a>
+  <button type="button" class="mode live workspace-switch" (click)="workspace.choosing.set(true)" aria-label="Switch workspace">
+    <mat-icon class="icon-sm">{{ workspace.mode() === 'example' ? 'account_circle' : 'folder_open' }}</mat-icon>
+    <span class="mode-long">{{ workspace.label() }}</span><span class="mode-short">{{ workspace.mode() === 'example' ? 'Shubham' : 'My space' }}</span>
+    <mat-icon class="icon-sm">expand_more</mat-icon>
+  </button>
   </div>
 </header>
 
@@ -93,11 +92,14 @@
       </div>
     }
     @if (workspace.opening()) { <p class="workspace-opening" role="status">Opening page…</p> }
-    @if (workspace.mode() === 'example') {
-      <aside class="fictional-context">Ravi Sharma · Fictional example. Your changes stay in this browser's isolated workspace.
-        <a routerLink="/">General chat with Nessi</a>
+    @if (!onHome() && workspace.mode() !== 'general') {
+      <aside class="fictional-context" [class.personal-context]="workspace.mode() === 'personal'">
+        <mat-icon>{{ workspace.mode() === 'example' ? 'science' : 'lock_outline' }}</mat-icon>
+        <span>{{ workspace.mode() === 'example' ? "Shubham Sharma · Fictional example. Your edits are separate from other visitors." : "My documents · Your private guest workspace. Shubham's example stays separate." }}</span>
+        <button type="button" (click)="workspace.choosing.set(true)">Switch space <mat-icon>swap_horiz</mat-icon></button>
       </aside>
     }
+    @if (!live && workspace.mode() !== 'personal') { <aside class="fictional-context">Developer preview: some or all responses use mock data. Live controls are in session settings.</aside> }
     <router-outlet />
     @if (!onAskPage()) {
     @if (onHome()) {
@@ -208,3 +210,5 @@
     <path class="st st-bot" d="M19 15l-1.25 2.75L15 19l2.75 1.25L19 23l1.25-2.75L23 19l-2.75-1.25z" />
   </svg>
 </ng-template>
+
+<app-workspace-chooser />

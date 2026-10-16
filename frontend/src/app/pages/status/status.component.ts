@@ -47,6 +47,7 @@ export class StatusComponent {
         for (const key of Object.keys(localStorage)) {
           if (key.startsWith('carenest.letter.') || ['carenest.timeline', 'carenest.checklist', 'carenest.claims', 'carenest.billReview'].includes(key)) localStorage.removeItem(key);
         }
+        sessionStorage.removeItem('carenest.workspace.choice');
         setAllLive(true); location.assign('/');
       },
       error: () => { this.deleting.set(false); this.actionError.set('Deletion failed. Please retry.'); },

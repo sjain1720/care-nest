@@ -12,7 +12,7 @@ _DEMO_DIRS = [_APP.parent / "static" / "demo", _APP.parents[1] / "demo-data"]
 # Matches the synthetic policy schedule (the demo PDF is a wording without a schedule).
 DEMO_DETAILS = {
     "startDate": "2024-03-12", "sumInsured": 500000, "roomRentPerDay": 5000, "policyNumber": "XXXX-XXXX-4821",
-    "members": [{"name": "Ravi Sharma", "relation": "Self", "age": 32}, {"name": "Mohan Sharma", "relation": "Father", "age": 62},
+    "members": [{"name": "Shubham Sharma", "relation": "Self", "age": 32}, {"name": "Mohan Sharma", "relation": "Father", "age": 62},
                 {"name": "Kamala Sharma", "relation": "Mother", "age": 58}],
 }
 _FILES = (("sample_policy.pdf", "Policy document"), ("hospital_bill.pdf", "Hospital bill"), ("settlement_letter.pdf", "Settlement letter"))

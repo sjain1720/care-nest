@@ -7,7 +7,7 @@
   },
   {
     "id": "cl-3f9a1c20", "source": "manual", "current": false,
-    "title": "Dengue fever", "patient": "Ravi Sharma", "hospital": "Sunrise Hospital, Pune (demo)",
+    "title": "Dengue fever", "patient": "Shubham Sharma", "hospital": "Sunrise Hospital, Pune (demo)",
     "date": "2026-06-05", "claimNumber": "CLM-2026-0041177",
     "claimedAmount": 46500, "approvedAmount": 42000, "status": "part_paid", "closed": true
   },

@@ -331,3 +331,4 @@
 
 .fictional-context { margin: 12px var(--cn-gutter); padding: 10px 14px; border-radius: 10px; background: var(--cn-green-soft); color: var(--cn-strong); font-size: .82rem; display: flex; gap: 8px 16px; flex-wrap: wrap; justify-content: space-between; }
 .workspace-opening { margin: 12px var(--cn-gutter); color: var(--cn-muted); }
+.workspace-switch{font:inherit;cursor:pointer}.fictional-context{display:flex;align-items:center;gap:10px;flex-wrap:wrap}.fictional-context>mat-icon{flex:none;font-size:20px;width:20px;height:20px}.fictional-context span{flex:1;min-width:180px}.fictional-context button{display:inline-flex;align-items:center;gap:6px;background:none;border:0;color:var(--cn-link);font:inherit;font-weight:600;cursor:pointer;min-height:40px}.personal-context{background:var(--cn-green-soft)}

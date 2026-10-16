@@ -25,7 +25,7 @@ const INR = new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR',
 const DATE = new Intl.DateTimeFormat('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
 
 const PAGES: SearchItem[] = [
-  { group: 'Go to', icon: 'dashboard', label: "Ravi's dashboard", route: '/dashboard', keywords: 'home dashboard overview summary start example' },
+  { group: 'Go to', icon: 'dashboard', label: "Dashboard", route: '/dashboard', keywords: 'home dashboard overview summary start example' },
   { group: 'Go to', icon: 'policy', label: 'My policy', route: '/policy', keywords: 'cover coverage plan insurance sum insured' },
   { group: 'Go to', icon: 'badge', label: 'Policy details and people covered', route: '/policy', fragment: 'details', keywords: 'start date renewal family members deductible edit correct schedule' },
   { group: 'Go to', icon: 'rule', label: 'Limits on what the insurer pays', route: '/policy', fragment: 'limits', keywords: 'copay co-pay sub-limit cap maximum limits' },

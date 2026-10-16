@@ -1,11 +1,14 @@
 <div class="page">
-  <app-treatment-planning />
   @if (policy(); as p) {
     <div class="page-head">
       <h1>{{ p.planName }}</h1>
       <p>{{ p.insurer }} · Policy {{ p.policyNumber }} · {{ p.pageCount }} pages read@if (p.isGroupPolicy) { · Group policy }</p>
     </div>
 
+    <nav class="section-tabs" aria-label="Policy sections"><a routerLink="/policy" fragment="details">Overview</a><a routerLink="/policy" fragment="limits">Benefits & limits</a><a routerLink="/policy" fragment="waiting-periods">Waiting periods</a><a routerLink="/policy" fragment="traps">Watch-outs</a><a routerLink="/policy" fragment="source-document">Document</a></nav>
+    <div class="policy-document-layout">
+      <aside class="policy-source" id="source-document"><app-document-preview [url]="sourceUrl()" title="Policy document" /></aside>
+      <div class="policy-analysis">
     @if (p.productNote) {
       <section class="card notice" role="note">
         <mat-icon>info</mat-icon>
@@ -146,6 +149,9 @@
         }
       </section>
     }
+      <app-treatment-planning />
+      </div>
+    </div>
   } @else if (policy() === null) {
     <app-empty-state icon="policy" title="No policy yet" action="Add your policy"
       text="Upload your policy PDF. We read every page and show your limits, waiting times and the exact rule, in plain words." />

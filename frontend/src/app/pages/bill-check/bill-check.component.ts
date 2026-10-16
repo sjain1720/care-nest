@@ -4,6 +4,7 @@ import { RouterLink } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { TranslatePipe } from '../../shared/translate.pipe';
 import { MatIconModule } from '@angular/material/icon';
+import { DocumentPreviewComponent } from '../../shared/document-preview.component';
 import { ApiService } from '../../services/api.service';
 import { BillCheck, BillTag } from '../../models/models';
 import { InrPipe, formatInr } from '../../shared/inr.pipe';
@@ -30,7 +31,7 @@ const SEVERITY: Record<BillCheck['severity'], { icon: string; tone: string }> = 
 @Component({
   selector: 'app-bill-check',
   standalone: true,
-  imports: [RouterLink, MatButtonModule, MatIconModule, InrPipe, NextStepsComponent, SkeletonComponent, EmptyStateComponent, GlossComponent, BillReviewComponent, TranslatePipe, CitationChipComponent],
+  imports: [DocumentPreviewComponent, RouterLink, MatButtonModule, MatIconModule, InrPipe, NextStepsComponent, SkeletonComponent, EmptyStateComponent, GlossComponent, BillReviewComponent, TranslatePipe, CitationChipComponent],
   templateUrl: './bill-check.component.html',
   styles: `
     .totals { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; }

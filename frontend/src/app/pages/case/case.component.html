@@ -1,17 +1,29 @@
 <div class="page">
   @if (dashboard) {
-    <header class="card"><p class="eyebrow">FICTIONAL EXAMPLE PROFILE</p><h1>Welcome, Ravi Sharma</h1>
-      <p>Your family's policy, claim and next steps, in one place.</p>
-      @if (policy(); as p) {
-        <div class="facts" style="margin:16px 0">
-          <div><span>Policy</span><strong>{{ p.planName }}</strong></div>
-          <div><span>Sum insured</span><strong>{{ p.sumInsured | inr }}</strong></div>
-          <div><span>People covered</span><strong>{{ p.members.length }}</strong></div>
-        </div>
-      }
-      <a mat-stroked-button routerLink="/policy">View my policy</a>
+    <header class="dashboard-hero">
+      <div><p class="eyebrow">{{ workspace.mode() === 'example' ? 'FICTIONAL EXAMPLE PROFILE' : 'YOUR PRIVATE GUEST WORKSPACE' }}</p>
+      <h1>{{ workspace.mode() === 'example' ? 'Welcome, Shubham' : 'Your health coverage, understood.' }}</h1>
+      <p class="muted">Your policy, hospital bills and claim journey, in one place.</p></div>
+      <span class="dashboard-emblem" aria-hidden="true"><mat-icon>health_and_safety</mat-icon></span>
     </header>
+    <section class="dashboard-shortcuts" aria-label="Your workspace">
+      <a routerLink="/policy"><span class="round-icon"><mat-icon>policy</mat-icon></span><div><strong>My policy</strong><small>{{ policy()?.planName || 'Add a policy to see your cover' }}</small></div><mat-icon>arrow_forward</mat-icon></a>
+      <a routerLink="/bills"><span class="round-icon"><mat-icon>receipt_long</mat-icon></span><div><strong>Hospital bills</strong><small>{{ bill() ? (bill()!.total | inr) : 'No bill added yet' }}</small></div><mat-icon>arrow_forward</mat-icon></a>
+      <a routerLink="/case"><span class="round-icon"><mat-icon>folder_shared</mat-icon></span><div><strong>My claims</strong><small>{{ claims()?.length || 0 }} recorded here</small></div><mat-icon>arrow_forward</mat-icon></a>
+    </section>
+    @if (policy()) { <app-coverage-estimate [compact]="true" /> }
+    <div class="dashboard-recent">
+      <section class="card document-list"><header><h2>Recent documents</h2><a routerLink="/upload">Add document</a></header>
+        @for (doc of claimCase()?.documents?.slice(-3); track doc.id) { <div class="document-list-row"><mat-icon>description</mat-icon><div class="grow"><strong>{{ doc.name }}</strong><p class="muted small">{{ doc.type }} · {{ doc.pages }} pages read</p></div>@if (doc.docUrl) { <a [href]="doc.docUrl" target="_blank" rel="noopener">Open ↗</a> }</div> }
+        @empty { <p class="muted">Your uploaded bills and letters will appear here.</p> }
+      </section>
+      <section class="card document-list"><header><h2>Recent claims</h2><a routerLink="/case" fragment="claims">View claims</a></header>
+        @for (item of claims()?.slice(0, 3); track item.id) { <div class="document-list-row"><mat-icon>folder_open</mat-icon><div class="grow"><strong>{{ item.title }}</strong><p class="muted small">{{ item.hospital }} · {{ item.date | date:'d MMM y' }}</p></div>@if (item.claimedAmount !== null) { <strong>{{ item.claimedAmount | inr }}</strong> }</div> }
+        @empty { <p class="muted">No claims recorded. You can start by adding a hospital bill.</p> }
+      </section>
+    </div>
   }
+  @if (!dashboard) { <nav class="section-tabs" aria-label="Claim sections"><a routerLink="/case" fragment="overview">Overview</a><a routerLink="/case/bill">Bill breakdown</a><a routerLink="/case" fragment="documents">Documents</a><a routerLink="/case" fragment="next-steps">Next steps</a><a routerLink="/case" fragment="diary">Diary</a></nav> }
   <nav class="claim-tools card" aria-label="Claim tools">
     @for (tool of tools; track tool.label) {
       <a [routerLink]="tool.route" [fragment]="tool.fragment"><mat-icon>{{ tool.icon }}</mat-icon><span>{{ tool.label | t }}</span></a>
@@ -46,7 +58,8 @@
       </div>
     </section>
     } @else {
-    <section class="card claim-overview" aria-label="Claim overview">
+    @if (!dashboard && decisionDocument(); as doc) { <details class="card source-disclosure"><summary>Inspect the insurer’s original decision</summary><app-document-preview [url]="doc.docUrl" [title]="doc.name" /></details> }
+    <section class="card claim-overview" id="overview" aria-label="Claim overview">
       <div class="overview-heading"><h2>{{ 'Your claim at a glance' | t }}</h2><span>{{ c.stage }}</span></div>
       <div class="overview-fields">
         <div><span>{{ 'Patient' | t }}</span><strong>{{ c.patient.name }}</strong><small>{{ c.patient.relation }} · {{ c.hospital }}</small></div>
@@ -69,7 +82,7 @@
       </div>
       <a mat-flat-button class="btn-teal" routerLink="/case/settlement">{{ 'Explain deductions or rejection' | t }} <mat-icon>arrow_forward</mat-icon></a>
     </section>
-    <app-next-steps [steps]="nextSteps()" />
+    <div id="next-steps"><app-next-steps [steps]="nextSteps()" /></div>
     @if (!dashboard) {
     <section class="card">
       <div class="facts">

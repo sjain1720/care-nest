@@ -144,6 +144,13 @@ def get_active_policy() -> tuple[str, dict] | None:
         return None
     base = doc.get("baseFacts") or doc["facts"]
     details = state.get("policyDetails")
+    # Old visitor copies of our fictional schedule keep the current demo name.
+    # Never rename people in a visitor's uploaded private policy.
+    if doc.get("isDemoTemplate") and details and isinstance(details.get("members"), list):
+        details = {**details, "members": [
+            {**member, "name": "Shubham Sharma"} if member.get("name") == "Ravi Sharma" else member
+            for member in details["members"]
+        ]}
     return policy_id, {**doc, "facts": apply_user_details(base, details) if details else base}
 
 

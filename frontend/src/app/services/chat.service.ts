@@ -19,7 +19,7 @@ const CONTEXT: { prefix: string; label: string; prompts: string[] }[] = [
 
 /** Suggested questions and the floating button's label for the page the user is on. */
 export function chatContext(path: string): { label: string; prompts: string[] } {
-  if (path.startsWith('/dashboard')) return { label: "Ask about Ravi's example", prompts: ['What is my room-rent limit?', 'Why was money deducted from my claim?', 'Which documents am I missing?'] };
+  if (path.startsWith('/dashboard')) return { label: "Ask about Shubham's example", prompts: ['What is my room-rent limit?', 'Why was money deducted from my claim?', 'Which documents am I missing?'] };
   return CONTEXT.find((c) => path.startsWith(c.prefix)) ?? { label: 'Ask CareNest', prompts: GENERAL_PROMPTS };
 }
 
@@ -50,9 +50,16 @@ export class ChatService {
   private api = inject(ApiService);
   private router = inject(Router);
   readonly workspace = inject(WorkspaceService);
-  private threads: Record<Workspace, Thread> = { general: newThread(), example: newThread() };
+  private threads: Record<Workspace, Thread> = { general: newThread(), example: newThread(), personal: newThread() };
   private active = computed(() => this.threads[this.workspace.mode()]);
   private returnUrl = '/';
+  private pendingQuestion?: string;
+  private pendingOpen = false;
+  resumeAfterChoice(): void {
+    const question = this.pendingQuestion; this.pendingQuestion = undefined;
+    if (this.pendingOpen) { this.pendingOpen = false; this.openPanel(question); }
+  }
+  cancelChoice(): void { this.pendingQuestion = undefined; this.pendingOpen = false; this.workspace.choosing.set(false); }
   private previousPath = '/';
   private nextId = 1;
 
@@ -66,7 +73,7 @@ export class ChatService {
   readonly live = isLive('ask');
   /** False after a question failed, until the next one gets through. */
   readonly reachable = computed(() => this.active().reachable());
-  readonly contextLabel = computed(() => this.workspace.mode() === 'general' ? 'General insurance guidance' : "Ravi's fictional workspace");
+  readonly contextLabel = computed(() => this.workspace.mode() === 'general' ? 'General insurance guidance' : this.workspace.mode() === 'personal' ? 'Your documents · private guest workspace' : "Shubham's fictional workspace");
 
   constructor() {
     effect(() => { this.workspace.mode(); this.panelOpen.set(false); });
@@ -93,12 +100,13 @@ export class ChatService {
   }
 
   returnToPanel(): void {
-    void this.router.navigateByUrl(this.returnUrl, { replaceUrl: true }).then((navigated) => {
+    void this.router.navigateByUrl(this.returnUrl.startsWith('/ask') ? '/dashboard?workspace=' + this.workspace.mode() : this.returnUrl, { replaceUrl: true }).then((navigated) => {
       if (navigated) this.openPanel();
     });
   }
 
   openPanel(question?: string): void {
+    if (!this.workspace.choice()) { this.pendingQuestion = question; this.pendingOpen = true; this.workspace.choosing.set(true); return; }
     this.panelOpen.set(true);
     this.active().unread.set(0);
     if (question) this.send(question);
@@ -124,6 +132,7 @@ export class ChatService {
   send(text: string): boolean {
     const question = text.trim();
     if (!question || this.busy()) return false;
+    if (!this.workspace.choice()) { this.pendingQuestion = question; this.pendingOpen = true; this.workspace.choosing.set(true); return false; }
     const mode = this.workspace.mode();
     const thread = this.threads[mode];
     thread.busy.set(true);

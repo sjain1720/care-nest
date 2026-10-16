@@ -7,8 +7,8 @@
     <div class="document-context">
       <mat-icon>description</mat-icon>
       <strong>{{ chat.contextLabel() }}</strong>
-      <p>{{ chat.workspace.mode() === 'example' ? (policy()?.planName ?? "Ravi's fictional policy") : 'Ask general insurance questions. This conversation does not use the fictional profile.' }}</p>
-      <a [routerLink]="chat.workspace.mode() === 'example' ? '/upload' : '/dashboard'">{{ chat.workspace.mode() === 'example' ? 'Add documents' : "Open Ravi's dashboard" }} <mat-icon>arrow_forward</mat-icon></a>
+      <p>{{ chat.workspace.mode() === 'example' ? (policy()?.planName ?? "Shubham's fictional policy") : chat.workspace.mode() === 'personal' ? (policy()?.planName ?? 'Ask general questions or add your own documents for specific answers.') : 'General insurance guidance.' }}</p>
+      <a routerLink="/upload">Add my own documents <mat-icon>arrow_forward</mat-icon></a>
     </div>
   </aside>
   <section class="conversation" aria-label="CareNest conversation">
@@ -27,7 +27,7 @@
           <span class="welcome-eyebrow">WELCOME TO CARENEST</span>
           <h2>What would you like to understand?</h2>
           <p>I can explain insurance terms, help review your policy and bills, and prepare questions or a letter about your insurer’s decision.</p>
-          <p>{{ chat.workspace.mode() === 'example' ? 'Ask about the example policy, bill and settlement. I’ll show sources when available.' : 'This is general guidance. Use the dashboard for a separate fictional policy and claim example.' }}</p>
+          <p>{{ chat.workspace.mode() === 'example' ? 'Ask about the example policy, bill and settlement. I’ll show sources when available.' : 'Ask general questions now, or add your policy and claim documents for answers based on your own evidence.' }}</p>
           <a routerLink="/dashboard">Open the dashboard <mat-icon>arrow_forward</mat-icon></a>
         </div>
       }

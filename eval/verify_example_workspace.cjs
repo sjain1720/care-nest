@@ -1,3 +1,4 @@
+// Historical v20 general/example contract. For the current local personal/example flow use verify_workspace_ui.cjs.
 // Requires Playwright. Set CARENEST_CHECK_URL for the deployed app; defaults to local preview.
 const {chromium}=require('playwright');const fs=require('fs'),path=require('path');
 const base=process.env.CARENEST_CHECK_URL||'http://127.0.0.1:8087';const out=path.join(__dirname,'results','example-workspace',process.env.CARENEST_CHECK_URL?'deployed':'local');fs.mkdirSync(out,{recursive:true});

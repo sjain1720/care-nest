@@ -1,6 +1,6 @@
 import { Injectable, inject, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
-import { Observable, BehaviorSubject, catchError, combineLatest, concat, concatMap, delay, from, map, of, shareReplay, switchMap, tap, timeout } from 'rxjs';
+import { Observable, MonoTypeOperatorFunction, BehaviorSubject, catchError, combineLatest, concat, concatMap, delay, from, map, of, shareReplay, switchMap, tap, timeout } from 'rxjs';
 import { postEventStream } from './sse';
 import { SettingsService } from './settings.service';
 import { Workspace, WorkspaceService } from './workspace.service';
@@ -9,6 +9,8 @@ import {
   AskRequest, MockQa, MockQuery, PastClaimInput, PolicyDetailsInput, PolicyFacts, QueryEvent, QueryHelp, Settlement, TimelineEvent, TimelineEventInput, UploadEvent,
 } from '../models/models';
 import { diaryStage, guessReply, sortedTimeline, todayIso } from '../shared/claim-diary';
+
+interface WorkspaceReady { workspaceKey: string; ready?: boolean; mock?: boolean; }
 
 export type Feature = 'policy' | 'ask' | 'upload' | 'case' | 'bill' | 'settlement' | 'letter' | 'query';
 
@@ -127,11 +129,16 @@ function resource<T>(first: Observable<T>): { stream: Observable<T>; set: (next:
 
 @Injectable({ providedIn: 'root' })
 export class ApiService {
+  private ownerTap<T>(fn: (value: T) => void): MonoTypeOperatorFunction<T> {
+    const mode = this.workspace.mode();
+    return tap(value => { if (mode === this.workspace.mode()) fn(value); });
+  }
+  private live(feature: Feature): boolean { return isLive(feature) || this.workspace.mode() === 'personal'; }
   private http = inject(HttpClient);
   private settings = inject(SettingsService);
   readonly workspace = inject(WorkspaceService);
   readonly workspaceKey = signal('');
-  private exampleReady?: Observable<unknown>;
+  private exampleReady?: Observable<WorkspaceReady>;
 
   // Live mode: null means "not uploaded yet" (404).
   private sessionInfo = resource<{ expiresAt: string; mode: 'guest' | 'live_demo' } | null>(of(null));
@@ -143,15 +150,32 @@ export class ApiService {
   private settlement = resource<Settlement | null>(of(null));
   private claims = resource<ClaimSummary[] | null>(of(null));
 
-  ensureExampleWorkspace(): Observable<unknown> {
-    if (!FEATURES.some((feature) => isLive(feature.id))) {
-      this.workspaceKey.set('mock-preview');
+  private loadedWorkspace?: Workspace;
+  clearWorkspace(): void {
+    this.loadedWorkspace = undefined;
+    this.workspace.mode.set('general'); this.workspaceKey.set('');
+    this.policy.set(of(null)); this.claim.set(of(null)); this.bill.set(of(null));
+    this.settlement.set(of(null)); this.claims.set(of(null)); this.sessionInfo.set(of(null));
+  }
+
+  activateWorkspace(mode: Workspace): Observable<unknown> {
+    if (this.loadedWorkspace === mode) return of(true);
+    this.clearWorkspace(); this.workspace.mode.set(mode);
+    if (mode === 'general') { this.loadedWorkspace = mode; return of(true); }
+    const ready$ = mode === 'example' ? this.ensureExampleWorkspace()
+      : this.http.get<{ workspaceKey: string }>('/api/session', { params: { workspace: mode } });
+    return ready$.pipe(this.ownerTap((ready) => {
+      if (this.workspace.mode() !== mode) return;
+      this.workspaceKey.set(ready.workspaceKey);
+      this.loadedWorkspace = mode;
       this.refreshPolicy(); this.refreshCase();
-      return of({ ready: true, mock: true });
-    }
+    }));
+  }
+
+  ensureExampleWorkspace(): Observable<WorkspaceReady> {
+    if (!FEATURES.some((feature) => this.live(feature.id))) return of({ ready: true, workspaceKey: 'mock-preview' });
     if (!this.exampleReady) {
       this.exampleReady = this.http.post<{ ready: boolean; workspaceKey: string }>('/api/demo/ensure', {}, { params: { workspace: 'example' } }).pipe(
-        tap((ready) => { this.workspaceKey.set(ready.workspaceKey); this.refreshPolicy(); this.refreshCase(); }),
         catchError((error) => { this.exampleReady = undefined; throw error; }),
         shareReplay({ bufferSize: 1, refCount: false }),
       );
@@ -166,8 +190,8 @@ export class ApiService {
   getCoverage(): Observable<CoverageEstimate | null> {
     return combineLatest([this.policy.stream, this.claims.stream]).pipe(
       switchMap(([policy, claims]) => {
-        if (isLive('policy') && isLive('case')) return this.http.get<CoverageEstimate>('/api/coverage');
-        if (isLive('policy') || isLive('case') || !policy) return of(null);
+        if (this.live('policy') && this.live('case')) return this.http.get<CoverageEstimate>('/api/coverage');
+        if (this.live('policy') || this.live('case') || !policy) return of(null);
         return this.http.post<CoverageEstimate>('/api/coverage/preview', {
           policy, claims: (claims ?? []).map((c) => ({ ...c, policyId: policy.policyId })),
         });
@@ -177,15 +201,15 @@ export class ApiService {
   }
 
   getPolicy(): Observable<PolicyFacts | null> { return this.policy.stream; }
-  refreshPolicy(): void { this.policy.set(this.loadPolicy()); this.sessionInfo.set(this.http.get<{ expiresAt: string; mode: 'guest' | 'live_demo' }>('/api/session')); }
+  refreshPolicy(): void { this.policy.set(this.loadPolicy()); this.sessionInfo.set(this.http.get<{ expiresAt: string; mode: 'guest' | 'live_demo' }>(this.workspace.url('/api/session'))); }
 
   /** Every claim: the current one first, then earlier ones, newest first. */
   getClaims(): Observable<ClaimSummary[] | null> { return this.claims.stream; }
 
   /** Keeps the current claim in the list and starts an empty one. In demo mode the sample claim is put aside in this browser. */
   startNewClaim(): Observable<ClaimSummary[] | null> {
-    if (isLive('case')) {
-      return this.http.post<ClaimSummary[]>('/api/claims/new', {}).pipe(tap((list) => this.switchedClaim(list)));
+    if (this.live('case')) {
+      return this.http.post<ClaimSummary[]>('/api/claims/new', {}).pipe(this.ownerTap((list) => this.switchedClaim(list)));
     }
     const demo = readDemoClaims();
     if (!demo.fresh) {
@@ -200,8 +224,8 @@ export class ApiService {
 
   /** Makes an earlier claim the current one; the current one moves into the list. Demo mode can only reopen the sample claim. */
   openClaim(id: string): Observable<ClaimSummary[] | null> {
-    if (isLive('case')) {
-      return this.http.post<ClaimSummary[]>(`/api/claims/${encodeURIComponent(id)}/open`, {}).pipe(tap((list) => this.switchedClaim(list)));
+    if (this.live('case')) {
+      return this.http.post<ClaimSummary[]>(`/api/claims/${encodeURIComponent(id)}/open`, {}).pipe(this.ownerTap((list) => this.switchedClaim(list)));
     }
     const { fresh, stash, ...demo } = readDemoClaims();
     if (fresh && id === DEMO_CLAIM_ID) {
@@ -215,8 +239,8 @@ export class ApiService {
 
   /** Adds a claim made before CareNest. Demo mode keeps it in this browser. */
   addPastClaim(input: PastClaimInput): Observable<ClaimSummary[] | null> {
-    if (isLive('case')) {
-      return this.http.post<ClaimSummary[]>('/api/claims/past', input).pipe(tap((list) => this.claims.set(of(list))));
+    if (this.live('case')) {
+      return this.http.post<ClaimSummary[]>('/api/claims/past', input).pipe(this.ownerTap((list) => this.claims.set(of(list))));
     }
     const demo = readDemoClaims();
     writeDemo(DEMO_CLAIMS_KEY, { ...demo, added: [...demo.added, pastClaimSummary(input)] });
@@ -225,8 +249,8 @@ export class ApiService {
 
   /** Deletes an earlier claim (never the current one). Demo mode keeps the change in this browser. */
   deleteClaim(id: string): Observable<ClaimSummary[] | null> {
-    if (isLive('case')) {
-      return this.http.delete<ClaimSummary[]>(`/api/claims/${encodeURIComponent(id)}`).pipe(tap((list) => this.claims.set(of(list))));
+    if (this.live('case')) {
+      return this.http.delete<ClaimSummary[]>(`/api/claims/${encodeURIComponent(id)}`).pipe(this.ownerTap((list) => this.claims.set(of(list))));
     }
     const demo = readDemoClaims();
     writeDemo(DEMO_CLAIMS_KEY, { ...demo, added: demo.added.filter((c) => c.id !== id), removed: [...demo.removed, id] });
@@ -246,10 +270,10 @@ export class ApiService {
   }
 
   savePolicyDetails(details: PolicyDetailsInput, current: PolicyFacts): Observable<PolicyFacts> {
-    const saved$ = isLive('policy')
+    const saved$ = this.live('policy')
       ? this.http.put<PolicyFacts>('/api/policy/details', details)
       : of(mergeDetailsLocally(current, details)); // demo mode: no recompute of waiting-period dates
-    return saved$.pipe(tap((facts) => this.policy.set(of(facts))));
+    return saved$.pipe(this.ownerTap((facts) => this.policy.set(of(facts))));
   }
   getCase(): Observable<ClaimCase | null> { return this.claim.stream; }
   getBill(): Observable<Bill | null> { return this.bill.stream; }
@@ -259,12 +283,12 @@ export class ApiService {
    * Demo: kept in this browser and shown on the sample bill (its checks stay as they were).
    */
   compareBillPolicy(): Observable<BillPolicyAnalysis> {
-    return this.http.post<BillPolicyAnalysis>('/api/case/bill/evidence', {}).pipe(tap(() => this.bill.set(this.loadBill())));
+    return this.http.post<BillPolicyAnalysis>('/api/case/bill/evidence', {}).pipe(this.ownerTap(() => this.bill.set(this.loadBill())));
   }
 
   reviewBill(review: BillReview): Observable<Bill | null> {
-    if (isLive('bill')) {
-      return this.http.put<Bill>('/api/case/bill', review).pipe(tap((b) => {
+    if (this.live('bill')) {
+      return this.http.put<Bill>('/api/case/bill', review).pipe(this.ownerTap((b) => {
         this.bill.set(of(b));
         this.claim.set(this.loadCase());
         this.claims.set(this.loadClaims());
@@ -287,7 +311,7 @@ export class ApiService {
   }
 
   getDisputePreparation(): Observable<DisputePreparation | null> {
-    if (!isLive('settlement')) return of(null);
+    if (!this.live('settlement')) return of(null);
     return this.http.get<DisputePreparation>('/api/case/dispute/inputs').pipe(catchError(() => of(null)));
   }
   refreshCase(): void {
@@ -307,33 +331,33 @@ export class ApiService {
     this.claims.set(this.loadClaims());
   }
   getLetter(kind: LetterKind = 'clarification'): Observable<LetterDraft> {
-    return isLive('letter')
+    return this.live('letter')
       ? this.http.get<LetterDraft>('/api/case/letter', { params: { kind } })
       : this.http.get<Record<LetterKind, LetterDraft>>('/mocks/letter.json').pipe(map((all) => all[kind]));
   }
 
   /** Saves a checklist tick. Demo mode keeps it in this browser. */
   updateChecklistItem(id: string, status: ChecklistStatus): Observable<ClaimCase | null> {
-    if (!isLive('case')) {
+    if (!this.live('case')) {
       const ticks = readDemo<Record<string, ChecklistStatus>>(DEMO_TICKS_KEY, {});
       writeDemo(DEMO_TICKS_KEY, { ...ticks, [id]: status });
       return this.reloadCase();
     }
-    return this.http.patch<ClaimCase>(`/api/case/checklist/${encodeURIComponent(id)}`, { status }).pipe(tap((c) => this.caseSaved(c)));
+    return this.http.patch<ClaimCase>(`/api/case/checklist/${encodeURIComponent(id)}`, { status }).pipe(this.ownerTap((c) => this.caseSaved(c)));
   }
 
   /** Claim diary: "I sent it", "I filed a complaint", "close my claim". Demo mode keeps it in this browser. */
   addTimelineEvent(input: TimelineEventInput): Observable<ClaimCase | null> {
-    if (isLive('case')) {
-      return this.http.post<ClaimCase>('/api/case/timeline', input).pipe(tap((c) => this.caseSaved(c)));
+    if (this.live('case')) {
+      return this.http.post<ClaimCase>('/api/case/timeline', input).pipe(this.ownerTap((c) => this.caseSaved(c)));
     }
     writeDemoDiary([...readDemoDiary(), { id: newEventId(), ...input }]);
     return this.reloadCase();
   }
 
   removeTimelineEvent(id: string): Observable<ClaimCase | null> {
-    if (isLive('case')) {
-      return this.http.delete<ClaimCase>(`/api/case/timeline/${encodeURIComponent(id)}`).pipe(tap((c) => this.caseSaved(c)));
+    if (this.live('case')) {
+      return this.http.delete<ClaimCase>(`/api/case/timeline/${encodeURIComponent(id)}`).pipe(this.ownerTap((c) => this.caseSaved(c)));
     }
     writeDemoDiary(readDemoDiary().filter((e) => e.id !== id));
     return this.reloadCase();
@@ -341,8 +365,8 @@ export class ApiService {
 
   /** Reads the insurer's reply (pasted text) and adds it to the diary. */
   submitReply(text: string): Observable<ClaimCase | null> {
-    if (isLive('case')) {
-      return this.http.post<ClaimCase>('/api/case/reply', { text }).pipe(tap((c) => this.caseSaved(c)));
+    if (this.live('case')) {
+      return this.http.post<ClaimCase>('/api/case/reply', { text }).pipe(this.ownerTap((c) => this.caseSaved(c)));
     }
     writeDemoDiary([...readDemoDiary(), { id: newEventId(), kind: 'reply', date: todayIso(), source: 'demo', ...guessReply(text) }]);
     return this.reloadCase().pipe(delay(STEP_DELAY_MS));
@@ -366,7 +390,7 @@ export class ApiService {
   }
 
   ask(question: string, conversationId?: string, mode: Workspace = this.workspace.mode()): Observable<AskEvent> {
-    if (isLive('ask')) {
+    if (this.live('ask')) {
       // Steps arrive as the backend runs them (Server-Sent Events), then the verified answer.
       const body: AskRequest = { question, language: this.settings.lang(), conversationId, generalOnly: mode === 'general' };
       return this.stream<AskEvent>('/api/copilot/ask/stream', body, mode);
@@ -381,7 +405,7 @@ export class ApiService {
   }
 
   uploadDocument(file: File, docType: DocType = 'auto'): Observable<UploadEvent> {
-    if (isLive('upload')) {
+    if (this.live('upload')) {
       const body = new FormData();
       body.append('file', file);
       body.append('docType', docType);
@@ -400,7 +424,7 @@ export class ApiService {
   /** Runs the synthetic demo documents through the real backend pipeline, then refreshes cached data. */
   loadDemoCase(): Observable<{ loaded: { file: string; type: string; pages: number; reused: boolean }[] }> {
     return this.http.post<{ loaded: { file: string; type: string; pages: number; reused: boolean }[] }>('/api/demo/load', {}).pipe(
-      tap(() => {
+      this.ownerTap(() => {
         this.refreshPolicy();
         this.refreshCase();
       }),
@@ -412,7 +436,7 @@ export class ApiService {
   }
 
   explainQuery(queryText: string): Observable<QueryEvent> {
-    if (isLive('query')) {
+    if (this.live('query')) {
       return this.http.post<{ steps: AgentStep[]; help: QueryHelp }>('/api/case/query-help', { queryText }).pipe(
         switchMap((r) => concat(
           from(r.steps).pipe(concatMap((step) => of<QueryEvent>({ type: 'step', step }).pipe(delay(200)))),
@@ -434,26 +458,26 @@ export class ApiService {
 
   private loadCase(): Observable<ClaimCase | null> {
     const case$ = this.get<ClaimCase>('case', 'case.json', '/api/case');
-    return (isLive('case') ? case$ : case$.pipe(map((c) => withDemoDiary(c)))).pipe(catchError(() => of(null)), shareReplay(1));
+    return (this.live('case') ? case$ : case$.pipe(map((c) => withDemoDiary(c)))).pipe(catchError(() => of(null)), shareReplay(1));
   }
 
   private loadBill(): Observable<Bill | null> {
     const bill$ = this.loadOptional<Bill>('bill', 'bill.json', '/api/case/bill');
-    return isLive('bill') ? bill$ : bill$.pipe(map((b) => (b ? withDemoReview(b) : b)), shareReplay(1));
+    return this.live('bill') ? bill$ : bill$.pipe(map((b) => (b ? withDemoReview(b) : b)), shareReplay(1));
   }
 
   private loadClaims(): Observable<ClaimSummary[] | null> {
     const claims$ = this.get<ClaimSummary[]>('case', 'claims.json', '/api/claims');
-    return (isLive('case') ? claims$ : claims$.pipe(map(withDemoClaims))).pipe(catchError(() => of(null)), shareReplay(1));
+    return (this.live('case') ? claims$ : claims$.pipe(map(withDemoClaims))).pipe(catchError(() => of(null)), shareReplay(1));
   }
 
   private loadOptional<T>(feature: Feature, mockFile: string, apiUrl: string): Observable<T | null> {
-    if (!isLive(feature) && readDemoClaims().fresh) return of(null); // the new demo claim has no bill or letter yet
+    if (!this.live(feature) && readDemoClaims().fresh) return of(null); // the new demo claim has no bill or letter yet
     return this.get<T>(feature, mockFile, apiUrl).pipe(catchError(() => of(null)), shareReplay(1));
   }
 
   private get<T>(feature: Feature, mockFile: string, apiUrl: string): Observable<T> {
-    return this.http.get<T>(isLive(feature) ? apiUrl : `/mocks/${mockFile}`);
+    return this.http.get<T>(this.live(feature) || this.workspace.mode() === 'personal' ? this.workspace.url(apiUrl) : `/mocks/${mockFile}`);
   }
 }
 

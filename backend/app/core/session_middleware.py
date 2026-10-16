@@ -37,7 +37,7 @@ class GuestSessionMiddleware:
             jar = SimpleCookie()
         session_id = jar[COOKIE].value if COOKIE in jar else None
         workspace = parse_qs(scope.get('query_string', b'').decode('latin-1')).get('workspace', ['general'])[0]
-        if workspace not in ('general', 'example'):
+        if workspace not in ('general', 'personal', 'example'):
             await send({'type': 'http.response.start', 'status': 400, 'headers': [(b'content-type', b'application/json')]})
             await send({'type': 'http.response.body', 'body': b'{"detail":"Unknown workspace."}'})
             return

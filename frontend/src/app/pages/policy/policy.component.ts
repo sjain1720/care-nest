@@ -5,7 +5,8 @@ import { RouterLink } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { TranslatePipe } from '../../shared/translate.pipe';
 import { MatIconModule } from '@angular/material/icon';
-import { ApiService } from '../../services/api.service';
+import { DocumentPreviewComponent } from '../../shared/document-preview.component';
+import { ApiService, isLive } from '../../services/api.service';
 import { Citation, PolicyFacts, WaitingPeriod } from '../../models/models';
 import { InrPipe, formatInr } from '../../shared/inr.pipe';
 import { NextStep, NextStepsComponent } from '../../shared/next-steps.component';
@@ -29,7 +30,7 @@ const FLAG_ICONS: Record<string, string> = { missing_pages: 'find_in_page', outd
 @Component({
   selector: 'app-policy',
   standalone: true,
-  imports: [DatePipe, RouterLink, MatButtonModule, MatIconModule, InrPipe, CitationChipComponent, TrustPillComponent, TranslatePipe,
+  imports: [DocumentPreviewComponent, DatePipe, RouterLink, MatButtonModule, MatIconModule, InrPipe, CitationChipComponent, TrustPillComponent, TranslatePipe,
             RoomRentSimulatorComponent, PolicyDetailsFormComponent, NextStepsComponent, SkeletonComponent, EmptyStateComponent, GlossComponent,
             CoverageEstimateComponent, TreatmentPlanningComponent],
   templateUrl: './policy.component.html',
@@ -59,6 +60,8 @@ const FLAG_ICONS: Record<string, string> = { missing_pages: 'find_in_page', outd
 })
 export class PolicyComponent {
   private api = inject(ApiService);
+  readonly sourceUrl = computed(() => isLive('policy') || this.api.workspace.mode() === 'personal'
+    ? this.api.workspace.url('/api/policy/document?version=' + encodeURIComponent(this.policy()?.policyId ?? '')) : '/demo/sample_policy.pdf');
   /** undefined = loading, null = no policy uploaded yet. */
   policy = signal<PolicyFacts | null | undefined>(undefined);
   editing = signal(false);

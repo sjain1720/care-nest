@@ -57,6 +57,37 @@ class GeneralBoundaryTests(unittest.TestCase):
         self.assertNotIn(child, cookies[0])
         with self.assertRaises(RuntimeError): session.session_id()
 
+    def test_personal_workspace_uses_browser_owner_not_example_child(self):
+        root = session.new_session_id()
+        deadline = datetime.now(timezone.utc) + session.TTL
+        seen, sent = {}, []
+        async def app(scope, receive, send):
+            seen.update(owner=session.session_id(), root=session.root_session_id())
+            await send({'type': 'http.response.start', 'status': 200, 'headers': []})
+            await send({'type': 'http.response.body', 'body': b''})
+        async def send(message): sent.append(message)
+        async def receive(): return {'type': 'http.request', 'body': b''}
+        scope = {'type': 'http', 'path': '/api/documents', 'scheme': 'https',
+                 'headers': [(b'cookie', f'cn_session={root}'.encode())], 'query_string': b'workspace=personal'}
+        with patch('app.core.session_middleware.resolve_session', return_value=(root, deadline)), \
+             patch('app.core.session_middleware.resolve_example_session', side_effect=AssertionError('Example owner used')):
+            asyncio.run(GuestSessionMiddleware(app)(scope, receive, send))
+        self.assertEqual(seen, {'owner': root, 'root': root})
+        self.assertEqual(sent[0]['status'], 200)
+
+    def test_legacy_demo_name_changes_without_renaming_a_private_policy(self):
+        from app.services import policy_store
+        for shared in (True, False):
+            details = {'members': [{'name': 'Ravi Sharma', 'relation': 'Self', 'age': 32}]}
+            doc = {'status': 'ready', 'isDemoTemplate': shared, 'baseFacts': {'planName': 'Example'}}
+            with self.subTest(shared=shared), \
+                 patch.object(policy_store, '_session_state', return_value={'activePolicyId': 'policy-1', 'policyDetails': details}), \
+                 patch.object(policy_store, 'get_policy', return_value=doc), \
+                 patch.object(policy_store, 'apply_user_details', side_effect=lambda facts, value: value):
+                _, result = policy_store.get_active_policy()
+                self.assertEqual(result['facts']['members'][0]['name'], 'Shubham Sharma' if shared else 'Ravi Sharma')
+                self.assertEqual(details['members'][0]['name'], 'Ravi Sharma')
+
     def test_general_conversation_uses_separate_collection_without_document_reads(self):
         database = Mock()
         database.collection.return_value.document.return_value.collection.return_value.document.return_value.get.return_value.exists = False
