@@ -3,10 +3,21 @@ from google.api_core.exceptions import GoogleAPIError
 from google.genai import errors as genai_errors
 
 from app.services.demo_loader import load_demo_case
+from app.services.example_workspace import ensure_example_workspace, ExampleNotPrepared
 
 router = APIRouter(tags=["demo"])
 
 _GOOGLE_ERRORS = (GoogleAPIError, genai_errors.APIError)
+
+
+@router.post('/demo/ensure')
+def ensure_example():
+    try:
+        return ensure_example_workspace()
+    except ExampleNotPrepared as exc:
+        raise HTTPException(503, str(exc)) from exc
+    except ValueError as exc:
+        raise HTTPException(409, str(exc)) from exc
 
 
 @router.post("/demo/load")

@@ -20,12 +20,27 @@ log = logging.getLogger(__name__)
 _GOOGLE_ERRORS = (GoogleAPIError, genai_errors.APIError)
 
 
+def _prepare(body):
+    if body.generalOnly:
+        return prepare(body.question.strip(), body.conversationId, general_only=True)
+    return prepare(body.question.strip(), body.conversationId)
+
+
+def _answer(body, question, on_step=None):
+    kwargs = {'language': body.language, 'original_question': body.question}
+    if on_step is not None:
+        kwargs['on_step'] = on_step
+    if body.generalOnly:
+        kwargs['general_only'] = True
+    return answer(question, **kwargs)
+
+
 @router.post("/copilot/ask", response_model=AskResponse)
 def ask(body: AskRequest):
     """Claim Copilot: routes to the policy, bill/settlement or claim specialist; every quote is verified."""
     try:
-        question, context = prepare(body.question.strip(), body.conversationId)
-        result = answer(question, language=body.language, original_question=body.question)
+        question, context = _prepare(body)
+        result = _answer(body, question)
         remember(context, result.answer)
         return result
     except _GOOGLE_ERRORS as exc:
@@ -39,8 +54,8 @@ def ask_stream(body: AskRequest):
 
     def work() -> None:
         try:
-            question, context = prepare(body.question.strip(), body.conversationId)
-            result = answer(question, on_step=lambda s: events.put({"type": "step", "step": s.model_dump()}), language=body.language, original_question=body.question)
+            question, context = _prepare(body)
+            result = _answer(body, question, on_step=lambda s: events.put({"type": "step", "step": s.model_dump()}))
             remember(context, result.answer)
             events.put({"type": "answer", "answer": result.answer.model_dump()})
         except Exception as exc:  # report any failure to the browser instead of leaving the stream hanging
@@ -65,8 +80,8 @@ def ask_stream(body: AskRequest):
 async def ask_agent(body: AskRequest):
     """Legacy URL normalized through the same verified hybrid chat boundary."""
     def work():
-        question, context = prepare(body.question.strip(), body.conversationId)
-        result = answer(question, language=body.language, original_question=body.question)
+        question, context = _prepare(body)
+        result = _answer(body, question)
         remember(context, result.answer)
         return {'steps': [step.model_dump() for step in result.steps],
                 'text': result.answer.summary, 'answer': result.answer.model_dump()}

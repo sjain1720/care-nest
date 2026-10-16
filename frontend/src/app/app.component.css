@@ -328,3 +328,6 @@
   .helper.has-activity { display: flex; }
   .chat-launcher { padding: 9px 12px; min-height: 42px; font-size: .75rem; }
 }
+
+.fictional-context { margin: 12px var(--cn-gutter); padding: 10px 14px; border-radius: 10px; background: var(--cn-green-soft); color: var(--cn-strong); font-size: .82rem; display: flex; gap: 8px 16px; flex-wrap: wrap; justify-content: space-between; }
+.workspace-opening { margin: 12px var(--cn-gutter); color: var(--cn-muted); }

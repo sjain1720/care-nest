@@ -1,7 +1,7 @@
 import { Component, computed, inject, signal } from '@angular/core';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { DatePipe, NgTemplateOutlet } from '@angular/common';
-import { RouterLink } from '@angular/router';
+import { ActivatedRoute, RouterLink } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { TranslatePipe } from '../../shared/translate.pipe';
 import { MatIconModule } from '@angular/material/icon';
@@ -67,7 +67,9 @@ const STATUS_META: Record<ChecklistStatus, { label: string; icon: string; tone: 
   `,
 })
 export class CaseComponent {
+  readonly dashboard = inject(ActivatedRoute).snapshot.data['dashboard'] === true;
   private api = inject(ApiService);
+  readonly policy = toSignal(this.api.getPolicy());
   private diary = inject(DiaryActionsService);
   readonly journey = inject(JourneyService);
 

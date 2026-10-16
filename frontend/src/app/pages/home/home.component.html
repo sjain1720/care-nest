@@ -45,30 +45,18 @@
   <section class="start-section" aria-labelledby="start-title">
     <h2 id="start-title">How can we help you today?</h2>
     <div class="action-grid">
-      <a class="action-card" routerLink="/upload">
-        <span class="action-icon"><mat-icon>description</mat-icon></span>
-        <h3>Upload documents</h3><p>Add a policy, hospital bill or insurer decision. Review the details and understand your next steps.</p>
-        <span class="card-action">Add documents <mat-icon>arrow_forward</mat-icon></span>
-      </a>
       <button class="action-card" type="button" (click)="chat.openPanel()">
         <span class="action-icon"><mat-icon>forum</mat-icon></span>
-        <h3>Ask CareNest</h3><p>Ask about insurance, your coverage or a claim. We’ll ask for documents when your question needs them.</p>
-        <span class="card-action">Talk to CareNest AI <mat-icon>arrow_forward</mat-icon></span>
+        <h3>Ask Nessi</h3><p>Understand insurance terms, waiting periods and how to question a claim decision. This chat gives general guidance.</p>
+        <span class="card-action">Start a conversation <mat-icon>arrow_forward</mat-icon></span>
       </button>
-      <button class="action-card" type="button" (click)="loadDemo()" [disabled]="demoLoading() || chat.busy() || !ready()">
-        <span class="action-icon"><mat-icon>science</mat-icon></span>
-        <h3>Explore demo</h3><p>Follow a fictional policy, hospital bill and settlement through our live AI claim investigation.</p>
-        <span class="card-action">{{ demoLoading() ? 'Preparing the demo…' : demoContext() ? 'Continue fictional demo' : 'Try the fictional demo' }} <mat-icon>arrow_forward</mat-icon></span>
-      </button>
+      <a class="action-card" routerLink="/dashboard">
+        <span class="action-icon"><mat-icon>dashboard</mat-icon></span>
+        <h3>Ravi's dashboard</h3><p>See a fictional family's policy, hospital bill and settlement. Ask questions, inspect the evidence and prepare a clarification letter.</p>
+        <span class="card-action">Open dashboard <mat-icon>arrow_forward</mat-icon></span>
+      </a>
     </div>
-    @if (demoLoading()) {
-      <div class="demo-feedback" role="status"><mat-progress-bar mode="indeterminate" aria-label="Preparing fictional demo" /><p>Reading the sample documents. The first load can take a minute or two.</p></div>
-    }
-    @if (demoError()) { <div class="demo-feedback" role="alert"><p>{{ demoError() }}</p>@if (demoBlocked()) { <a routerLink="/status">Open demo and session settings</a> }</div> }
-    @if (hasDocuments() && live) {
-      <div class="resume"><mat-icon>folder_open</mat-icon><span>{{ demoContext() ? 'Your fictional demo is ready.' : 'You have documents in this guest session.' }}</span><a [routerLink]="claim()?.documents?.length ? '/case' : '/policy'">Continue {{ demoContext() ? 'demo' : 'with your documents' }} <mat-icon>arrow_forward</mat-icon></a></div>
-    }
-    @if (!live) { <p class="mode-note">Mock preview is enabled in this browser. <a routerLink="/status">Switch to live AI for your documents</a>.</p> }
   </section>
-  <aside class="guest-note"><mat-icon>person_outline</mat-icon><div><strong>No account needed to get started.</strong><p>This browser uses a guest session. Try synthetic documents for this prototype. <a routerLink="/status">Session expiry and data controls</a></p></div></aside>
+  <aside class="guest-note"><mat-icon>info_outline</mat-icon><div><strong>General guidance here. A fictional profile in the dashboard.</strong>
+    <p>No sign-in required. Each visitor has separate conversations and changes. Dashboard figures describe our fictional example, not your personal cover.</p></div></aside>
 </div>

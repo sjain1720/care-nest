@@ -1,8 +1,9 @@
-import { Injectable, inject, signal } from '@angular/core';
+import { Injectable, computed, effect, inject, signal } from '@angular/core';
 import { Subscription, filter } from 'rxjs';
 import { NavigationEnd, Router } from '@angular/router';
 import { ApiService, isLive } from './api.service';
 import { ChatMessage } from '../models/models';
+import { Workspace, WorkspaceService } from './workspace.service';
 
 const GENERAL_PROMPTS = ['What is a waiting period?', 'How do I question a deduction?', 'What documents help prepare a claim?'];
 
@@ -18,6 +19,7 @@ const CONTEXT: { prefix: string; label: string; prompts: string[] }[] = [
 
 /** Suggested questions and the floating button's label for the page the user is on. */
 export function chatContext(path: string): { label: string; prompts: string[] } {
+  if (path.startsWith('/dashboard')) return { label: "Ask about Ravi's example", prompts: ['What is my room-rent limit?', 'Why was money deducted from my claim?', 'Which documents am I missing?'] };
   return CONTEXT.find((c) => path.startsWith(c.prefix)) ?? { label: 'Ask CareNest', prompts: GENERAL_PROMPTS };
 }
 
@@ -36,29 +38,38 @@ export function followUps(route: string | undefined, asked: string): string[] {
   return list.filter((q) => q.toLowerCase() !== asked.trim().toLowerCase()).slice(0, 3);
 }
 
-/** One conversation shared by the floating chat and the Ask page, so switching between them keeps the thread. */
+function newThread() {
+  return { messages: signal<ChatMessage[]>([]), busy: signal(false), unread: signal(0),
+    reachable: signal(true), conversationId: crypto.randomUUID(), sub: undefined as Subscription | undefined };
+}
+type Thread = ReturnType<typeof newThread>;
+
+/** General and fictional-case threads stay separate; each survives panel/page navigation. */
 @Injectable({ providedIn: 'root' })
 export class ChatService {
   private api = inject(ApiService);
   private router = inject(Router);
+  readonly workspace = inject(WorkspaceService);
+  private threads: Record<Workspace, Thread> = { general: newThread(), example: newThread() };
+  private active = computed(() => this.threads[this.workspace.mode()]);
   private returnUrl = '/';
   private previousPath = '/';
-  private sub?: Subscription;
   private nextId = 1;
-  private conversationId = crypto.randomUUID();
 
-  readonly messages = signal<ChatMessage[]>([]);
-  readonly busy = signal(false);
+  readonly messages = computed(() => this.active().messages());
+  readonly busy = computed(() => this.active().busy());
   readonly panelOpen = signal(false);
   /** True while the Ask page is showing the thread. */
   readonly pageVisible = signal(false);
   /** Answers that arrived while the chat was closed. */
-  readonly unread = signal(0);
+  readonly unread = computed(() => this.active().unread());
   readonly live = isLive('ask');
   /** False after a question failed, until the next one gets through. */
-  readonly reachable = signal(true);
+  readonly reachable = computed(() => this.active().reachable());
+  readonly contextLabel = computed(() => this.workspace.mode() === 'general' ? 'General insurance guidance' : "Ravi's fictional workspace");
 
   constructor() {
+    effect(() => { this.workspace.mode(); this.panelOpen.set(false); });
     this.router.events.pipe(filter((event): event is NavigationEnd => event instanceof NavigationEnd)).subscribe((event) => {
       const url = event.urlAfterRedirects;
       const path = url.split(/[?#]/)[0];
@@ -78,7 +89,7 @@ export class ChatService {
 
   expand(): void {
     if (this.router.url.split(/[?#]/)[0] !== '/ask') this.returnUrl = this.router.url;
-    void this.router.navigateByUrl('/ask');
+    void this.router.navigate(['/ask'], { queryParams: { workspace: this.workspace.mode() } });
   }
 
   returnToPanel(): void {
@@ -89,7 +100,7 @@ export class ChatService {
 
   openPanel(question?: string): void {
     this.panelOpen.set(true);
-    this.unread.set(0);
+    this.active().unread.set(0);
     if (question) this.send(question);
   }
 
@@ -103,6 +114,8 @@ export class ChatService {
     this.panelOpen.set(false);
   }
 
+  markRead(): void { this.active().unread.set(0); }
+
   togglePanel(): void {
     if (this.panelOpen()) this.closePanel();
     else this.openPanel();
@@ -111,45 +124,48 @@ export class ChatService {
   send(text: string): boolean {
     const question = text.trim();
     if (!question || this.busy()) return false;
-    this.busy.set(true);
+    const mode = this.workspace.mode();
+    const thread = this.threads[mode];
+    thread.busy.set(true);
 
     const replyId = this.nextId + 1;
-    this.messages.update((list) => [
+    thread.messages.update((list) => [
       ...list,
       { id: this.nextId, role: 'user', text: question },
       { id: replyId, role: 'assistant', steps: [] },
     ]);
     this.nextId += 2;
 
-    this.sub = this.api.ask(question, this.conversationId).subscribe({
+    thread.sub = this.api.ask(question, thread.conversationId, mode).subscribe({
       next: (event) => {
-        this.reachable.set(true);
-        this.patch(replyId, (m) => (event.type === 'step' ? { ...m, steps: [...(m.steps ?? []), event.step] } : { ...m, answer: event.answer }));
+        thread.reachable.set(true);
+        this.patch(thread, replyId, (m) => (event.type === 'step' ? { ...m, steps: [...(m.steps ?? []), event.step] } : { ...m, answer: event.answer }));
       },
       error: (e: Error) => {
-        this.reachable.set(false);
-        this.patch(replyId, (m) => ({ ...m, text: e?.message || 'Sorry, something went wrong. Please try again.' }));
-        this.finish();
+        thread.reachable.set(false);
+        this.patch(thread, replyId, (m) => ({ ...m, text: e?.message || 'Sorry, something went wrong. Please try again.' }));
+        this.finish(thread);
       },
-      complete: () => this.finish(),
+      complete: () => this.finish(thread),
     });
     return true;
   }
 
   clear(): void {
-    this.conversationId = crypto.randomUUID();
-    this.sub?.unsubscribe();
-    this.busy.set(false);
-    this.messages.set([]);
-    this.unread.set(0);
+    const thread = this.active();
+    thread.conversationId = crypto.randomUUID();
+    thread.sub?.unsubscribe();
+    thread.busy.set(false);
+    thread.messages.set([]);
+    thread.unread.set(0);
   }
 
-  private finish(): void {
-    this.busy.set(false);
-    if (!this.panelOpen() && !this.pageVisible()) this.unread.update((n) => n + 1);
+  private finish(thread: Thread): void {
+    thread.busy.set(false);
+    if (this.active() !== thread || (!this.panelOpen() && !this.pageVisible())) thread.unread.update((n) => n + 1);
   }
 
-  private patch(id: number, fn: (m: ChatMessage) => ChatMessage): void {
-    this.messages.update((list) => list.map((m) => (m.id === id ? fn(m) : m)));
+  private patch(thread: Thread, id: number, fn: (m: ChatMessage) => ChatMessage): void {
+    thread.messages.update((list) => list.map((m) => (m.id === id ? fn(m) : m)));
   }
 }

@@ -6,15 +6,15 @@
     </div>
     <div class="document-context">
       <mat-icon>description</mat-icon>
-      <strong>{{ !chat.live ? 'Mock preview' : policy() ? 'Selected policy' : 'Your guest session' }}</strong>
-      <p>{{ policy()?.planName ?? 'Ask a general question, or add documents for answers about your situation.' }}</p>
-      <a routerLink="/upload">Add documents <mat-icon>arrow_forward</mat-icon></a>
+      <strong>{{ chat.contextLabel() }}</strong>
+      <p>{{ chat.workspace.mode() === 'example' ? (policy()?.planName ?? "Ravi's fictional policy") : 'Ask general insurance questions. This conversation does not use the fictional profile.' }}</p>
+      <a [routerLink]="chat.workspace.mode() === 'example' ? '/upload' : '/dashboard'">{{ chat.workspace.mode() === 'example' ? 'Add documents' : "Open Ravi's dashboard" }} <mat-icon>arrow_forward</mat-icon></a>
     </div>
   </aside>
   <section class="conversation" aria-label="CareNest conversation">
     <header class="chat-header">
       <span class="assistant-icon"><mat-icon>health_and_safety</mat-icon></span>
-      <div><h1>Nessi · CareNest AI</h1><p>{{ chat.busy() ? 'Working with the available evidence…' : 'Your health insurance assistant' }}</p></div>
+      <div><h1>Nessi · CareNest AI</h1><p>{{ chat.busy() ? 'Working with the available evidence…' : chat.contextLabel() }}</p></div>
       <span class="spacer"></span>
       @if (chat.messages().length) { <button mat-icon-button type="button" (click)="chat.clear()" [disabled]="chat.busy()" aria-label="Start a new conversation" title="New conversation"><mat-icon>add_comment</mat-icon></button> }
       <button mat-stroked-button type="button" (click)="chat.returnToPanel()" aria-label="Return to side panel"><mat-icon>close_fullscreen</mat-icon><span class="return-label">Return to side panel</span></button>
@@ -27,11 +27,11 @@
           <span class="welcome-eyebrow">WELCOME TO CARENEST</span>
           <h2>What would you like to understand?</h2>
           <p>I can explain insurance terms, help review your policy and bills, and prepare questions or a letter about your insurer’s decision.</p>
-          <p>Add your documents when you’re ready. I’ll ask for missing information and show sources when available.</p>
-          <a routerLink="/upload">Add a policy or claim document <mat-icon>arrow_forward</mat-icon></a>
+          <p>{{ chat.workspace.mode() === 'example' ? 'Ask about the example policy, bill and settlement. I’ll show sources when available.' : 'This is general guidance. Use the dashboard for a separate fictional policy and claim example.' }}</p>
+          <a routerLink="/dashboard">Open the dashboard <mat-icon>arrow_forward</mat-icon></a>
         </div>
       }
     </div>
-    <div class="composer"><app-chat-bar [inline]="true" /><p>For policy-specific answers, add your policy or choose the fictional demo from Home.</p></div>
+    <div class="composer"><app-chat-bar [inline]="true" /><p>{{ chat.contextLabel() }} · Guidance is not a guarantee of claim approval.</p></div>
   </section>
 </div>

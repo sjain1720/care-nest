@@ -10,6 +10,13 @@ from app.services.session_registry import revoke_session
 def delete_guest(sid: str) -> None:
     # Revoke before deletion so failed cleanup cannot restore API access.
     revoke_session(sid)
+    # An issued browser identity also owns its separate fictional workspace.
+    record = db().collection('guestSessions').document(sid).get().to_dict() or {}
+    child_id = record.get('exampleSessionId') if isinstance(record, dict) else None
+    if isinstance(child_id, str) and child_id != sid:
+        child = db().collection('guestSessions').document(child_id).get().to_dict() or {}
+        if isinstance(child, dict) and child.get('parentSessionId') == sid:
+            delete_guest(child_id)
     token = set_session(sid)
     try:
         case_store.delete_case()

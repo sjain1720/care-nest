@@ -57,7 +57,7 @@ def route(question: str) -> tuple[str, str, str]:
         return keyword_intent(question), keyword_about(question), "keywords"
 
 
-def answer(question: str, on_step: Callable[[AgentStep], None] | None = None, language: str = "en", original_question: str | None = None) -> AskResponse:
+def answer(question: str, on_step: Callable[[AgentStep], None] | None = None, language: str = "en", original_question: str | None = None, general_only: bool = False) -> AskResponse:
     """on_step is called as each step happens, so the API can stream progress."""
     if is_greeting(question):
         hindi = language == 'hi'
@@ -74,14 +74,22 @@ def answer(question: str, on_step: Callable[[AgentStep], None] | None = None, la
         return AskResponse(steps=log.steps, answer=AnswerCard(
             verdict="cant_confirm", headline="Only your insurer can confirm approval",
             summary="I can explain the terms and evidence in your documents, but cannot guarantee that a claim will be approved or paid.",
-            citations=[], toConfirm=["Ask your insurer for its written decision."], nextAction=None))
-    if re.search(r"\b(remaining (cover|coverage|sum insured)|(?:cover|coverage) (?:is )?(?:left|remaining)|how much (?:cover|coverage).*left|my (?:insurance )?balance)\b|कितन[ाी].*कवर.*बचा|बीमा.*शेष", question, re.I):
-        log.add('Verifier', 'Calculating from the selected policy and linked recorded payments')
-        return AskResponse(steps=log.steps, answer=coverage_answer(language))
+            citations=[], toConfirm=["Ask your insurer for its written decision."], nextAction=None, general=general_only))
     if re.search(r"should I (?:take|stop|start).*(?:antibiotic|medicine|medication)|(?:what|which).*dosage", question, re.I):
         return AskResponse(steps=log.steps, answer=AnswerCard(verdict='cant_confirm',
             headline='Ask your treating clinician', summary='I can explain insurance documents, but cannot recommend medicines or doses.',
-            citations=[], toConfirm=['Ask your treating clinician about medicines and recovery.'], nextAction=None))
+            citations=[], toConfirm=['Ask your treating clinician about medicines and recovery.'], nextAction=None, general=general_only))
+    if general_only:
+        # Public welcome chat never consults a selected policy, case, balances or
+        # ADK, even if this browser has previously visited the example workspace.
+        from app.services.general_qa import general_answer
+        result = general_answer(question, log, language, has_policy=False)
+        result.nextAction = NextAction(label="Open Ravi's fictional dashboard", route='/dashboard')
+        result.secondaryAction = None
+        return AskResponse(steps=log.steps, answer=result)
+    if re.search(r"\b(remaining (cover|coverage|sum insured)|(?:cover|coverage) (?:is )?(?:left|remaining)|how much (?:cover|coverage).*left|my (?:insurance )?balance)\b|कितन[ाी].*कवर.*बचा|बीमा.*शेष", question, re.I):
+        log.add('Verifier', 'Calculating from the selected policy and linked recorded payments')
+        return AskResponse(steps=log.steps, answer=coverage_answer(language))
     from app.services.claim_investigation import wants_investigation, investigate
     if wants_investigation(original_question or question):
         log.add('Claim Copilot', 'Starting a bounded multi-document ADK investigation')

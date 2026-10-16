@@ -46,7 +46,7 @@ import { TranslatePipe } from './translate.pipe';
         <div class="empty">
           <div class="spark"><mat-icon>auto_awesome</mat-icon></div>
           <h2>{{ 'What would you like to know?' | t }}</h2>
-          @if (compact()) { <p class="muted small">{{ "Ask a general question, or add documents for answers about your situation." | t }}</p> }
+          @if (compact()) { <p class="muted small">{{ chat.contextLabel() }}</p> }
           <div class="prompts">
             @for (p of prompts(); track p) {
               <button type="button" class="prompt" (click)="pick.emit(p)">{{ p }}</button>

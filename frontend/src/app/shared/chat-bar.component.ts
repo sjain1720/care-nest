@@ -35,7 +35,7 @@ const SEARCH_PROMPTS = [
           <span class="avatar" aria-hidden="true"><mat-icon>auto_awesome</mat-icon></span>
           <div class="titles">
             <h2 id="chat-title">Nessi · CareNest AI</h2>
-            <span [class]="'state ' + (!chat.live ? 'demo' : chat.reachable() ? 'on' : 'off')">{{ (!chat.live ? 'Demo: answers from the sample claim' : chat.reachable() ? 'General guidance or answers from your selected documents' : "Can't reach CareNest right now") | t }}</span>
+            <span [class]="'state ' + (!chat.live ? 'demo' : chat.reachable() ? 'on' : 'off')">{{ (!chat.live ? 'Mock preview' : chat.reachable() ? chat.contextLabel() : "Can't reach CareNest right now") | t }}</span>
           </div>
           @if (chat.messages().length) {
             <button mat-icon-button type="button" (click)="chat.clear()" [disabled]="chat.busy()" aria-label="Start a new chat" title="New chat"><mat-icon>add_comment</mat-icon></button>
@@ -250,7 +250,7 @@ export class ChatBarComponent {
     { initialValue: this.router.url.split(/[?#]/)[0] },
   );
   readonly onAskPage = computed(() => this.path() === '/ask');
-  readonly context = computed(() => chatContext(this.path()));
+  readonly context = computed(() => chatContext(this.path() === '/ask' && this.chat.workspace.mode() === 'example' ? '/dashboard' : this.path()));
   /** Phones and small tablets: the bar sits at the top, under the header. */
   readonly phone = signal(matchMedia('(max-width: 899px)').matches);
   /** The shell composer is visible only with the open panel. Home/Ask own their inline entry. */

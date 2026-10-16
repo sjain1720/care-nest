@@ -3,6 +3,13 @@
 
 export type Verdict = 'covered' | 'partial' | 'not_covered' | 'needs_checking' | 'cant_confirm' | 'info';
 
+export interface AskRequest {
+  question: string;
+  language: 'en' | 'hi';
+  conversationId?: string;
+  generalOnly?: boolean;
+}
+
 /** How strongly the user's own documents support a statement. */
 export type Trust = 'supported' | 'check' | 'unknown';
 

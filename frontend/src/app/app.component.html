@@ -13,14 +13,14 @@
   <!-- At the top of the page: the main sections as text links. -->
   <nav class="top-links" [attr.aria-label]="'Main' | t">
     @for (item of mainNav; track item.path) {
-      <a [routerLink]="item.path" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: item.exact }">{{ item.label | t }}</a>
+      <a [routerLink]="item.path" [queryParams]="item.path === '/ask' ? { workspace: workspace.mode() } : null" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: item.exact }">{{ item.label | t }}</a>
     }
   </nav>
   <!-- After scrolling down: every page as an icon row, like the sticky bar on travel sites. -->
   @if (scrolled()) {
     <nav class="icon-row" [attr.aria-label]="'All pages' | t">
       @for (item of mainNav; track item.path) {
-        <a [routerLink]="item.path" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: item.exact }" [title]="item.label | t" [attr.aria-label]="item.label | t">
+        <a [routerLink]="item.path" [queryParams]="item.path === '/ask' ? { workspace: workspace.mode() } : null" routerLinkActive="active" [routerLinkActiveOptions]="{ exact: item.exact }" [title]="item.label | t" [attr.aria-label]="item.label | t">
           <mat-icon>{{ item.icon }}</mat-icon><span aria-hidden="true">{{ (item.short ?? item.label) | t }}</span>
         </a>
       }
@@ -52,8 +52,8 @@
   <a class="mode" [class.live]="live" routerLink="/status" aria-label="Guest session and demo settings"
      title="Guest session, fictional demo and data controls">
     <mat-icon class="icon-sm">{{ live ? 'person_outline' : 'science' }}</mat-icon>
-    <span class="mode-long">{{ liveDemo() ? 'Guest · fictional demo' : live ? 'Guest session' : partlyLive ? 'Mixed preview' : 'Mock preview' }}</span>
-    <span class="mode-short">{{ liveDemo() ? 'AI demo' : live ? 'Guest' : 'Mock' }}</span>
+    <span class="mode-long">{{ !live ? (partlyLive ? 'Mixed preview' : 'Mock preview') : workspace.mode() === 'example' ? 'Ravi · fictional profile' : 'General chat' }}</span>
+    <span class="mode-short">{{ !live ? 'Mock' : workspace.mode() === 'example' ? 'Ravi' : 'Nessi' }}</span>
   </a>
   </div>
 </header>
@@ -91,6 +91,12 @@
           <p class="pb-title"><span class="pb-icon"><mat-icon>{{ crumbs()[crumbs().length - 1].icon }}</mat-icon></span>{{ crumbs()[crumbs().length - 1].label | t }}</p>
         </div>
       </div>
+    }
+    @if (workspace.opening()) { <p class="workspace-opening" role="status">Opening page…</p> }
+    @if (workspace.mode() === 'example') {
+      <aside class="fictional-context">Ravi Sharma · Fictional example. Your changes stay in this browser's isolated workspace.
+        <a routerLink="/">General chat with Nessi</a>
+      </aside>
     }
     <router-outlet />
     @if (!onAskPage()) {

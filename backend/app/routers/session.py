@@ -1,6 +1,6 @@
 from fastapi import APIRouter, Response
 
-from app.core.session import COOKIE, expiry, session_id
+from app.core.session import COOKIE, expiry, root_session_id
 from app.services import policy_store
 from app.services.data_lifecycle import delete_guest
 
@@ -16,7 +16,7 @@ def get_session():
 @router.delete("/session", status_code=204)
 def delete_my_data():
     """Revokes the identity and deletes owned files, policy subcollections and claims."""
-    delete_guest(session_id())
+    delete_guest(root_session_id())
     response = Response(status_code=204)
     response.delete_cookie(COOKIE, path="/", httponly=True, samesite="lax")
     return response

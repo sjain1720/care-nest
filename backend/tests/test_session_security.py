@@ -42,6 +42,12 @@ class RegistryTests(unittest.TestCase):
         self.assertEqual(result, (sid, deadline))
         database.collection.return_value.document.return_value.create.assert_not_called()
 
+    def test_child_workspace_id_is_not_accepted_as_a_browser_cookie(self):
+        child = session.new_session_id()
+        result, _ = self.resolve(child, {'expiresAt': datetime.now(timezone.utc) + session.TTL,
+                                         'parentSessionId': session.new_session_id()})
+        self.assertNotEqual(result[0], child)
+
 
 class TwoVisitorTests(unittest.TestCase):
     def test_identical_private_policy_bytes_do_not_share_personal_extraction(self):

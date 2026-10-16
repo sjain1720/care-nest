@@ -5,11 +5,12 @@ import { provideRouter, withComponentInputBinding, withInMemoryScrolling, withVi
 import { provideAnimationsAsync } from '@angular/platform-browser/animations/async';
 import { routes } from './app.routes';
 import { errorInterceptor } from './services/error.interceptor';
+import { workspaceInterceptor } from './services/workspace.service';
 
 export const appConfig: ApplicationConfig = {
   providers: [
     provideZoneChangeDetection({ eventCoalescing: true }),
-    provideHttpClient(withInterceptors([errorInterceptor])),
+    provideHttpClient(withInterceptors([workspaceInterceptor, errorInterceptor])),
     // Establish the guest cookie before parallel page requests can create different sessions.
     provideAppInitializer(() => firstValueFrom(inject(HttpClient).get('/api/health').pipe(timeout(5000), catchError(() => of(null))))),
     provideRouter(routes, withComponentInputBinding(), withInMemoryScrolling({ scrollPositionRestoration: 'top', anchorScrolling: 'enabled' }),

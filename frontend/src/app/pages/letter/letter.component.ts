@@ -122,7 +122,7 @@ export class LetterComponent {
     this.api.getLetter(kind).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: (l) => {
         this.letter.set(l);
-        const saved = readDraft(kind);
+        const saved = readDraft(kind, this.api.workspaceKey());
         this.body.set(saved ?? l.body);
         this.edited.set(saved !== null && saved !== l.body);
         this.loading.set(false);
@@ -137,11 +137,11 @@ export class LetterComponent {
   onEdit(text: string): void {
     this.body.set(text);
     this.edited.set(true);
-    try { localStorage.setItem(DRAFT_KEY + this.kind(), text); } catch { /* private mode */ }
+    try { if (this.api.workspaceKey()) localStorage.setItem(DRAFT_KEY + this.api.workspaceKey() + '.' + this.kind(), text); } catch { /* private mode */ }
   }
 
   freshDraft(): void {
-    try { localStorage.removeItem(DRAFT_KEY + this.kind()); } catch { /* private mode */ }
+    try { localStorage.removeItem(DRAFT_KEY + this.api.workspaceKey() + '.' + this.kind()); } catch { /* private mode */ }
     this.body.set(this.letter()?.body ?? '');
     this.edited.set(false);
   }
@@ -219,9 +219,9 @@ export class LetterComponent {
 }
 
 /** The user's edited letter, kept only in this browser. */
-function readDraft(kind: LetterKind): string | null {
+function readDraft(kind: LetterKind, workspaceKey: string): string | null {
   try {
-    return localStorage.getItem(DRAFT_KEY + kind);
+    return workspaceKey ? localStorage.getItem(DRAFT_KEY + workspaceKey + '.' + kind) : null;
   } catch {
     return null;
   }

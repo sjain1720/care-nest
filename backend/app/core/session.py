@@ -9,6 +9,7 @@ COOKIE = "cn_session"
 TTL = timedelta(days=7)
 _VALID = re.compile(r"^[A-Za-z0-9_-]{32}$")
 _current: ContextVar[str | None] = ContextVar("cn_session", default=None)
+_root: ContextVar[str | None] = ContextVar("cn_root_session", default=None)
 _deadline: ContextVar[datetime | None] = ContextVar("cn_session_deadline", default=None)
 
 
@@ -26,6 +27,18 @@ def set_session(session_id: str):
 
 def reset_session(token) -> None:
     _current.reset(token)
+
+
+def root_session_id() -> str:
+    return _root.get() or session_id()
+
+
+def set_root_session(sid: str):
+    return _root.set(sid)
+
+
+def reset_root_session(token) -> None:
+    _root.reset(token)
 
 
 def session_id() -> str:

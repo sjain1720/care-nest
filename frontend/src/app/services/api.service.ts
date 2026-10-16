@@ -1,11 +1,12 @@
-import { Injectable, inject } from '@angular/core';
+import { Injectable, inject, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable, BehaviorSubject, catchError, combineLatest, concat, concatMap, delay, from, map, of, shareReplay, switchMap, tap, timeout } from 'rxjs';
 import { postEventStream } from './sse';
 import { SettingsService } from './settings.service';
+import { Workspace, WorkspaceService } from './workspace.service';
 import {
   TreatmentPlanInput, TreatmentPlanPreparation, DisputeReviewEvent, DisputePreparation, BillPolicyAnalysis, CoverageEstimate, AgentStep, AnswerCard, AskEvent, Bill, BillItem, BillReview, ChecklistStatus, ClaimCase, ClaimStatus, ClaimSummary, LetterDraft, LetterKind,
-  MockQa, MockQuery, PastClaimInput, PolicyDetailsInput, PolicyFacts, QueryEvent, QueryHelp, Settlement, TimelineEvent, TimelineEventInput, UploadEvent,
+  AskRequest, MockQa, MockQuery, PastClaimInput, PolicyDetailsInput, PolicyFacts, QueryEvent, QueryHelp, Settlement, TimelineEvent, TimelineEventInput, UploadEvent,
 } from '../models/models';
 import { diaryStage, guessReply, sortedTimeline, todayIso } from '../shared/claim-diary';
 
@@ -102,10 +103,10 @@ function readDemoClaims(): DemoClaims {
   return readDemo<DemoClaims>(DEMO_CLAIMS_KEY, { added: [], removed: [] });
 }
 
-function clearLetterDrafts(): void {
+function clearLetterDrafts(prefix: string): void {
   try {
     for (const key of Object.keys(localStorage)) {
-      if (key.startsWith(LETTER_DRAFT_PREFIX)) localStorage.removeItem(key);
+      if (key.startsWith(prefix)) localStorage.removeItem(key);
     }
   } catch { /* private mode */ }
 }
@@ -128,15 +129,39 @@ function resource<T>(first: Observable<T>): { stream: Observable<T>; set: (next:
 export class ApiService {
   private http = inject(HttpClient);
   private settings = inject(SettingsService);
+  readonly workspace = inject(WorkspaceService);
+  readonly workspaceKey = signal('');
+  private exampleReady?: Observable<unknown>;
 
   // Live mode: null means "not uploaded yet" (404).
-  private sessionInfo = resource(this.http.get<{ expiresAt: string; mode: 'guest' | 'live_demo' }>('/api/session'));
+  private sessionInfo = resource<{ expiresAt: string; mode: 'guest' | 'live_demo' } | null>(of(null));
   getSessionInfo() { return this.sessionInfo.stream; }
-  private policy = resource(this.loadPolicy());
-  private claim = resource(this.loadCase());
-  private bill = resource(this.loadBill());
-  private settlement = resource(this.loadOptional<Settlement>('settlement', 'settlement.json', '/api/case/settlement'));
-  private claims = resource(this.loadClaims());
+  // Welcome/chat is general: do not read any policy/case until a workspace page opens.
+  private policy = resource<PolicyFacts | null>(of(null));
+  private claim = resource<ClaimCase | null>(of(null));
+  private bill = resource<Bill | null>(of(null));
+  private settlement = resource<Settlement | null>(of(null));
+  private claims = resource<ClaimSummary[] | null>(of(null));
+
+  ensureExampleWorkspace(): Observable<unknown> {
+    if (!FEATURES.some((feature) => isLive(feature.id))) {
+      this.workspaceKey.set('mock-preview');
+      this.refreshPolicy(); this.refreshCase();
+      return of({ ready: true, mock: true });
+    }
+    if (!this.exampleReady) {
+      this.exampleReady = this.http.post<{ ready: boolean; workspaceKey: string }>('/api/demo/ensure', {}, { params: { workspace: 'example' } }).pipe(
+        tap((ready) => { this.workspaceKey.set(ready.workspaceKey); this.refreshPolicy(); this.refreshCase(); }),
+        catchError((error) => { this.exampleReady = undefined; throw error; }),
+        shareReplay({ bufferSize: 1, refCount: false }),
+      );
+    }
+    return this.exampleReady;
+  }
+
+  private stream<T>(url: string, body: unknown, mode: Workspace = this.workspace.mode()): Observable<T> {
+    return postEventStream<T>(this.workspace.url(url, mode), body).pipe(map((event) => this.workspace.links(event, mode)));
+  }
 
   getCoverage(): Observable<CoverageEstimate | null> {
     return combineLatest([this.policy.stream, this.claims.stream]).pipe(
@@ -209,13 +234,13 @@ export class ApiService {
   }
 
   private switchedClaim(list: ClaimSummary[]): void {
-    clearLetterDrafts(); // drafts belong to the claim they were written for
+    clearLetterDrafts(LETTER_DRAFT_PREFIX + this.workspaceKey() + '.'); // scoped to this workspace
     this.claims.set(of(list));
     this.reloadClaimData();
   }
 
   private demoSwitched(): Observable<ClaimSummary[] | null> {
-    clearLetterDrafts();
+    clearLetterDrafts(LETTER_DRAFT_PREFIX + this.workspaceKey() + '.');
     this.reloadClaimData();
     return this.reloadClaims();
   }
@@ -258,7 +283,7 @@ export class ApiService {
   }
 
   reviewDispute(question: string): Observable<DisputeReviewEvent> {
-    return postEventStream<DisputeReviewEvent>('/api/case/dispute/review/stream', { question, language: this.settings.lang() });
+    return this.stream<DisputeReviewEvent>('/api/case/dispute/review/stream', { question, language: this.settings.lang() });
   }
 
   getDisputePreparation(): Observable<DisputePreparation | null> {
@@ -340,10 +365,11 @@ export class ApiService {
     return this.http.get<{ sampleReply: string }>('/mocks/reply.json').pipe(map((m) => m.sampleReply), catchError(() => of('')));
   }
 
-  ask(question: string, conversationId?: string): Observable<AskEvent> {
+  ask(question: string, conversationId?: string, mode: Workspace = this.workspace.mode()): Observable<AskEvent> {
     if (isLive('ask')) {
       // Steps arrive as the backend runs them (Server-Sent Events), then the verified answer.
-      return postEventStream<AskEvent>('/api/copilot/ask/stream', { question, language: this.settings.lang(), conversationId });
+      const body: AskRequest = { question, language: this.settings.lang(), conversationId, generalOnly: mode === 'general' };
+      return this.stream<AskEvent>('/api/copilot/ask/stream', body, mode);
     }
     return this.http.get<MockQa[]>('/mocks/qa.json').pipe(
       map((list) => pickAnswer(list, question)),

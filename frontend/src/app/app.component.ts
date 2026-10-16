@@ -1,4 +1,4 @@
-import { Component, DestroyRef, HostListener, computed, inject, signal } from '@angular/core';
+import { Component, DestroyRef, HostListener, computed, effect, inject, signal } from '@angular/core';
 import { NgTemplateOutlet, ViewportScroller } from '@angular/common';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
@@ -14,6 +14,8 @@ import { ChatService } from './services/chat.service';
 import { JourneyService } from './services/journey.service';
 import { SettingsService } from './services/settings.service';
 import { ThemeService } from './services/theme.service';
+import { WorkspaceService } from './services/workspace.service';
+import { CitationViewerService } from './services/citation-viewer.service';
 
 interface NavItem {
   path: string;
@@ -42,6 +44,7 @@ export class AppComponent {
   readonly settings = inject(SettingsService);
   readonly journey = inject(JourneyService);
   readonly chat = inject(ChatService);
+  readonly workspace = inject(WorkspaceService);
   private translate = new TranslatePipe();
   readonly live = isFullyLive();
   readonly sessionInfo = toSignal(inject(ApiService).getSessionInfo().pipe(catchError(() => of(null))));
@@ -62,7 +65,8 @@ export class AppComponent {
   /** Home › Section › Page, for the slim banner on inner pages. */
   readonly crumbs = computed<{ label: string; path: string; icon: string }[]>(() => {
     const p = this.path();
-    const home = { label: 'Home', path: '/', icon: 'dashboard' };
+    if (p === '/dashboard' || (p === '/ask' && this.workspace.mode() === 'general')) return [];
+    const home = { label: 'Dashboard', path: '/dashboard', icon: 'dashboard' };
     const main = this.mainNav.find((n) => n.path === p && p !== '/');
     if (main) return [home, { label: main.label, path: p, icon: main.icon }];
     const sub = CLAIM_TOOLS.find((n) => n.path === p);
@@ -87,6 +91,8 @@ export class AppComponent {
   });
 
   constructor() {
+    const citations = inject(CitationViewerService);
+    effect(() => { this.workspace.mode(); citations.close(); });
     // Router jumps to #section must clear the sticky header (and on phones the chat bar docked under it).
     inject(ViewportScroller).setOffset(() => {
       const header = document.querySelector('.topbar')?.getBoundingClientRect().bottom ?? 64;
@@ -124,14 +130,15 @@ export class AppComponent {
   }
 
   readonly mainNav: NavItem[] = [
-    { path: '/', label: 'Home', short: 'Home', icon: 'dashboard', exact: true, desc: 'Start here or continue your session' },
+    { path: '/', label: 'Welcome', short: 'Welcome', icon: 'home', exact: true, desc: 'General insurance guidance from Nessi' },
+    { path: '/dashboard', label: 'Dashboard', short: 'Home', icon: 'dashboard', exact: true, desc: "Ravi's fictional example workspace" },
     { path: '/policy', label: 'My policy', short: 'Policy', icon: 'policy', exact: true, desc: 'Cover, limits, waiting times' },
     { path: '/case', label: 'My claim', short: 'Claim', icon: 'folder_shared', exact: false, desc: 'Papers, diary, your files' },
     { path: '/ask', label: 'Chat', icon: 'forum', exact: true, desc: 'Answers from your own papers' },
   ];
   /** Phone tab bar: Home, Policy | centre Ask | Claim, More. */
-  readonly tabsLeft = this.mainNav.slice(0, 2);
-  readonly tabsRight = this.mainNav.slice(2, 3);
+  readonly tabsLeft = this.mainNav.filter((n) => ['/dashboard', '/policy'].includes(n.path));
+  readonly tabsRight = this.mainNav.filter((n) => n.path === '/case');
   /** The menu only lists pages that aren't already in the header or the phone tab bar. */
   readonly menuPages = CLAIM_TOOLS;
 }

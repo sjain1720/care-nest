@@ -3,9 +3,10 @@ from http.cookies import SimpleCookie
 import asyncio
 from datetime import datetime, timezone
 import logging
+from urllib.parse import parse_qs
 
-from app.core.session import COOKIE, TTL, reset_session, set_session, set_deadline, reset_deadline
-from app.services.session_registry import resolve_session
+from app.core.session import COOKIE, TTL, reset_session, set_session, set_deadline, reset_deadline, set_root_session, reset_root_session
+from app.services.session_registry import resolve_session, resolve_example_session
 
 log = logging.getLogger(__name__)
 
@@ -35,8 +36,14 @@ class GuestSessionMiddleware:
         except Exception:  # a malformed cookie header just means no session yet
             jar = SimpleCookie()
         session_id = jar[COOKIE].value if COOKIE in jar else None
+        workspace = parse_qs(scope.get('query_string', b'').decode('latin-1')).get('workspace', ['general'])[0]
+        if workspace not in ('general', 'example'):
+            await send({'type': 'http.response.start', 'status': 400, 'headers': [(b'content-type', b'application/json')]})
+            await send({'type': 'http.response.body', 'body': b'{"detail":"Unknown workspace."}'})
+            return
         try:
             session_id, deadline = await asyncio.to_thread(resolve_session, session_id)
+            owner_id = await asyncio.to_thread(resolve_example_session, session_id, deadline) if workspace == 'example' else session_id
         except Exception:
             log.exception("Guest session registry unavailable")
             await send({"type": "http.response.start", "status": 503,
@@ -56,10 +63,12 @@ class GuestSessionMiddleware:
                 message = {**message, "headers": response_headers}
             await send(message)
 
-        token = set_session(session_id)
+        token = set_session(owner_id)
+        root_token = set_root_session(session_id)
         deadline_token = set_deadline(deadline)
         try:
             await self.app(scope, receive, send_with_cookie)
         finally:
             reset_deadline(deadline_token)
+            reset_root_session(root_token)
             reset_session(token)

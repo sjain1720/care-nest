@@ -128,6 +128,7 @@ class AskRequest(BaseModel):
     question: str = Field(min_length=2, max_length=500)
     language: Literal["en", "hi"] = "en"
     conversationId: str | None = Field(default=None, pattern=r"^[A-Za-z0-9_-]{8,64}$")
+    generalOnly: bool = False
 
 
 class ChecklistUpdate(BaseModel):

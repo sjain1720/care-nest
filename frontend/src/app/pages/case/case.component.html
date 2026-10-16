@@ -1,4 +1,17 @@
 <div class="page">
+  @if (dashboard) {
+    <header class="card"><p class="eyebrow">FICTIONAL EXAMPLE PROFILE</p><h1>Welcome, Ravi Sharma</h1>
+      <p>Your family's policy, claim and next steps, in one place.</p>
+      @if (policy(); as p) {
+        <div class="facts" style="margin:16px 0">
+          <div><span>Policy</span><strong>{{ p.planName }}</strong></div>
+          <div><span>Sum insured</span><strong>{{ p.sumInsured | inr }}</strong></div>
+          <div><span>People covered</span><strong>{{ p.members.length }}</strong></div>
+        </div>
+      }
+      <a mat-stroked-button routerLink="/policy">View my policy</a>
+    </header>
+  }
   <nav class="claim-tools card" aria-label="Claim tools">
     @for (tool of tools; track tool.label) {
       <a [routerLink]="tool.route" [fragment]="tool.fragment"><mat-icon>{{ tool.icon }}</mat-icon><span>{{ tool.label | t }}</span></a>
@@ -11,7 +24,7 @@
           <h1>{{ 'My claim' | t }}</h1>
           <p>{{ 'Nothing has been added to this claim yet.' | t }}</p>
         } @else {
-          <h1>{{ c.title }}</h1>
+          @if (dashboard) { <h2>{{ c.title }}</h2> } @else { <h1>{{ c.title }}</h1> }
           <p>{{ c.patient.name }} · {{ c.hospital }}</p>
         }
       </div>
@@ -56,6 +69,8 @@
       </div>
       <a mat-flat-button class="btn-teal" routerLink="/case/settlement">{{ 'Explain deductions or rejection' | t }} <mat-icon>arrow_forward</mat-icon></a>
     </section>
+    <app-next-steps [steps]="nextSteps()" />
+    @if (!dashboard) {
     <section class="card">
       <div class="facts">
         <div><span>{{ 'Illness' | t }}</span>{{ c.diagnosis }}</div>
@@ -64,8 +79,6 @@
         <div><span>{{ 'Where it stands' | t }}</span><strong>{{ c.stage }}</strong></div>
       </div>
     </section>
-
-    <app-next-steps [steps]="nextSteps()" />
 
     <section class="card" id="diary">
       <h2>{{ 'Claim diary' | t }}</h2>
@@ -110,7 +123,9 @@
       <p class="muted small" style="margin-bottom:0">{{ 'Sent a letter? Mark it on the' | t }} <a routerLink="/case/letter" fragment="sent">{{ 'letter page' | t }}</a>{{ ', so it is linked to that letter.' | t }}</p>
     </section>
     }
+    }
 
+    @if (!dashboard) {
     <section class="card" id="checklist">
       <h2>{{ 'Papers checklist' | t }}</h2>
       <p class="muted small" style="margin:0">{{ 'Tick each paper when you have it.' | t }}</p>
@@ -151,8 +166,9 @@
       <a mat-stroked-button class="btn-teal" routerLink="/upload" style="margin-top:8px"><mat-icon>upload_file</mat-icon> {{ 'Add documents' | t }}</a>
     </section>
     }
+    }
 
-    <app-claims-list />
+    @if (!dashboard) { <app-claims-list /> }
   } @else if (claimCase() === null) {
     <app-empty-state icon="note_add" title="No claim yet" action="Add documents" actionIcon="upload_file" route="/upload"
       text="Start your claim by adding your hospital bill, or any other paper from the hospital stay. A PDF or a clear phone photo is fine." />

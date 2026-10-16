@@ -10,7 +10,7 @@ from app.services.plain_language import STYLE, language_rule
 from app.services.steps import StepLog
 
 UPLOAD = NextAction(label="Check this in your own policy", route="/upload")
-DEMO = NextAction(label="Try the demo case", route="/")
+DEMO = NextAction(label="Open the fictional dashboard", route="/dashboard")
 
 
 class GeneralOut(BaseModel):
@@ -47,5 +47,5 @@ def needs_policy() -> AnswerCard:
     """A question about the user's own cover, with no policy to answer from: ask for it, or offer the demo."""
     return AnswerCard(verdict="cant_confirm", headline="I need your policy to answer that",
                       summary="This question is about your own cover, so I answer it only from your policy document. "
-                              "Upload your policy (PDF), or load the demo case to see how CareNest answers with page references.",
+                              "Upload your policy (PDF), or open the fictional dashboard to see answers with page references.",
                       citations=[], toConfirm=[], nextAction=NextAction(label="Upload your policy", route="/upload"), secondaryAction=DEMO)

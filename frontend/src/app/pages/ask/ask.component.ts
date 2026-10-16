@@ -18,14 +18,14 @@ export class AskComponent implements OnInit, OnDestroy {
   private api = inject(ApiService);
   readonly policy = toSignal(this.api.getPolicy());
   readonly claim = toSignal(this.api.getCase());
-  readonly prompts = computed(() => this.policy() || this.claim()?.documents.length
+  readonly prompts = computed(() => this.chat.workspace.mode() === 'example' && (this.policy() || this.claim()?.documents.length)
     ? ['What is my room-rent limit?', 'Why was money deducted from my claim?', 'Which documents am I missing?', 'What should I ask the insurer?']
     : ['What is a waiting period?', 'How do I question a deduction?', 'What documents help prepare a claim?']);
   q = input<string>();
   ngOnInit(): void {
     this.chat.pageVisible.set(true);
     this.chat.closePanel();
-    this.chat.unread.set(0);
+    this.chat.markRead();
     if (this.q()) this.chat.send(this.q()!);
   }
   ngOnDestroy(): void { this.chat.pageVisible.set(false); }
