@@ -10,6 +10,7 @@ import { FLOW_STAGES, resolveClaimFlow } from './claim-flow';
 @Component({selector:'app-claim-flow',standalone:true,imports:[RouterLink,MatButtonModule],template:`
  @if (visible()) {
  @if (!footer()) {
+ <a mat-button routerLink="/case" [queryParams]="{workspace:workspace.mode()}">← All claims</a>
  <nav class="flow no-print" aria-label="Claim workflow">
  @for (label of labels; track label; let i=$index) {
  <a [routerLink]="destination(i)" [queryParams]="params(i)" [attr.aria-current]="state().stage === i ? 'step' : null"><span>{{ i+1 }}</span>{{ label }}</a>
@@ -20,7 +21,7 @@ import { FLOW_STAGES, resolveClaimFlow } from './claim-flow';
  <div><strong>Next step</strong><p>{{state().note}}</p></div>
  <a mat-flat-button [routerLink]="state().next.route" [queryParams]="nextParams()" [fragment]="state().next.fragment">{{state().next.label}} →</a>
  @if (path()==='/case/letter') { <a mat-button routerLink="/case/reply" [queryParams]="{workspace:workspace.mode()}">I already have a reply</a> }
- <a mat-button routerLink="/case" [queryParams]="{section:'overview',workspace:workspace.mode()}">Back to claim overview</a>
+ <a mat-button routerLink="/case/detail" [queryParams]="{section:'overview',workspace:workspace.mode()}">Back to claim overview</a>
  </aside>
  }
  }
@@ -39,10 +40,10 @@ export class ClaimFlowComponent {
  readonly path=computed(()=>this.url().split('?')[0].split('#')[0]);
  private query=computed(()=>this.router.parseUrl(this.url()).queryParams);
  private c=toSignal(this.api.getCase());private bill=toSignal(this.api.getBill());private settlement=toSignal(this.api.getSettlement());
- readonly visible=computed(()=>this.workspace.mode()!=='general' && (this.path().startsWith('/case')||this.path()==='/upload'));
+ readonly visible=computed(()=>this.workspace.mode()!=='general' && (this.path().startsWith('/case/')||this.path()==='/upload'||(this.path()==='/case' && (!!this.query()['section'] || ['checklist','documents','dispute-papers','diary','overview','next-steps'].includes(this.router.parseUrl(this.url()).fragment??'')))));
  readonly state=computed(()=>resolveClaimFlow(this.c(),this.bill(),!!this.settlement()||!!this.c()?.rejection,this.path(),this.query()['section']??(this.router.parseUrl(this.url()).fragment === 'checklist' ? 'documents' : null),this.query()['outcome']==='1',this.query()['kind']??null));
  readonly labels=FLOW_STAGES;
- destination(i:number){return i===1 ? (this.settlement()||this.c()?.rejection ? '/case/settlement':'/case/letter') : i===2 ? '/case/reply':'/case';}
+ destination(i:number){return i===1 ? (this.settlement()||this.c()?.rejection ? '/case/settlement':'/case/letter') : i===2 ? '/case/reply':'/case/detail';}
  params(i:number){return {workspace:this.workspace.mode(),...(i===0?{section:'documents'}:i===3?{section:'history',outcome:'1'}:i===1&&!this.settlement()&&!this.c()?.rejection?{kind:'cover_letter'}:{})};}
  nextParams(){return {workspace:this.workspace.mode(),...this.state().next.query};}
 }

@@ -338,3 +338,10 @@
 /* Compact context label; disclosure stays in flow and supports native keyboard interaction. */
 .fictional-context:has(.workspace-about){position:relative;gap:6px 10px;justify-content:flex-start;flex-wrap:wrap;padding:4px 12px}.fictional-context .workspace-name{flex:1;min-width:0;font-size:.8rem}.workspace-about{display:contents}.workspace-about summary{display:grid;place-items:center;min-width:44px;min-height:44px;color:var(--cn-link);cursor:pointer;list-style:none;border-radius:8px}.workspace-about summary::-webkit-details-marker{display:none}.workspace-about summary:focus-visible{outline:2px solid var(--cn-primary)}.workspace-about summary mat-icon{font-size:20px;width:20px;height:20px}.workspace-about[open] summary{background:var(--cn-surface)}.workspace-about p{order:4;flex-basis:100%;margin:2px 0 10px;line-height:1.6;color:var(--cn-muted)}.workspace-about:not([open]) p{display:none}.fictional-context .workspace-change{min-height:44px;padding:0 4px}.workspace-about p a{color:var(--cn-link)}
 @media(max-width:599px){.fictional-context:has(.workspace-about){margin-top:6px;margin-bottom:6px;padding:2px 10px;gap:4px}.fictional-context .workspace-name{font-size:.75rem}.fictional-context .workspace-change{font-size:.75rem}.page-banner .pb-title{display:none}}
+
+/* A visitor's display name must not widen the phone viewport. */
+@media (max-width:899px) {
+  .workspace-switch { flex: 0 1 auto; min-width: 0; }
+  .workspace-switch span { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+  .workspace-switch mat-icon { flex: none; }
+}

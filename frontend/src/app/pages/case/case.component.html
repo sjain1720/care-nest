@@ -1,4 +1,8 @@
 <div class="page">
+  @if (listPage()) {
+    <header class="page-head"><h1>My claims</h1><p>Choose a claim to review its documents, decision and next steps.</p></header>
+    <app-claims-list />
+  } @else {
   @if (dashboard) {
     <header class="dashboard-hero">
       <div><p class="eyebrow">{{ workspace.mode() === 'example' ? 'FICTIONAL EXAMPLE PROFILE' : 'YOUR PRIVATE GUEST WORKSPACE' }}</p>
@@ -28,16 +32,14 @@
         @for (doc of claimCase()?.documents?.slice(-3); track doc.id) { <div class="document-list-row"><mat-icon>description</mat-icon><div class="grow"><strong>{{ doc.name }}</strong><p class="muted small">{{ doc.type }} · {{ doc.pages }} pages read</p></div>@if (doc.docUrl) { <a [href]="doc.docUrl" target="_blank" rel="noopener">Open ↗</a> }</div> }
         @empty { <p class="muted">Your uploaded bills and letters will appear here.</p> }
       </section>
-      <section class="card document-list"><header><h2>Recent claims</h2><a routerLink="/case" fragment="claims">View claims</a></header>
-        @for (item of claims()?.slice(0, 3); track item.id) { <div class="document-list-row"><mat-icon>folder_open</mat-icon><div class="grow"><strong>{{ item.title }}</strong><p class="muted small">{{ item.hospital }} · {{ item.date | date:'d MMM y' }}</p></div>@if (item.claimedAmount !== null) { <strong>{{ item.claimedAmount | inr }}</strong> }</div> }
-        @empty { <p class="muted">No claims recorded. You can start by adding a hospital bill.</p> }
-      </section>
+
     </div>
+    <app-claims-list />
   }
   @if (!dashboard) {
     <nav class="section-tabs claim-sections" aria-label="Claim sections">
       @for (tab of sections; track tab.id) {
-        <a routerLink="/case" [queryParams]="{ section: tab.id, workspace: workspace.mode() }" [class.active]="section() === tab.id" [attr.aria-current]="section() === tab.id ? 'page' : null">{{ tab.label }}</a>
+        <a routerLink="/case/detail" [queryParams]="{ section: tab.id, workspace: workspace.mode() }" [class.active]="section() === tab.id" [attr.aria-current]="section() === tab.id ? 'page' : null">{{ tab.label }}</a>
       }
     </nav>
   }
@@ -53,7 +55,7 @@
         }
       </div>
       <div class="head-actions">
-        <a mat-stroked-button routerLink="/case" fragment="claims"><mat-icon>folder_copy</mat-icon> {{ 'All your claims' | t }}</a>
+        <a mat-stroked-button routerLink="/case" fragment="claims"><mat-icon>folder_copy</mat-icon> {{ 'Back to all claims' | t }}</a>
       </div>
     </div>
 
@@ -205,12 +207,12 @@
         </nav>
       </section>
     }
-    @if (!dashboard && section() === 'history') { <app-claims-list /> }
   } @else if (claimCase() === null) {
     <app-empty-state icon="note_add" title="No claim yet" action="Add documents" actionIcon="upload_file" route="/upload"
       text="Start your claim by adding your hospital bill, or any other paper from the hospital stay. A PDF or a clear phone photo is fine." />
   } @else {
     <app-skeleton label="Loading your claim…" [count]="3" />
+  }
   }
 </div>
 

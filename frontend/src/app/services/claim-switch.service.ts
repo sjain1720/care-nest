@@ -31,6 +31,7 @@ export class ClaimSwitchService {
   startNew(): void {
     if (!confirm(this.t('Start a new claim? This claim stays in your list, and you can open it again.'))) return;
     this.run(this.api.startNewClaim(), () => {
+      this.details();
       scrollTo({ top: 0 });
       this.snackBar.open(this.t('New claim started. Add the hospital bill to begin.'), this.t('Add the bill'), { duration: 8000 })
         .onAction().subscribe(() => this.router.navigate(['/upload']));
@@ -38,10 +39,16 @@ export class ClaimSwitchService {
   }
 
   open(c: ClaimSummary): void {
+    if (c.current) { this.details(); return; }
     this.run(this.api.openClaim(c.id), () => {
       scrollTo({ top: 0 });
+      this.details();
       this.snackBar.open(`${this.t('Opened')}: ${c.title}`, undefined, { duration: 4000 });
     });
+  }
+
+  private details(): void {
+    void this.router.navigate(['/case/detail'], {queryParams: {workspace: this.api.workspace.mode()}});
   }
 
   remove(c: ClaimSummary): void {

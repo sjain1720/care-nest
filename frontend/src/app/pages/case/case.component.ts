@@ -75,6 +75,9 @@ export class CaseComponent {
   readonly dashboard = this.route.snapshot.data['dashboard'] === true;
   private params = toSignal(this.route.queryParamMap, { initialValue: this.route.snapshot.queryParamMap });
   private fragment = toSignal(this.route.fragment, { initialValue: this.route.snapshot.fragment });
+  readonly listPage = computed(() => !this.dashboard && this.route.snapshot.routeConfig?.path === 'case'
+    && !['overview', 'investigation', 'documents', 'history'].includes(this.params().get('section') ?? '')
+    && !['documents', 'checklist', 'dispute-papers', 'diary', 'overview', 'next-steps'].includes(this.fragment() ?? ''));
   readonly section = computed(() => {
     const fragment = this.fragment();
     if (fragment === 'documents' || fragment === 'checklist' || fragment === 'dispute-papers') return 'documents';

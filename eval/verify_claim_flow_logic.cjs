@@ -18,5 +18,6 @@ assert.equal(resolve(sent,null,true,'/case/letter',null,false,'document_response
 const old={...claim,timeline:[request,{kind:'letter_sent',date:'2026-10-17',letterKind:'document_response',replyId:'older-reply'}]};
 assert.equal(resolve(old,null,true,'/case/letter',null,false,'document_response').next.fragment,'sent');
 assert.equal(resolve({timeline:[{kind:'reply',date:'2026-10-17',outcome:'rejected'}]},null,true,'/case','history',true,null).next.query.kind,'grievance');
+assert.equal(resolve(claim,null,true,'/case/detail','documents',false,null).stage,0);
 assert.equal(JSON.stringify(claim),frozen);
-console.log('9 pure claim-flow assertions passed; no AI/cloud requests.');
+console.log('10 pure claim-flow assertions passed; no AI/cloud requests.');

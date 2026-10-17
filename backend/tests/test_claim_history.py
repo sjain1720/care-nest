@@ -1,7 +1,7 @@
 """Claim list summaries (pure Python)."""
 import unittest
 
-from app.services.claim_history import claim_status, has_content, manual_claim, new_claim_id, newest_first, summarize_case
+from app.services.claim_history import archived_summary, workflow_state, claim_status, has_content, manual_claim, new_claim_id, newest_first, summarize_case
 
 CASE = {
     "billHeader": {"patientName": "Kamala Sharma", "diagnosis": "Gallbladder surgery", "admissionDate": "2026-08-18", "dischargeDate": "2026-08-22"},
@@ -45,6 +45,37 @@ class ClaimHistoryTests(unittest.TestCase):
         self.assertEqual((refused["approvedAmount"], refused["status"], refused["date"]), (0, "refused", "2026-05-02"))
         pending = summarize_case({"bill": {"total": 50000, "billDate": "2026-09-01"}}, "x")
         self.assertEqual((pending["approvedAmount"], pending["status"]), (None, "in_progress"))
+
+    def test_payment_outcome_does_not_close_a_claim(self):
+        s = summarize_case({"settlement": {"claimedAmount": 100, "approvedAmount": 100}}, "current")
+        self.assertEqual((s["status"], s["closed"], s["awaitingReply"]), ("paid", False, False))
+
+    def test_pending_reply_requires_outbound_followup(self):
+        self.assertFalse(workflow_state({"timeline": [{"kind": "claim_sent", "date": "2026-09-01"}]})["awaitingReply"])
+        for kind in ("letter_sent", "query_answered", "complaint_filed"):
+            with self.subTest(kind=kind):
+                case = {"timeline": [{"kind": kind, "date": "2026-10-17"}]}
+                self.assertTrue(workflow_state(case)["awaitingReply"])
+                # Stable same-day ordering: the new reply ends the waiting state.
+                case["timeline"].append({"kind": "reply", "date": "2026-10-17", "outcome": "asks_for_papers"})
+                self.assertFalse(workflow_state(case)["awaitingReply"])
+                case["timeline"].append({"kind": "letter_sent", "date": "2026-10-17"})
+                self.assertTrue(workflow_state(case)["awaitingReply"])
+                case["timeline"].append({"kind": "closed", "date": "2026-10-17"})
+                self.assertEqual(workflow_state(case), {"closed": True, "awaitingReply": False})
+
+    def test_later_decision_supersedes_followup(self):
+        case = {"timeline": [{"kind": "query_answered", "date": "2026-09-01"}],
+                "settlement": {"letterDate": "2026-09-02"}}
+        self.assertFalse(workflow_state(case)["awaitingReply"])
+
+    def test_old_archives_refresh_lifecycle_without_changing_money(self):
+        saved = {"id": "cl-00000001", "closed": False, "approvedAmount": 73420}
+        record = {"summary": saved, "case": {"timeline": [{"kind": "closed", "date": "2026-05-12"}]}}
+        result = archived_summary(record)
+        self.assertEqual((result["closed"], result["awaitingReply"], result["approvedAmount"]), (True, False, 73420))
+        self.assertFalse(saved["closed"])
+        self.assertFalse(archived_summary({"summary": {**saved, "closed": True}})["awaitingReply"])
 
     def test_manual_claim(self):
         s = manual_claim({"date": "2026-06-05", "approvedAmount": 42000, "claimedAmount": 45000, "title": "Dengue"}, "cl-0000000a")

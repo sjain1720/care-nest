@@ -82,7 +82,7 @@ export class UploadComponent {
     },error:()=>this.contextError.set('Could not open the selected claim. Return to its documents and retry.')});
   }
   private readonly routeKey = inject(ActivatedRoute).snapshot.queryParamMap.get('claimKey');
-  returnRoute(){return this.returnTo === 'reply' ? '/case/reply' : '/case';}
+  returnRoute(){return this.returnTo === 'reply' ? '/case/reply' : '/case/detail';}
   returnQuery(){return this.returnTo === 'reply' ? {workspace:this.workspace.mode()} : {workspace:this.workspace.mode(),section:'documents'};}
 
   readonly chat = inject(ChatService);
@@ -122,7 +122,7 @@ export class UploadComponent {
     if (type === 'Hospital bill') return { label: 'Check this bill', route: '/case/bill', fragment: 'review' };
     if (type === 'Settlement letter' || type === 'Rejection letter') return { label: 'Explain this decision', route: '/case/settlement' };
     if (type === 'Insurer reply') return { label: 'Understand this reply', route: '/case/reply' };
-    return { label: 'Review my claim documents', route: '/case', fragment: 'documents' };
+    return { label: 'Review my claim documents', route: '/case/detail', fragment: 'documents' };
   }
 
   hasExistingDocument(): boolean { return this.docType === 'Hospital bill' ? !!this.hasBill() : this.docType === 'Settlement letter' ? !!this.hasSettlement() : this.docType === 'Rejection letter' ? !!this.journey.rejection() : false; }

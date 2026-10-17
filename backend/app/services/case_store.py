@@ -14,7 +14,7 @@ from google.cloud import firestore
 
 from app.core.gcp import bucket, db
 from app.core.session import expiry, session_id
-from app.services.claim_history import has_content, new_claim_id, summarize_case
+from app.services.claim_history import archived_summary, has_content, new_claim_id, summarize_case
 
 DOC_ID = re.compile(r"^(doc|img)-[0-9a-f]{16}$")
 _META_KEYS = ("id", "updatedAt", "expireAt")
@@ -101,7 +101,7 @@ def _archive(batch, case: dict) -> None:
 
 
 def list_past_claims() -> list[dict]:
-    return [snap.to_dict()["summary"] for snap in _past().stream()]
+    return [archived_summary(snap.to_dict()) for snap in _past().stream()]
 
 
 def get_past_claim(claim_id: str) -> dict | None:

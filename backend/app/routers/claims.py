@@ -3,7 +3,7 @@ import re
 
 from fastapi import APIRouter, HTTPException
 
-from app.schemas import PastClaimIn
+from app.schemas import ClaimSummary, PastClaimIn
 from app.services import case_store, policy_store
 from app.services.claim_history import has_content, manual_claim, new_claim_id, newest_first, summarize_case
 from app.services.privacy import mask_all
@@ -28,7 +28,7 @@ def _find(claim_id: str) -> dict:
     return past
 
 
-@router.get("/claims")
+@router.get("/claims", response_model=list[ClaimSummary])
 def list_claims():
     return _all_claims()
 

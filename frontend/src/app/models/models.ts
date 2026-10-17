@@ -311,6 +311,8 @@ export interface ClaimSummary {
   approvedAmount: number | null;
   status: ClaimStatus;
   closed: boolean;
+  /** A recorded outgoing follow-up is awaiting a newer reply or decision. */
+  awaitingReply?: boolean;
   /** The claim shown on the My claim page. */
   current: boolean;
 }

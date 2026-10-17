@@ -62,7 +62,7 @@ export class AppComponent {
     inject(Router).events.pipe(filter((e): e is NavigationEnd => e instanceof NavigationEnd), map((e) => e.urlAfterRedirects.split(/[?#]/)[0])),
     { initialValue: '/' },
   );
-  readonly onClaimSubpage = computed(() => CLAIM_TOOLS.some((n) => n.path === this.path()));
+  readonly onClaimSubpage = computed(() => this.path() === '/case/detail' || CLAIM_TOOLS.some((n) => n.path === this.path()));
   readonly onAskPage = computed(() => this.path() === '/ask');
   readonly onHome = computed(() => this.path() === '/');
   /** Claim progress belongs to the claim workspace, never the public landing page. */
@@ -74,6 +74,7 @@ export class AppComponent {
     const home = { label: 'Dashboard', path: '/dashboard', icon: 'dashboard' };
     const main = this.mainNav.find((n) => n.path === p && p !== '/');
     if (main) return [home, { label: main.label, path: p, icon: main.icon }];
+    if (p === '/case/detail') return [home, { label: 'My claims', path: '/case', icon: 'folder_shared' }, { label: 'Claim details', path: p, icon: 'folder_open' }];
     const sub = CLAIM_TOOLS.find((n) => n.path === p);
     if (sub) return [home, { label: 'My claim', path: '/case', icon: 'folder_shared' }, { label: sub.label, path: p, icon: sub.icon }];
     if (p === '/status') return [home, { label: 'Demo and live settings', path: p, icon: 'tune' }];
@@ -138,7 +139,7 @@ export class AppComponent {
     { path: '/', label: 'Welcome', short: 'Welcome', icon: 'home', exact: true, desc: 'General insurance guidance from Nessi' },
     { path: '/dashboard', label: 'Dashboard', short: 'Home', icon: 'dashboard', exact: true, desc: "Your fictional example workspace" },
     { path: '/policy', label: 'My policy', short: 'Policy', icon: 'policy', exact: true, desc: 'Cover, limits, waiting times' },
-    { path: '/case', label: 'My claim', short: 'Claim', icon: 'folder_shared', exact: false, desc: 'Papers, diary, your files' },
+    { path: '/case', label: 'My claims', short: 'Claims', icon: 'folder_shared', exact: false, desc: 'Papers, diary, your files' },
     { path: '/ask', label: 'Chat', icon: 'forum', exact: true, desc: 'Answers from your own papers' },
   ];
   /** Phone tab bar: Home, Policy | centre Ask | Claim, More. */

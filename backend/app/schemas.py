@@ -254,6 +254,23 @@ class BillReviewIn(BaseModel):
     items: list[BillReviewItem] = Field(max_length=400)
 
 
+class ClaimSummary(BaseModel):
+    policyId: str | None = None
+    id: str
+    source: Literal["carenest", "manual"]
+    title: str
+    patient: str
+    hospital: str
+    date: str
+    claimNumber: str
+    claimedAmount: float | None
+    approvedAmount: float | None
+    status: Literal["in_progress", "paid", "part_paid", "refused"]
+    closed: bool
+    awaitingReply: bool = False
+    current: bool
+
+
 class PastClaimIn(BaseModel):
     """A claim made before using CareNest, typed in from the insurer's payment letter."""
     date: str = Field(pattern=r"^\d{4}-\d{2}-\d{2}$")

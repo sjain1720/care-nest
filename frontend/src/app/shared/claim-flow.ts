@@ -13,13 +13,13 @@ export function resolveClaimFlow(c: ClaimCase | null | undefined, bill: Bill | n
   const needsPapers = reply?.outcome === 'asks_for_papers';
   const letter: LetterKind = needsPapers ? 'document_response' : c?.rejection ? 'reconsideration' : decided ? 'clarification' : 'cover_letter';
   const draft: FlowLink = {label: needsPapers ? 'Prepare response with current documents' : 'Prepare letter with current documents',route:'/case/letter',query:{kind:letter}};
-  const documents: FlowLink = {label:'Review requested documents',route:'/case',query:{section:'documents'}};
-  const stage = outcome ? 3 : path === '/case/reply' ? 2 : path === '/upload' || (path === '/case' && section === 'documents') ? 0 : 1;
-  if (closed) return {stage:3,next:{label:'Review claim history',route:'/case',query:{section:'history'}},note:'Closed by you. Use the claim diary to reopen if needed.'};
+  const documents: FlowLink = {label:'Review requested documents',route:'/case/detail',query:{section:'documents'}};
+  const stage = outcome ? 3 : path === '/case/reply' ? 2 : path === '/upload' || ((path === '/case/detail' || path === '/case') && section === 'documents') ? 0 : 1;
+  if (closed) return {stage:3,next:{label:'Review claim history',route:'/case/detail',query:{section:'history'}},note:'Closed by you. Use the claim diary to reopen if needed.'};
   if (path === '/case/reply') {
     if (needsPapers) return {stage,next:documents,note:'Upload and review the requested items, then prepare a response. Uploading does not send them.'};
     if (!reply) return {stage,next:{label:'Add the insurer reply',route:'/case/reply',fragment:'add'},note:'Paste or upload an existing reply. Do not record sending unless you actually sent a letter.'};
-    return {stage,next:{label:'Review outcome and next action',route:'/case',query:{section:'history',outcome:'1'}},note:'Approval is not payment. Closing a claim is your decision.'};
+    return {stage,next:{label:'Review outcome and next action',route:'/case/detail',query:{section:'history',outcome:'1'}},note:'Approval is not payment. Closing a claim is your decision.'};
   }
   if (outcome && reply) return {stage,next: reply.outcome === 'asks_for_papers' ? documents : {label:'Prepare a follow-up',route:'/case/letter',query:{kind:reply.outcome === 'no_change' || reply.outcome === 'rejected' ? 'grievance' : letter}},note:'Review the reply and your options. No automatic closure or refund is claimed.'};
   if (path === '/case/letter') {
