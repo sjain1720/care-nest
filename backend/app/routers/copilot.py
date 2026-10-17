@@ -51,7 +51,11 @@ def ask(body: AskRequest):
         remember(context, result.answer)
         return result
     except _GOOGLE_ERRORS as exc:
-        raise HTTPException(502, f"A Google service failed while answering: {exc.__class__.__name__}") from exc
+        code = getattr(exc, 'code', None)
+        code = code if isinstance(code, int) else None
+        log.warning('Copilot service failed error=%s code=%s', type(exc).__name__, code)
+        detail = 'Google AI is busy; wait about a minute and retry the question.' if code == 429 else 'A Google service could not complete the answer. Retry the question.'
+        raise HTTPException(502, detail) from exc
 
 
 @router.post("/copilot/ask/stream")
@@ -95,7 +99,11 @@ async def ask_agent(body: AskRequest):
     try:
         return await asyncio.to_thread(work)
     except _GOOGLE_ERRORS as exc:
-        raise HTTPException(502, f"A Google service failed while answering: {exc.__class__.__name__}") from exc
+        code = getattr(exc, 'code', None)
+        code = code if isinstance(code, int) else None
+        log.warning('Copilot service failed error=%s code=%s', type(exc).__name__, code)
+        detail = 'Google AI is busy; wait about a minute and retry the question.' if code == 429 else 'A Google service could not complete the answer. Retry the question.'
+        raise HTTPException(502, detail) from exc
 
 
 

@@ -30,6 +30,18 @@
           @for (b of blanks(); track b; let last = $last) { <span class="blank">{{ b }}</span>@if (!last) {, } }
         </div>
       }
+      <div class="note no-print"><strong>Before sending: fill {{ blanks().length }} blanks · review {{ supportingDocuments().length }} supporting documents.</strong></div>
+      <details class="no-print" style="margin-bottom:16px">
+        <summary>Supporting documents — attach copies yourself</summary>
+        <p class="small muted">These are available sources, not files attached by CareNest. Confirm what is relevant before sending.</p>
+        <ul>@for (e of supportingDocuments(); track $index) { <li>{{ e }}</li> }</ul>
+        <a mat-button routerLink="/case" fragment="checklist">Open document checklist</a>
+      </details>
+      @if (policyEvidence().length) {
+        <details style="margin-bottom:16px"><summary>Policy evidence used ({{ policyEvidence().length }})</summary>
+          <ul>@for (e of policyEvidence(); track $index) { <li>{{ e }}</li> }</ul>
+        </details>
+      }
       <div class="meta">
         <span>{{ 'To' | t }}</span><strong>{{ l.to }}</strong>
         <span>{{ 'Subject' | t }}</span><strong>{{ l.subject }}</strong>
@@ -43,14 +55,6 @@
         <button mat-stroked-button class="btn-sky" type="button" (click)="copy()"><mat-icon>{{ copied() ? 'check' : 'content_copy' }}</mat-icon> {{ (copied() ? 'Copied' : 'Copy text') | t }}</button>
         <button mat-stroked-button class="btn-teal" type="button" (click)="download()"><mat-icon>download</mat-icon> {{ 'Download .txt' | t }}</button>
       </div>
-    </section>
-
-    <section class="card">
-      <h2>{{ 'Papers to attach' | t }}</h2>
-      <ol>
-        @for (e of l.evidenceIndex; track $index) { <li>{{ e }}</li> }
-      </ol>
-      <a mat-button routerLink="/case" fragment="checklist" class="no-print">{{ 'Papers checklist' | t }}</a>
     </section>
 
     <section class="card no-print" id="sent">

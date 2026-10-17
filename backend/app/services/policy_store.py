@@ -61,6 +61,11 @@ def save_pages(policy_id: str, pages: list[dict]) -> None:
     _write_in_batches([(col.document(f"{p['page']:03d}"), {"page": p["page"], "text": p["text"]}) for p in pages])
 
 
+def load_page(policy_id: str, page: int) -> str | None:
+    value = _policy(policy_id).collection('pages').document(f'{page:03d}').get().to_dict() or {}
+    return value.get('text')
+
+
 def load_pages(policy_id: str) -> dict[int, str]:
     return {d.get("page"): d.get("text") for d in _policy(policy_id).collection("pages").stream()}
 

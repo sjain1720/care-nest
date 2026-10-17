@@ -132,3 +132,28 @@ class ApiTests(unittest.TestCase):
                 self.assertEqual(seen, [a.cookies.get('cn_session'), b.cookies.get('cn_session')])
                 self.assertNotEqual(seen[0], seen[1])
                 self.assertIn('"type": "step"', streamed.text); self.assertIn('"type": "review"', streamed.text)
+
+class RepairTests(unittest.IsolatedAsyncioTestCase):
+    async def test_rejected_reading_is_independently_rechecked(self):
+        _, readings, _ = proposed()
+        with patch.object(review,'snapshot',return_value=bundle()), \
+             patch.object(review,'session_id',return_value='a'*32), \
+             patch.object(review,'build_team',side_effect=scripted_team), \
+             patch.object(review,'repair_readings',return_value=(readings,None)) as repair, \
+             patch.object(review,'check_rows',side_effect=[
+                 ([{'id':'d1','supported':False,'unsupportedClaims':['Relevant exception missing']}],None),
+                 ([{'id':'d1','supported':True,'unsupportedClaims':[]}],None)]) as check:
+            result=await review.run_review('Explain the deduction')
+        self.assertEqual(result.rows[0].assessment,'related_wording')
+        self.assertEqual(check.call_count,2)
+        repair.assert_called_once()
+
+    async def test_failed_repair_does_not_release_initial_unsupported_reading(self):
+        with patch.object(review,'snapshot',return_value=bundle()), \
+             patch.object(review,'session_id',return_value='a'*32), \
+             patch.object(review,'build_team',side_effect=scripted_team), \
+             patch.object(review,'repair_readings',side_effect=RuntimeError('Unavailable')), \
+             patch.object(review,'check_rows',return_value=([{'id':'d1','supported':False,'unsupportedClaims':['Missing exception']}],None)):
+            result=await review.run_review('Explain the deduction')
+        self.assertEqual(result.rows[0].assessment,'unverified')
+        self.assertFalse(result.rows[0].citations)

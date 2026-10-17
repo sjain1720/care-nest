@@ -16,6 +16,7 @@ from app.services.grounding import quote_in_text
 from app.services.plain_language import NEXT_STEPS, STYLE, language_rule
 from app.services.steps import StepLog
 from app.services.answer_support import check_support
+from app.services.policy_sources import page_sources
 from app.services.waiting_periods import parse_date, status
 
 TOP_K = 6
@@ -106,7 +107,7 @@ def answer_question(question: str, today: date | None = None, log: StepLog | Non
         return recorded
 
     log.add("Policy Specialist", f"Searching {doc.get('clauseCount', 'all')} clauses in your policy")
-    hits = store.search_clauses(policy_id, embed_texts([question], "RETRIEVAL_QUERY")[0], TOP_K)
+    hits = page_sources(policy_id, store.search_clauses(policy_id, embed_texts([question], "RETRIEVAL_QUERY")[0], TOP_K))
     seen = []
     for h in hits:
         tag = f"page {h['page']} · {h['label']}"

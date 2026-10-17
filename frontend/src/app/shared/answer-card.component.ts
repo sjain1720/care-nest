@@ -51,25 +51,27 @@ import { TranslatePipe } from './translate.pipe';
             <p class="reconciliation-note"><mat-icon>calculate</mat-icon>{{ amounts.arithmeticOk ? 'Amounts reconcile with the itemized deductions.' : 'The amounts do not reconcile.' }} Itemized: {{ amounts.itemizedDeductions | inr }}.@if (!amounts.arithmeticOk) { <strong>Unexplained gap: {{ amounts.unexplainedGap | inr }}.</strong> }</p>
           }
           @if (review.preparation.missingInputs.length) { <div class="confirm"><strong>What we still need</strong><ul>@for (missing of review.preparation.missingInputs; track missing.code) { <li>{{ missing.message }} <a [routerLink]="missing.route" (click)="actionSelected.emit()">Add or review</a></li> }</ul></div> }
+          @if (review.status === 'reviewed') {
           <h4 class="review-heading">2. Examine each reason against the evidence</h4>
           @for (row of review.rows; track row.id) {
             <section class="finding">
               <h4>{{ row.label }} @if (row.amount !== null) { · {{ row.amount | inr }} }</h4>
               <span class="finding-status">{{ row.assessment === 'related_wording' ? 'Related policy wording found' : row.assessment === 'no_stated_reason' ? 'Insurer has not stated a reason' : row.assessment === 'needs_information' ? 'More facts needed' : 'Evidence not verified' }}</span>
-              <p><strong>Insurer's recorded reason:</strong> {{ row.insurerReason }}</p>
-              <p>{{ row.explanation }}</p>
+              <details><summary>Recorded reason and source evidence</summary><p><strong>Insurer's recorded reason:</strong> {{ row.insurerReason }}</p>
+              </details><p>{{ row.explanation }}</p>
               <div class="row sources">@for (citation of row.citations; track $index) { <app-citation-chip [citation]="citation" /> }</div>
-              @if (row.missingInformation.length) { <div class="finding-missing"><strong>Before drawing a conclusion:</strong><ul>@for (missing of row.missingInformation; track $index) { <li>{{ missing }}</li> }</ul></div> }
+
             </section>
           } @empty { <p class="muted">No deduction findings are available yet. Review the missing information above or retry the investigation.</p> }
           <h4 class="review-heading">3. Prepare your response</h4>
           @if (review.actions.length) {
-            <div class="confirm"><strong>Your personalised clarification checklist</strong>
+            <details class="confirm"><summary>Your clarification checklist ({{ review.actions.length }})</summary>
               <ol>@for (action of review.actions; track $index) { <li><strong>{{ action.question }}</strong><br>Ask {{ action.source }}.<br><span>{{ action.why }}</span></li> }</ol>
               <small>Suggested clarification evidence; these are not confirmed insurer requirements.</small>
-            </div>
+            </details>
           }
           @if (review.status === 'reviewed') { <p class="small muted">Open the letter below, review its evidence and fill in any placeholders before sending it yourself.</p> }
+          }
         </section>
         @for (warning of review.warnings; track $index) { <p class="small muted">{{ warning }}</p> }
         @if (review.metrics['totalTokens']) {

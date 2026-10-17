@@ -104,5 +104,5 @@ def answer(question: str, on_step: Callable[[AgentStep], None] | None = None, la
         if intent == "cashless_query" and not result.answer.general:
             result.answer.nextAction = NextAction(label="Open the insurer query helper", route="/case/query")
     else:
-        result = answer_case_question(question, intent, log=log, language=language, about=about)
+        result = answer_case_question(question, intent, log=log, language=language, about=about, original_question=original_question)
     return result

@@ -51,6 +51,19 @@ class InvestigationTests(unittest.TestCase):
         self.assertNotIn('Guaranteed payment', draft['body'])
         self.assertNotIn('are attached', draft['body'])
 
+    def test_correspondence_addresses_recipient_not_patient(self):
+        self.assertEqual(claim.correspondence_request('Ask the insurer for the applicable clause and itemized calculation, and compare them with the original decision letter.'),
+                         'Please provide the applicable clause and itemized calculation.')
+        self.assertNotIn('Do you have', claim.correspondence_request('Do you have the discharge summary to verify the stay?'))
+        self.assertIn('this policy', claim.correspondence_request('Please confirm the limit applicable to your plan from your policy schedule.'))
+
+    def test_reviewed_room_itemization_is_not_requested_again(self):
+        review = DisputeReview(status='reviewed',preparation=prepare_dispute({},None),rows=[
+            DisputeReviewRow(id='d1',label='Room',amount=100,insurerReason='Room limit',assessment='related_wording',
+                explanation='Conditional wording.',citations=[],missingInformation=['Can you provide the itemized room rent charges from the hospital bill?'])])
+        claim.refine_questions(review,{'bill':{'reviewed':True,'items':[{'category':'room'}]}})
+        self.assertIn('reviewed bill rows',review.rows[0].missingInformation[0])
+
     def test_cached_letter_is_invalid_after_document_or_policy_change(self):
         artifact = {'scope': 'old', 'draft': {'kind': 'clarification', 'body': 'Old result'}}
         with patch.object(claim.case_store, 'get_case', return_value={'disputeInvestigation': artifact}), \

@@ -28,6 +28,36 @@ def money(value):
     return sign + format_inr(whole) + (f'.{cents:02d}' if cents else '')
 
 
+def refine_questions(review, case):
+    """Avoid asking again for room itemization explicitly confirmed in this snapshot."""
+    bill = case.get('bill') or {}
+    room_present = bill.get('reviewed') and any(i.get('category') == 'room' for i in bill.get('items', []))
+    if not room_present:
+        return
+    for row in review.rows:
+        row.missingInformation = [
+            'Ask the insurer to identify the reviewed bill rows included in its room-related reduction and show the calculation.'
+            if re.search(r'itemi[sz]ed room|room rent charges.*bill', question, re.I) else question
+            for question in row.missingInformation]
+
+
+def correspondence_request(question):
+    """Convert action instructions to correspondence without adding new findings."""
+    text = question.strip()
+    text = re.sub(r'^ask (?:the |your )?insurer (?:for|to provide) ', 'Please provide ', text, flags=re.I)
+    text = re.sub(r'^ask (?:the |your )?insurer to ', 'Please ', text, flags=re.I)
+    if re.match(r'can you provide ', text, re.I):
+        text = re.sub(r'^can you provide ', 'Please provide ', text, flags=re.I).rstrip('?') + '.'
+    if re.match(r'do you have the discharge summary', text, re.I):
+        return 'Please confirm the hospital-stay duration used in your calculation and identify any supporting discharge evidence you still require.'
+    text = re.sub(r'\byour plan\b', 'this policy', text, flags=re.I)
+    text = re.sub(r'\byour policy schedule\b', 'the policy schedule', text, flags=re.I)
+    text = re.sub(r',? and compare (?:them|it) with the original decision letter\.?', '.', text, flags=re.I)
+    if not re.match(r'please\b', text, re.I):
+        return 'Please clarify the following evidence or calculation question: ' + text
+    return text
+
+
 def action_plan(review):
     actions = []
     for row in review.rows:
@@ -62,7 +92,7 @@ def build_draft(review, case, facts):
     evidence = [f"{doc['type']}: {doc.get('name', 'original document')}" for doc in case.get('documents', [])]
     for row in review.rows:
         label = row.label + (f' ({money(row.amount)})' if row.amount is not None else '')
-        points.append(label + ': ' + ' '.join(row.missingInformation))
+        points.append(label + ': ' + (row.explanation + ' ' if row.assessment == 'related_wording' else '') + ' '.join(correspondence_request(q) for q in row.missingInformation))
         for citation in row.citations:
             entry = f'Policy wording — {citation.clause}, page {citation.page}: "{citation.quote}"'
             if entry not in evidence: evidence.append(entry)
@@ -95,12 +125,13 @@ async def investigate(question, on_step=None):
             summary='The investigation could not be completed safely. No verified agent explanation is claimed.',
             citations=[], toConfirm=review.warnings, nextAction=NextAction(label='Open existing document checks', route='/case/settlement'), investigation=review)
     else:
+        refine_questions(review, case_store.get_case())
         review.actions = action_plan(review)
         reconciliation = review.preparation.reconciliation
         summary = ('The insurer recorded ' + money(reconciliation.approvedAmount) + ' approved out of '
             + money(reconciliation.claimedAmount) + ' claimed; the difference is '
             + money(reconciliation.decisionDifference) + '. ' if reconciliation else 'The recorded decision is a rejection. ')
-        summary += 'The findings below separate related policy wording from missing evidence. They do not establish that a deduction or rejection is justified.'
+        summary += 'Review the findings and the evidence still needed below.'
         citations = []
         for row in review.rows:
             for citation in row.citations:

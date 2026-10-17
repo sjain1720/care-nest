@@ -22,6 +22,8 @@ def letter_facts(kind: str, case: dict, policy: dict | None) -> dict:
     s, bill, rejection = case.get("settlement") or {}, case.get("bill") or {}, case.get("rejection") or {}
     insurer = policy.get("insurer") or "the insurer"
     patient = case["patient"]["name"]
+    if not patient or patient == "Patient" or not patient.strip("_ "):
+        patient = "[patient name]"
     ref = case.get("claimNumber") or "[claim number]"
     header = [f"Policy number: {policy.get('policyNumber') or '[policy number]'}", f"Claim number: {ref}", f"Patient: {patient}",
               f"Hospital: {case['hospital']}" + (f" (admitted {case['admissionDate']}, discharged {case['dischargeDate']})" if case.get("admissionDate") else "")]
@@ -87,7 +89,7 @@ def letter_facts(kind: str, case: dict, policy: dict | None) -> dict:
     evidence += [f"{doc['type']}: {doc['name']}" for doc in case.get("documents", [])]
     evidence += [f"{i['name']} (to be obtained)" for i in case.get("checklist", []) if i["group"] == "dispute" and i["status"] != "collected"]
 
-    return {"kind": kind, "to": f"Grievance Officer, {insurer}" if kind in ("clarification", "reconsideration", "grievance") else f"Claims Department, {insurer}",
+    return {"kind": kind, "to": f"Grievance Officer, {insurer}" if kind == "grievance" else f"Claims Department, {insurer}",
             "subject": subject, "header": header, "points": points, "evidenceIndex": evidence, "allowedAmounts": sorted(allowed),
             "signature": f"[Your name] (on behalf of {patient})\nPhone: [your phone number]\nEmail: [your email]"}
 

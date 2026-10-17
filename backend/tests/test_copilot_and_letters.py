@@ -53,7 +53,8 @@ class CaseFactsTests(unittest.TestCase):
         self.assertIn("most likely ₹28,500", texts)
         self.assertIn("deducted ₹31,100", texts)
         policy = [f for f in self.facts if f["source"]["docId"] == "policy"]
-        self.assertEqual(policy[0]["source"]["clause"], "Clause 5.3")
+        self.assertEqual(policy, [])
+        self.assertNotIn("Matches the clause", texts)
         self.assertTrue(quote_in_text("approved ₹2,08,000, deducted", self.facts[[f["text"].startswith("Settlement") for f in self.facts].index(True)]["text"]))
 
     def test_missing_documents_listed(self):
@@ -67,7 +68,7 @@ class LetterTests(unittest.TestCase):
 
     def test_clarification_unexplained_first(self):
         f = letter_facts("clarification", self.case, {"insurer": "Suraksha (demo)", "policyNumber": "XXXX-4821"})
-        self.assertIn("Grievance Officer, Suraksha (demo)", f["to"])
+        self.assertIn("Claims Department, Suraksha (demo)", f["to"])
         self.assertIn("Other deductions – ₹9,500: no reason", f["points"][1])
         self.assertIn("Clause 5.3", f["points"][2])
         self.assertIn("Policy wording – Clause 5.3 (page 11)", f["evidenceIndex"])

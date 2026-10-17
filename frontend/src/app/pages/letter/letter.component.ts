@@ -78,6 +78,8 @@ export class LetterComponent {
   readonly body = signal('');
   readonly edited = signal(false);
   readonly blanks = computed(() => [...new Set(this.body().match(BLANK) ?? [])]);
+  readonly supportingDocuments = computed(() => (this.letter()?.evidenceIndex ?? []).filter(e => !e.startsWith('Policy wording')));
+  readonly policyEvidence = computed(() => (this.letter()?.evidenceIndex ?? []).filter(e => e.startsWith('Policy wording')));
   copied = signal(false);
   kind = signal<LetterKind>('clarification');
   loading = signal(false);

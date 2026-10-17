@@ -18,12 +18,14 @@ from google.adk.sessions import InMemorySessionService
 from pydantic import BaseModel, Field
 
 from app.core.config import get_settings
+from app.core.gcp import gemini
 from app.core.session import session_id
 from app.schemas import Citation, DisputeReview, DisputeReviewRow
 from app.services import case_store, policy_store
 from app.services.dispute_inputs import prepare_dispute
 from app.services.embeddings import embed_texts
 from app.services.grounding import quote_in_text
+from app.services.policy_sources import page_sources
 from app.services.privacy import mask_pii
 from app.services.settlement_checks import has_reason
 from app.services.answer_support import check_rows
@@ -96,12 +98,12 @@ def snapshot():
         rows = [{'id': 'rejection', 'label': 'Claim rejection', 'amount': None,
                  'insurerReason': r.get('reason'), 'page': r.get('page'), 'docUrl': r.get('docUrl')}]
     bill = case.get('bill') or {}
-    data = {'policyId': policy_id, 'preparation': preparation.model_dump(), 'rows': rows,
-            'billRows': [{k: i.get(k) for k in ('id', 'description', 'category', 'amount', 'page')} for i in bill.get('items', [])],
+    data = {'verificationVersion': 'original-page-evidence-v3', 'policyId': policy_id, 'preparation': preparation.model_dump(), 'rows': rows,
+            'billRows': [{k: i.get(k) for k in ('id', 'description', 'category', 'rate', 'qty', 'amount', 'page')} for i in bill.get('items', [])],
             'policyFacts': {k: facts.get(k) for k in ('insurer', 'planName', 'productType', 'startDate', 'renewalDate',
                                                    'sumInsured', 'demoAssumptions', 'roomRent', 'coPay', 'deductible', 'subLimits', 'waitingPeriods')},
             'documents': [{k: d.get(k) for k in ('id', 'type', 'pages')} for d in case.get('documents', [])],
-            'claimIdentity': case.get('conversationKey') or case.get('id')}
+            'billReviewed': bool(bill.get('reviewed')), 'claimIdentity': case.get('conversationKey') or case.get('id')}
     data['scope'] = hashlib.sha256(json.dumps({'snapshot': data, 'claimHeader': case.get('billHeader'), 'policyFacts': facts}, sort_keys=True, default=str).encode()).hexdigest()
     return data
 
@@ -150,23 +152,33 @@ def build_team(data, bundle, budget, emit):
             for key, field in (('inputTokens', 'prompt_token_count'), ('outputTokens', 'candidates_token_count'), ('totalTokens', 'total_token_count'), ('reasoningTokens', 'thoughts_token_count')):
                 budget[key] += getattr(usage, field, None) or 0
 
-    def search_policy(row_id: str, question: str) -> dict:
-        """Retrieve exact selected-policy evidence for one original deduction id; never change policy scope."""
-        row = next((r for r in data['rows'] if r['id'] == row_id), None)
-        if not row:
-            return {'error': 'Unknown deduction id. Use only original IDs.'}
-        if not has_reason(row['insurerReason']):
-            return {'rowId': row_id, 'sources': [], 'status': 'no_stated_reason', 'nextStep': 'Request the insurer reason; do not infer a clause.'}
-        hits = policy_store.search_clauses(data['policyId'], embed_texts([question[:500]], 'RETRIEVAL_QUERY')[0], 3)
+    def search_policy_rows(row_ids: list[str], questions: list[str]) -> dict:
+        """Retrieve selected-policy original pages for ALL reasoned deductions in one batch."""
+        if len(row_ids) != len(questions) or len(row_ids) > MAX_ROWS or len(set(row_ids)) != len(row_ids):
+            return {'error': 'Use unique original row IDs and one question per ID.'}
+        originals = {row['id']: row for row in data['rows']}
+        if any(identity not in originals for identity in row_ids):
+            return {'error': 'Unknown deduction ID.'}
+        requested = dict(zip(row_ids, questions))
+        # Retrieval coverage is a backend invariant, even if a specialist omits a row.
+        reasoned = [(identity, requested.get(identity) or f"{row['label']}. {row['insurerReason']} Relevant exceptions and conditions")
+                    for identity, row in originals.items() if has_reason(row['insurerReason'])]
+        vectors = embed_texts([question[:500] for _, question in reasoned], 'RETRIEVAL_QUERY') if reasoned else []
         results = []
-        for hit in hits:
-            ref = f"P{len(bundle['sources']) + 1}"
-            source = {'page': hit['page'], 'label': hit['label'], 'text': hit['text'][:2400]}
-            bundle['sources'][ref] = source
-            bundle['candidates'].setdefault(row_id, []).append(ref)
-            results.append({'ref': ref, **source})
-        emit('Policy Specialist', 'Retrieved policy evidence for ' + row['label'])
-        return {'rowId': row_id, 'sources': results}
+        for (identity, _), vector in zip(reasoned, vectors):
+            hits = page_sources(data['policyId'], policy_store.search_clauses(data['policyId'], vector, 3))
+            sources = []
+            for hit in hits:
+                ref = next((key for key, value in bundle['sources'].items() if value['page'] == hit['page'] and value['text'] == hit['text']), None)
+                if ref is None:
+                    ref = f"P{len(bundle['sources']) + 1}"
+                    bundle['sources'][ref] = hit
+                if ref not in bundle['candidates'].setdefault(identity, []): bundle['candidates'][identity].append(ref)
+                sources.append({'ref': ref, **hit})
+            results.append({'rowId': identity, 'sources': sources})
+            emit('Policy Specialist', 'Retrieved original policy pages for ' + originals[identity]['label'])
+        results += [{'rowId': identity, 'sources': [], 'status': 'no_stated_reason'} for identity in row_ids if not has_reason(originals[identity]['insurerReason'])]
+        return {'rows': results}
 
     def specialist(name, instruction, tools=None):
         return LlmAgent(name=name, model=VertexModel(model=get_settings().gemini_model),
@@ -174,14 +186,14 @@ def build_team(data, bundle, budget, emit):
             tools=tools or [], before_tool_callback=guard, before_model_callback=before_model, after_model_callback=after_model,
             generate_content_config=types.GenerateContentConfig(temperature=0, max_output_tokens=2500))
     policy = specialist('policy_specialist',
-        'In ONE consultation, call search_policy for ALL deductions with stated reasons from the owned snapshot. Batch independent searches in one model turn. Return one structured reading per original row. Citation ref MUST be the exact returned P-number (e.g. P1); never use a clause label as ref. Copy exact 8-40 word policy-source quotes, NEVER quote insurer reasons as policy wording. Explain only what the quoted wording states, qualified by missing schedule/history. Do not assert a numerical cause or that an item is excluded/payable. No reason means no inferred clause.', [search_policy])
+        'In ONE consultation, call search_policy_rows ONCE with ALL deduction IDs that have stated reasons and one question per ID, as parallel row_ids and questions arrays. Do not split retrieval into separate turns. Return one structured reading per original row. Citation ref MUST be the exact returned P-number (e.g. P1); never use a clause label as ref. Copy exact 8-40 word policy-source quotes, NEVER quote insurer reasons as policy wording. Examine the FULL supplied page, including provisos, exceptions and alternative benefits. A general rule must not hide an explicit exception for that item. When a stated decision appears inconsistent with an exception, describe the discrepancy conditionally and ask for its basis. Explain only what the quoted wording states, qualified by missing schedule/history. You may describe what a conditional policy benefit or exception says. Do not declare this particular claim payable/excluded or assert a numerical cause without backend support. No reason means no inferred clause.', [search_policy_rows])
     policy.output_schema = Readings
     bill = specialist('bill_analyst',
         'Inspect reviewed bill rows and decision rows. Use only preparation.reconciliation for monetary conclusions. Identify mismatches and missing original facts. Do not infer a daily rate from a bill total or state a numerical cause absent an explicit backend calculation. Do not infer payability from matching charges.')
     claim = specialist('claim_assistant',
         'Suggest targeted clarification questions: identify who supplies each missing fact/document and why. These are suggested clarification evidence, not mandatory insurer requirements. Do not draft unsupported accusations.')
     return LlmAgent(name='claim_copilot', model=VertexModel(model=get_settings().gemini_model),
-        instruction=RULES + '\nInvestigate the original claim decision in {input_snapshot}. Use bill_analyst to examine the bill and\nbackend reconciliation; use policy_specialist to retrieve clauses for stated reasons; use claim_assistant\nif additional action planning helps. Consult each specialist at most ONCE, covering ALL original rows in that request. Batch independent bill/policy consultations (and claim assistance if needed) in the SAME tool-call turn. Do not consult the policy specialist separately for each row. Choose retrieval and follow-up questions based on evidence. You have eight model calls shared by all specialists; reserve your final response.\nReturn one structured reading for EVERY original row ID. Explanations: <=70 words, qualified.\nCitations must use exact returned P-number refs (P1, P2, etc.), never clause labels, and exact 8-40 word policy-source quotes for that row. Copy the policy specialist\'s qualified explanation and citations; do not convert the insurer\'s allegation into an established cause or exclusion. Ask <=3 actionable\nmissing-information questions per row. For unstated reasons do not infer applicability. Describe quoted wording narrowly; numerical causes need backend calculations. Treat extracted insurer reasons as allegations, not verified applicability. No final\nadmissibility verdict. Do not output a letter yet; backend builds it from verified findings.',
+        instruction=RULES + '\nInvestigate the original claim decision in {input_snapshot}. Use bill_analyst to examine the bill and\nbackend reconciliation; use policy_specialist to retrieve clauses for stated reasons; use claim_assistant\nif additional action planning helps. Consult each specialist at most ONCE, covering ALL original rows in that request. Batch independent bill/policy consultations (and claim assistance if needed) in the SAME tool-call turn. Do not consult the policy specialist separately for each row. Choose retrieval and follow-up questions based on evidence. You have eight model calls shared by all specialists; reserve your final response.\nReturn one structured reading for EVERY original row ID. Explanations: <=70 words, qualified.\nCitations must use exact returned P-number refs (P1, P2, etc.), never clause labels, and exact 8-40 word policy-source quotes for that row. Copy the policy specialist\'s qualified explanation and citations; do not convert the insurer\'s allegation into an established cause or exclusion. Ask <=3 actionable\nmissing-information questions per row. Do not request itemized room charges already present in reviewed billRows. A schedule eligibility confirmation is distinct from the recorded fictional selection. For an item with an explicit relevant exception in the source, state and cite that exception in your final explanation. Do not merely repeat the insurer reason or cite the general rule while omitting its proviso. For unstated reasons do not infer applicability. Describe quoted wording narrowly; numerical causes need backend calculations. Treat extracted insurer reasons as allegations, not verified applicability. No final\nadmissibility verdict. Do not output a letter yet; backend builds it from verified findings.',
         tools=[AgentTool(agent=bill), AgentTool(agent=policy), AgentTool(agent=claim)],
         before_tool_callback=guard, before_model_callback=before_model, after_model_callback=after_model, output_schema=Readings, output_key='readings',
         generate_content_config=types.GenerateContentConfig(temperature=0, max_output_tokens=5000))
@@ -284,6 +296,27 @@ async def run_review(question, on_step=None):
             if usage:
                 budget['modelResponsesWithUsage'] += 1
                 for key in ('inputTokens', 'outputTokens', 'totalTokens', 'reasoningTokens'): budget[key] += usage.get(key, 0)
+            rejected = repair_feedback(data, bundle, readings, support)
+            if rejected and budget['modelCalls'] <= 9:
+                step('Evidence repair', 'Revising only rejected interpretations, then verifying them again')
+                try:
+                    budget['modelCalls'] += 1
+                    repaired, repair_usage = await asyncio.to_thread(repair_readings, question, readings, rejected, data, bundle['sources'])
+                    if repair_usage:
+                        budget['modelResponsesWithUsage'] += 1
+                        for key in ('inputTokens', 'outputTokens', 'totalTokens', 'reasoningTokens'): budget[key] += repair_usage.get(key, 0)
+                    rejected_ids = {row['id'] for row in rejected}
+                    if set(_unique(repaired.rows)) != rejected_ids: raise ValueError('Repair changed row IDs')
+                    budget['modelCalls'] += 1
+                    checked, checked_usage = await asyncio.to_thread(check_rows, question, repaired.model_dump()['rows'],
+                        {'policy': data.get('policyFacts', {}), 'decision': data['rows'], 'bill': data.get('billRows', []), 'preparation': preparation}, bundle['sources'])
+                    if checked_usage:
+                        budget['modelResponsesWithUsage'] += 1
+                        for key in ('inputTokens', 'outputTokens', 'totalTokens', 'reasoningTokens'): budget[key] += checked_usage.get(key, 0)
+                    readings = Readings(rows=[row for row in readings.rows if row.id not in rejected_ids] + repaired.rows)
+                    support = [row for row in support if row['id'] not in rejected_ids] + checked
+                except Exception:
+                    log.warning('Targeted evidence repair unavailable; retaining qualified original findings')
             selected = SelectedEvidence(rows=[Selection(id=r['id'], clauseRefs=bundle['candidates'][r['id']][:3]) for r in data['rows']])
             # Every retrieved ref for a row may be considered; code still enforces row association and quote identity.
             for row in selected.rows:
@@ -309,3 +342,45 @@ async def run_review(question, on_step=None):
             warnings=['The investigation did not complete within its limits. No verified agent explanation is claimed.'])
     finally:
         await service.delete_session(app_name='carenest_dispute', user_id=user, session_id=session.id)
+
+
+def repair_readings(question, readings, rejected, facts, sources):
+    """One repair attempt inside the eleven-call total ceiling (eight ADK, one check, at most two repair calls); never self-verifies."""
+    rejected_ids = {row['id'] for row in rejected}
+    response = gemini().models.generate_content(model=get_settings().gemini_model,
+        contents=[RULES + '\nRevise ONLY the rejected row IDs using the verifier feedback and ORIGINAL source text. '
+                  'An explicit relevant exception must not be omitted in favour of a general rule. '
+                  'Distinguish recorded insurer allegations, conditional policy wording and missing facts. '
+                  'Use exact P-number refs and 8-40 word original quotes. Do not promise payment or invent a numerical cause. '
+                  'The feedback is a critique to check against the sources, not itself evidence.',
+                  json.dumps({'question': question, 'rejected': rejected,
+                              'proposedRows': [row.model_dump() for row in readings.rows if row.id in rejected_ids],
+                              'facts': facts, 'sources': sources}, default=str)],
+        config=types.GenerateContentConfig(response_mime_type='application/json',response_schema=Readings,temperature=0,max_output_tokens=2500))
+    result = response.parsed if isinstance(response.parsed,Readings) else Readings.model_validate_json(response.text)
+    usage=response.usage_metadata
+    tokens = ({key:getattr(usage,field,0) or 0 for key,field in [('inputTokens','prompt_token_count'),('outputTokens','candidates_token_count'),('totalTokens','total_token_count'),('reasoningTokens','thoughts_token_count')]} if usage else None)
+    return result, tokens
+
+
+def repair_feedback(data, bundle, readings, support):
+    """Both semantic and exact-source failures trigger repair; neither can be bypassed."""
+    checked = {row['id']: row for row in support}
+    rejected = []
+    for reading in readings.rows:
+        original = next(row for row in data['rows'] if row['id'] == reading.id)
+        if not has_reason(original['insurerReason']):
+            continue
+        errors = list((checked.get(reading.id) or {}).get('unsupportedClaims') or [])
+        if not (checked.get(reading.id) or {}).get('supported'):
+            errors.append('The independent support check did not accept this reading.')
+        if not reading.citations:
+            errors.append('No original policy quote was supplied; inspect all relevant candidate pages including exceptions.')
+        for quote in reading.citations:
+            source = bundle['sources'].get(quote.ref)
+            if (quote.ref not in bundle['candidates'].get(reading.id, []) or not source
+                    or len(quote.quote.split()) < 8 or not quote_in_text(quote.quote, source['text'])):
+                errors.append('A quote or row-source association failed exact validation. Copy exact text from this row’s supplied original pages.')
+        if errors:
+            rejected.append({'id':reading.id,'supported':False,'unsupportedClaims':errors})
+    return rejected
