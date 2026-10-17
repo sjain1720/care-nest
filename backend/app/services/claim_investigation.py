@@ -1,5 +1,6 @@
 """Normal-chat adapter and scoped, deterministic artifacts from verified ADK rows."""
 import re
+import asyncio
 from decimal import Decimal, ROUND_HALF_UP
 from datetime import datetime, timezone
 from app.schemas import AnswerCard, AskResponse, NextAction
@@ -93,6 +94,8 @@ def build_draft(review, case, facts):
     for row in review.rows:
         label = row.label + (f' ({money(row.amount)})' if row.amount is not None else '')
         points.append(label + ': ' + (row.explanation + ' ' if row.assessment == 'related_wording' else '') + ' '.join(correspondence_request(q) for q in row.missingInformation))
+        if row.evidence and row.evidence.get('calculation'):
+            points.append('Recorded implant calculation: ' + row.evidence['calculation']['formula'] + '. ' + row.evidence['qualification'])
         for citation in row.citations:
             entry = f'Policy wording — {citation.clause}, page {citation.page}: "{citation.quote}"'
             if entry not in evidence: evidence.append(entry)
@@ -125,7 +128,10 @@ async def investigate(question, on_step=None):
             summary='The investigation could not be completed safely. No verified agent explanation is claimed.',
             citations=[], toConfirm=review.warnings, nextAction=NextAction(label='Open existing document checks', route='/case/settlement'), investigation=review)
     else:
-        refine_questions(review, case_store.get_case())
+        case = case_store.get_case(); active = policy_store.get_active_policy()
+        from app.services.deduction_trace import attach_evidence
+        await asyncio.to_thread(attach_evidence,review,case,active[1].get('facts',{}) if active else {},initial_scope)
+        refine_questions(review, case)
         review.actions = action_plan(review)
         reconciliation = review.preparation.reconciliation
         summary = ('The insurer recorded ' + money(reconciliation.approvedAmount) + ' approved out of '

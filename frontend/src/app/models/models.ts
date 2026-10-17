@@ -394,6 +394,11 @@ export interface CoverageEstimate {
 export interface BillPolicyRow {
   id: string; description: string; billPage: number; amount: number; assessment: 'related_clause' | 'needs_checking';
   explanation: string; citations: Citation[]; missingInformation: string[];
+  evidence?: { version: string; inputFingerprint: string; status: 'needs_inputs' | 'reconciles' | 'mismatch';
+    billRows: {id: string; description: string; amount: number; page: number}[];
+    sources: {docId: string; docName: string; docHash: string; page: number; docUrl: string; quote: string}[];
+    calculation: {formula: string; rateOrigin: string; net: string; result: string; difference: string} | null;
+    missing: string[]; qualification: string } | null;
 }
 export interface BillPolicyAnalysis {
   policyId: string; fingerprint: string; rows: BillPolicyRow[]; omittedRows: number; limitations: string[];
@@ -419,6 +424,11 @@ export interface DisputeReviewRow {
   id: string; label: string; amount: number | null; insurerReason: string;
   assessment: 'related_wording' | 'needs_information' | 'no_stated_reason' | 'unverified';
   explanation: string; citations: Citation[]; missingInformation: string[];
+  evidence?: { version: string; inputFingerprint: string; status: 'needs_inputs' | 'reconciles' | 'mismatch';
+    billRows: {id: string; description: string; amount: number; page: number}[];
+    sources: {docId: string; docName: string; docHash: string; page: number; docUrl: string; quote: string}[];
+    calculation: {formula: string; rateOrigin: string; net: string; result: string; difference: string} | null;
+    missing: string[]; qualification: string } | null;
 }
 export interface DisputeReview {
   status: 'needs_inputs' | 'reviewed' | 'unavailable' | 'stale';

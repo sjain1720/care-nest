@@ -286,6 +286,7 @@ class DisputeReviewRow(BaseModel):
     explanation: str
     citations: list[Citation]
     missingInformation: list[str]
+    evidence: dict | None = None
 
 
 class DisputeReview(BaseModel):

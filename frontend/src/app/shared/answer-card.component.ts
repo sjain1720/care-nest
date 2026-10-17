@@ -59,6 +59,15 @@ import { TranslatePipe } from './translate.pipe';
               <span class="finding-status">{{ row.assessment === 'related_wording' ? 'Related policy wording found' : row.assessment === 'no_stated_reason' ? 'Insurer has not stated a reason' : row.assessment === 'needs_information' ? 'More facts needed' : 'Evidence not verified' }}</span>
               <details><summary>Recorded reason and source evidence</summary><p><strong>Insurer's recorded reason:</strong> {{ row.insurerReason }}</p>
               </details><p>{{ row.explanation }}</p>
+              @if (row.evidence; as evidence) {
+                <details><summary>Bill rows and calculation · {{ evidence.status === 'reconciles' ? 'arithmetic reconciles' : evidence.status === 'mismatch' ? 'amounts differ' : 'more source inputs needed' }}</summary>
+                  @for (item of evidence.billRows; track item.id) { <p>{{ item.description }} ({{ item.id }}) · bill page {{ item.page }} · {{ item.amount | inr }}</p> }
+                  @if (evidence.calculation; as calc) { <p><strong>{{ calc.formula }}</strong></p><p class="small muted">{{ calc.rateOrigin }}</p> }
+                  @for (source of evidence.sources; track $index) { <app-citation-chip [citation]="{docId: source.docId, docName: source.docName, page: source.page, docUrl: source.docUrl, quote: source.quote, clause: 'Recorded calculation input'}" /> }
+                  @for (missing of evidence.missing; track $index) { <p>{{ missing }}</p> }
+                  <p class="small muted">{{ evidence.qualification }}</p>
+                </details>
+              }
               <div class="row sources">@for (citation of row.citations; track $index) { <app-citation-chip [citation]="citation" /> }</div>
 
             </section>
