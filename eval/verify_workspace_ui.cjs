@@ -55,7 +55,7 @@ function check(name, passed) { report.checks.push({ name, passed: !!passed }); i
     const uploaded = await uploadResponse;
     check('Synthetic personal bill upload succeeds', uploaded.ok()); report.upload = await uploaded.json();
     check('Upload request is personal', uploaded.url().includes('workspace=personal'));
-    await p.getByRole('link', { name: 'Check what we read', exact: true }).waitFor();
+    await p.getByRole('link', { name: 'Check this bill', exact: true }).waitFor();
     const personalBill = await json('/api/case/bill?workspace=personal');
     check('Uploaded bill readable in personal workspace', personalBill.total === 246000);
     const personalCase = await json('/api/case?workspace=personal');

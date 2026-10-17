@@ -6,6 +6,17 @@
       <p class="muted">Your policy, hospital bills and claim journey, in one place.</p></div>
       <span class="dashboard-emblem" aria-hidden="true"><mat-icon>health_and_safety</mat-icon></span>
     </header>
+    @if (settlement(); as decision) {
+      @if (decision.reconciliation?.deductedTotal) {
+        <section class="card deduction-entry" aria-labelledby="deduction-entry-title">
+          <span class="round-icon"><mat-icon>manage_search</mat-icon></span>
+          <div><p class="eyebrow">UNDERSTAND YOUR INSURER’S DECISION</p><h2 id="deduction-entry-title">Understand the {{ decision.reconciliation!.deductedTotal | inr }} deduction</h2><p>Check each amount against your documents, find missing evidence and prepare your next step.</p></div>
+          <a mat-flat-button routerLink="/case/settlement">Explain this deduction <mat-icon>arrow_forward</mat-icon></a>
+        </section>
+      }
+    } @else if (claimCase()?.rejection) {
+      <section class="card deduction-entry"><div><h2>Understand why your claim was refused</h2><p>Check the insurer’s reason and the supporting policy evidence.</p></div><a mat-flat-button routerLink="/case/settlement">Review the rejection <mat-icon>arrow_forward</mat-icon></a></section>
+    }
     <section class="dashboard-shortcuts" aria-label="Your workspace">
       <a routerLink="/policy"><span class="round-icon"><mat-icon>policy</mat-icon></span><div><strong>My policy</strong><small>{{ policy()?.planName || 'Add a policy to see your cover' }}</small></div><mat-icon>arrow_forward</mat-icon></a>
       <a routerLink="/bills"><span class="round-icon"><mat-icon>receipt_long</mat-icon></span><div><strong>Hospital bills</strong><small>{{ bill() ? (bill()!.total | inr) : 'No bill added yet' }}</small></div><mat-icon>arrow_forward</mat-icon></a>
@@ -23,12 +34,13 @@
       </section>
     </div>
   }
-  @if (!dashboard) { <nav class="section-tabs" aria-label="Claim sections"><a routerLink="/case" fragment="overview">Overview</a><a routerLink="/case/bill">Bill breakdown</a><a routerLink="/case" fragment="documents">Documents</a><a routerLink="/case" fragment="next-steps">Next steps</a><a routerLink="/case" fragment="diary">Diary</a></nav> }
-  <nav class="claim-tools card" aria-label="Claim tools">
-    @for (tool of tools; track tool.label) {
-      <a [routerLink]="tool.route" [fragment]="tool.fragment"><mat-icon>{{ tool.icon }}</mat-icon><span>{{ tool.label | t }}</span></a>
-    }
-  </nav>
+  @if (!dashboard) {
+    <nav class="section-tabs claim-sections" aria-label="Claim sections">
+      @for (tab of sections; track tab.id) {
+        <a routerLink="/case" [queryParams]="{ section: tab.id, workspace: workspace.mode() }" [class.active]="section() === tab.id" [attr.aria-current]="section() === tab.id ? 'page' : null">{{ tab.label }}</a>
+      }
+    </nav>
+  }
   @if (claimCase(); as c) {
     <div class="page-head head-row">
       <div class="head-text">
@@ -58,6 +70,7 @@
       </div>
     </section>
     } @else {
+    @if (dashboard || section() === 'overview') {
     @if (!dashboard && decisionDocument(); as doc) { <details class="card source-disclosure"><summary>Inspect the insurer’s original decision</summary><app-document-preview [url]="doc.docUrl" [title]="doc.name" /></details> }
     <section class="card claim-overview" id="overview" aria-label="Claim overview">
       <div class="overview-heading"><h2>{{ 'Your claim at a glance' | t }}</h2><span>{{ c.stage }}</span></div>
@@ -83,7 +96,8 @@
       <a mat-flat-button class="btn-teal" routerLink="/case/settlement">{{ 'Explain deductions or rejection' | t }} <mat-icon>arrow_forward</mat-icon></a>
     </section>
     <div id="next-steps"><app-next-steps [steps]="nextSteps()" /></div>
-    @if (!dashboard) {
+    }
+    @if (!dashboard && section() === 'overview') {
     <section class="card">
       <div class="facts">
         <div><span>{{ 'Illness' | t }}</span>{{ c.diagnosis }}</div>
@@ -93,6 +107,8 @@
       </div>
     </section>
 
+    }
+    @if (!dashboard && section() === 'history') {
     <section class="card" id="diary">
       <h2>{{ 'Claim diary' | t }}</h2>
       <p class="muted small" style="margin:0">{{ 'What you sent and what the insurer said, with dates. You need these if you complain.' | t }}</p>
@@ -138,7 +154,7 @@
     }
     }
 
-    @if (!dashboard) {
+    @if (!dashboard && section() === 'documents') {
     <section class="card" id="checklist">
       <h2>{{ 'Papers checklist' | t }}</h2>
       <p class="muted small" style="margin:0">{{ 'Tick each paper when you have it.' | t }}</p>
@@ -181,7 +197,15 @@
     }
     }
 
-    @if (!dashboard) { <app-claims-list /> }
+    @if (!dashboard && section() === 'investigation') {
+      <app-dispute-review />
+      <section class="card"><h2>Explore your evidence and next steps</h2><p class="muted">Use these tools to inspect the bill, understand the decision and prepare your response.</p>
+        <nav class="investigation-tools" aria-label="Investigation tools">
+          @for (tool of tools.slice(0, 5); track tool.label) { <a [routerLink]="tool.route"><mat-icon>{{ tool.icon }}</mat-icon><span>{{ tool.label }}</span><mat-icon>arrow_forward</mat-icon></a> }
+        </nav>
+      </section>
+    }
+    @if (!dashboard && section() === 'history') { <app-claims-list /> }
   } @else if (claimCase() === null) {
     <app-empty-state icon="note_add" title="No claim yet" action="Add documents" actionIcon="upload_file" route="/upload"
       text="Start your claim by adding your hospital bill, or any other paper from the hospital stay. A PDF or a clear phone photo is fine." />

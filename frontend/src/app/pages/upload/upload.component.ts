@@ -6,6 +6,7 @@ import { MatButtonModule } from '@angular/material/button';
 import { TranslatePipe } from '../../shared/translate.pipe';
 import { MatIconModule } from '@angular/material/icon';
 import { ApiService, DOC_TYPES, DocType } from '../../services/api.service';
+import { ChatService } from '../../services/chat.service';
 import { JourneyService } from '../../services/journey.service';
 import { AgentProgressComponent } from '../../shared/agent-progress.component';
 import { NextStep, NextStepsComponent } from '../../shared/next-steps.component';
@@ -62,6 +63,7 @@ interface UploadItem {
 })
 export class UploadComponent {
   private api = inject(ApiService);
+  readonly chat = inject(ChatService);
   private destroyRef = inject(DestroyRef);
 
   items = signal<UploadItem[]>([]);
@@ -90,6 +92,14 @@ export class UploadComponent {
     this.destroyRef.onDestroy(() => clearInterval(timer));
     const wanted = inject(ActivatedRoute).snapshot.queryParamMap.get('type');
     if (wanted && (DOC_TYPES as readonly string[]).includes(wanted)) this.docType = wanted as DocType;
+  }
+
+  uploadAction(type?: string): { label: string; route: string; fragment?: string } {
+    if (type === 'Policy document') return { label: 'Ask about this policy', route: '/ask' };
+    if (type === 'Hospital bill') return { label: 'Check this bill', route: '/case/bill', fragment: 'review' };
+    if (type === 'Settlement letter' || type === 'Rejection letter') return { label: 'Explain this decision', route: '/case/settlement' };
+    if (type === 'Insurer reply') return { label: 'Understand this reply', route: '/case/reply' };
+    return { label: 'Review my claim documents', route: '/case', fragment: 'documents' };
   }
 
   typeLabel(t: DocType): string {

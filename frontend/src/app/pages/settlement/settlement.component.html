@@ -1,4 +1,6 @@
 <div class="page">
+  <a class="back-link" routerLink="/case" [queryParams]="{section: 'investigation'}">← My claim · Investigation</a>
+  <header class="page-head"><p class="eyebrow">YOUR CLAIM INVESTIGATION</p><h1>Understand the decision. Prepare your next step.</h1><p>Follow the amounts, inspect the policy evidence and ask the insurer for the missing explanation.</p></header>
   <app-dispute-review />
   @if (preparation(); as inputs) {
     <section class="card" aria-labelledby="dispute-preparation">
@@ -32,7 +34,7 @@
   }
   @if (settlement(); as s) {
     <div class="page-head">
-      <h1>@if (totalDeducted()) { {{ 'Why' | t }} {{ totalDeducted() | inr }} {{ 'was cut from your claim' | t }} } @else { {{ 'The insurer paid your claim in full' | t }} }</h1>
+      <h2>@if (totalDeducted()) { {{ 'Why' | t }} {{ totalDeducted() | inr }} {{ 'was cut from your claim' | t }} } @else { {{ 'The insurer approved the claimed amount' | t }} }</h2>
       <p>{{ "From the insurer's letter of" | t }} {{ s.letterDate | date: 'd MMM y' }} · {{ 'Claim' | t }} {{ s.claimNumber }}</p>
     </div>
 
@@ -122,7 +124,7 @@
     </div>
   } @else if (rejection()) {
     <div class="page-head">
-      <h1>{{ 'The insurer refused your claim' | t }}</h1>
+      <h2>{{ 'The insurer refused your claim' | t }}</h2>
       <p>@if (rejection()!.letterDate) { From their letter of {{ rejection()!.letterDate | date: 'd MMM y' }}. }You can ask them to look again.</p>
     </div>
     <section class="card">

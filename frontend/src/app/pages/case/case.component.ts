@@ -1,4 +1,5 @@
 import { Component, computed, inject, signal } from '@angular/core';
+import { DisputeReviewComponent } from '../../shared/dispute-review.component';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { DatePipe, NgTemplateOutlet } from '@angular/common';
 import { ActivatedRoute, RouterLink } from '@angular/router';
@@ -29,7 +30,7 @@ const STATUS_META: Record<ChecklistStatus, { label: string; icon: string; tone: 
 @Component({
   selector: 'app-case',
   standalone: true,
-  imports: [DocumentPreviewComponent, CoverageEstimateComponent, DatePipe, NgTemplateOutlet, FormsModule, RouterLink, MatButtonModule, MatIconModule, MatProgressBarModule, NextStepsComponent, SkeletonComponent, EmptyStateComponent, ClaimsListComponent, TranslatePipe, InrPipe],
+  imports: [DisputeReviewComponent, DocumentPreviewComponent, CoverageEstimateComponent, DatePipe, NgTemplateOutlet, FormsModule, RouterLink, MatButtonModule, MatIconModule, MatProgressBarModule, NextStepsComponent, SkeletonComponent, EmptyStateComponent, ClaimsListComponent, TranslatePipe, InrPipe],
   templateUrl: './case.component.html',
   styleUrl: './case-overview.css',
   styles: `
@@ -69,7 +70,22 @@ const STATUS_META: Record<ChecklistStatus, { label: string; icon: string; tone: 
   `,
 })
 export class CaseComponent {
-  readonly dashboard = inject(ActivatedRoute).snapshot.data['dashboard'] === true;
+  private route = inject(ActivatedRoute);
+  readonly dashboard = this.route.snapshot.data['dashboard'] === true;
+  private params = toSignal(this.route.queryParamMap, { initialValue: this.route.snapshot.queryParamMap });
+  private fragment = toSignal(this.route.fragment, { initialValue: this.route.snapshot.fragment });
+  readonly section = computed(() => {
+    const fragment = this.fragment();
+    if (fragment === 'documents' || fragment === 'checklist' || fragment === 'dispute-papers') return 'documents';
+    if (fragment === 'diary' || fragment === 'claims') return 'history';
+    if (fragment === 'overview' || fragment === 'next-steps') return 'overview';
+    const selected = this.params().get('section');
+    return ['overview', 'investigation', 'documents', 'history'].includes(selected ?? '') ? selected : 'overview';
+  });
+  readonly sections = [
+    { id: 'overview', label: 'Overview' }, { id: 'investigation', label: 'Investigation' },
+    { id: 'documents', label: 'Documents' }, { id: 'history', label: 'History' },
+  ];
   private api = inject(ApiService);
   readonly workspace = this.api.workspace;
   readonly claims = toSignal(this.api.getClaims());

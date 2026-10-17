@@ -27,22 +27,10 @@
         <p class="small" style="margin:8px 0 0">{{ it.pages }} {{ 'pages read.' | t }}@if (it.message) { {{ it.message }} }</p>
       }
       @if (it.done) {
-        <div class="row" style="margin-top:8px">
-          @if (it.detectedType === 'Policy document') {
-            <a mat-stroked-button class="btn-sky" routerLink="/policy">{{ 'See what your policy covers' | t }}</a>
-            <a mat-stroked-button class="btn-violet" routerLink="/ask">{{ 'Ask a question' | t }}</a>
-          } @else if (it.detectedType === 'Hospital bill') {
-            <a mat-flat-button class="btn-amber" routerLink="/case/bill" fragment="review">{{ 'Check what we read' | t }}</a>
-          } @else if (it.detectedType === 'Settlement letter') {
-            <a mat-stroked-button class="btn-amber" routerLink="/case/settlement">{{ 'See why money was cut' | t }}</a>
-          } @else if (it.detectedType === 'Rejection letter') {
-            <a mat-stroked-button class="btn-amber" routerLink="/case/settlement">{{ 'See why they refused' | t }}</a>
-            <a mat-stroked-button class="btn-rose" routerLink="/case/letter" [queryParams]="{ kind: 'reconsideration' }">{{ 'Ask them to look again' | t }}</a>
-          } @else if (it.detectedType === 'Insurer reply') {
-            <a mat-stroked-button class="btn-violet" routerLink="/case/reply">{{ 'See what their reply means' | t }}</a>
-          } @else {
-            <a mat-stroked-button routerLink="/case">{{ 'Open my claim' | t }}</a>
-          }
+        <div class="upload-success" role="status"><mat-icon>task_alt</mat-icon><div><strong>Ready in My documents</strong><p>This file is separate from Shubham’s example. Check the extracted details before relying on them.</p></div></div>
+        <div class="row upload-next-action">
+          <a mat-flat-button class="btn-teal" [routerLink]="uploadAction(it.detectedType).route" [fragment]="uploadAction(it.detectedType).fragment" [queryParams]="it.detectedType === 'Policy document' ? {workspace: 'personal', q: 'Summarise my uploaded policy and tell me which personal schedule details are missing.'} : {workspace: 'personal'}">{{ uploadAction(it.detectedType).label }} <mat-icon>arrow_forward</mat-icon></a>
+          @if (it.detectedType === 'Policy document') { <a mat-button routerLink="/policy" [queryParams]="{workspace: 'personal'}">View policy details</a> }
         </div>
       }
     </section>
