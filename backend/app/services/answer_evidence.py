@@ -2,7 +2,7 @@
 import re
 from datetime import date
 
-from app.schemas import AnswerCheck, AnswerVerification, PolicyFacts, WaitingDateEvidence
+from app.schemas import AnswerCard, AnswerCheck, AnswerVerification, NextAction, PolicyFacts, WaitingDateEvidence
 from app.services.grounding import normalize
 from app.services.waiting_periods import end_date, parse_date, status
 
@@ -126,7 +126,40 @@ def restrict_timing_answer(answer, calculations, question):
     answer.toConfirm = answer.toConfirm[:2]
 
 
-def build_verification(facts, citations, hits, support, dates, selected_period=None):
+def timing_facts_answer(question, facts, dates):
+    """A narrow, explicitly named period can still yield checked facts if AI prose is withheld.
+
+    This does not infer which procedure is covered, nor which period applies to a diagnosis.
+    """
+    if not dates['requested']:
+        return None
+    kind = ('specific' if re.search(r'\b(specified|specific)[- ](?:disease|illness|procedure)', question, re.I) else
+            'ped' if re.search(r'\b(pre[- ]existing|PED)\b', question, re.I) else
+            'initial' if re.search(r'\binitial waiting|\b30[- ]day', question, re.I) else None)
+    ids = {w.id for w in facts.waitingPeriods if w.kind == kind}
+    choices = [c for c in dates['calculations'] if c.periodId in ids]
+    # The extracted kind alone cannot label a source passage as a specific/PED/initial rule.
+    source_kind = {'specific': r'\b(?:specified|specific)\b|\blisted\s+(?:\w+\s+){0,3}(?:conditions|diseases|procedures)\b',
+                   'ped': r'\bpre[- ]?existing\b|\bPED\b',
+                   'initial': r'\bfirst policy\b|\bpolicy commencement\b|\binitial\b'}
+    choices = [c for c in choices if kind and re.search(source_kind[kind], c.citation.quote, re.I)]
+    if len(choices) != 1:
+        return None
+    c = choices[0]
+    origin = 'fictional example' if facts.demoAssumptions else 'recorded'
+    date_text = lambda value: date.fromisoformat(value).strftime('%d %b %Y').lstrip('0')
+    summary = (f'For the cited {c.duration} {c.label.lower()}, using the {origin} start date of {date_text(c.startDate)}, '
+        f'the period ends on {date_text(c.endDate)}. On {date_text(c.comparisonDate)}, this period '
+        + ('had ended. ' if c.periodEnded else 'was still running. ')
+        + 'Which waiting period and other conditions apply to your treatment still needs confirmation.')
+    return AnswerCard(verdict='info', headline='Waiting-period timing; other conditions still apply', summary=summary,
+        citations=[c.citation.model_copy()], toConfirm=[
+            'Ask whether a different or longer waiting period applies to this treatment or the member’s medical history.',
+            'Confirm continuous cover, any waiver and the benefit limits in the issued schedule or certificate.'],
+        nextAction=NextAction(label='Check policy details',route='/policy')), c.periodId
+
+
+def build_verification(facts, citations, hits, support, dates, selected_period=None, timing_only=False):
     pages = {h['page']: h for h in hits if h.get('originalPage') is True}
     originals = bool(citations) and all(c.page in pages for c in citations)
     quotes = originals and all(matched_quote(c.quote, pages[c.page]['text']) for c in citations)
@@ -141,10 +174,15 @@ def build_verification(facts, citations, hits, support, dates, selected_period=N
             label='AI support review passed' if support is True and quotes else 'Explanation not verified',
             detail='An automated AI review checked the material statements against the supplied evidence. It can still make mistakes.' if support is True and quotes else 'The automated review did not establish support for this explanation.'),
     ]
-    bound = bound_dates(citations, hits, dates, selected_period) if support is True and quotes else []
+    if timing_only:
+        checks[-1] = AnswerCheck(kind='support',status='not_run',label='Coverage conditions to confirm',
+            detail='Showing only the source-checked waiting-period wording and calendar result. A full coverage interpretation is not provided.')
+    bound = bound_dates(citations, hits, dates, selected_period) if (support is True or timing_only) and quotes else []
     if dates['waiting']:
         checks.append(AnswerCheck(kind='dates', status='passed' if bound else 'not_confirmed' if dates['requested'] else 'not_run',
             label='Dates compared in code' if bound else 'Dates still need checking' if dates['requested'] else 'Dates not compared',
             detail='Waiting-period end dates were recalculated from the source-matched duration and the recorded start date.' if bound else 'No verified date result is attached. Confirm the relevant waiting period, continuity/start date and planned treatment date.'))
     return AnswerVerification(policyId=facts.policyId, policyName=facts.planName, checks=checks, dates=bound,
-        missingInputs=dates['missing'], qualification='Source matching, an automated support review and date arithmetic are separate checks. They do not establish that treatment is covered or a claim will be approved.')
+        scope='timing_only' if timing_only else 'explanation', missingInputs=dates['missing'],
+        qualification='Timing only; confirm the applicable benefit and other conditions before relying on coverage.' if timing_only else
+        'These checks support the explanation. Your insurer confirms coverage and payment.')

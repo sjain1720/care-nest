@@ -23,7 +23,7 @@ export const exampleWorkspaceGuard: CanActivateFn = (route, state) => {
 export const generalWorkspaceGuard: CanActivateFn = (route) => {
   const workspace = inject(WorkspaceService), api = inject(ApiService);
   const requested = route.queryParamMap.get('workspace');
-  const mode: Workspace = requested === 'personal' || requested === 'example' ? requested : workspace.choice() ?? 'general';
+  const mode: Workspace = requested === 'personal' || requested === 'example' ? requested : 'general';
   if (mode !== 'general') workspace.select(mode);
   return from(inject(VisitorProfileService).load()).pipe(switchMap(() => api.activateWorkspace(mode))).pipe(map(() => true), catchError(() => { api.clearWorkspace(); return of(true); }));
 };
@@ -31,6 +31,7 @@ export const chatWorkspaceGuard: CanActivateFn = (route, state) => {
   if (!inject(WorkspaceService).choice() && !route.queryParamMap.get('workspace')) {
     inject(WorkspaceService).choosing.set(true); return generalWorkspaceGuard(route, state);
   }
-  return route.queryParamMap.get('workspace') === 'general'
-    ? generalWorkspaceGuard(route, state) : exampleWorkspaceGuard(route, state);
+  const requested = route.queryParamMap.get('workspace');
+  return requested === 'personal' || requested === 'example'
+    ? exampleWorkspaceGuard(route, state) : generalWorkspaceGuard(route, state);
 };

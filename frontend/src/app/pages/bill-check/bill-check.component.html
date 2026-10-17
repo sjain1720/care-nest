@@ -59,12 +59,13 @@
     }
 
     <section class="card" id="policy-evidence">
-      <h2>Bill rows and policy wording</h2>
-      <p>Confirm the bill first, then retrieve related wording from the selected policy. A verified quote does not establish claim approval.</p>
+      <h2>Policy references for your bill</h2>
+      <p>Find wording that may relate to each charge. Your selected benefits and policy conditions determine how it applies.</p>
       <button mat-flat-button type="button" (click)="comparePolicy()" [disabled]="!b.reviewed || evidenceLoading()">{{ evidenceLoading() ? 'Comparing…' : 'Compare reviewed bill with policy' }}</button>
       @if (evidenceError()) { <p role="alert">{{ evidenceError() }}</p> }
       @if (b.policyAnalysis; as analysis) {
-        @for (row of analysis.rows; track row.id) {
+        <p>{{ matchedPolicyRows().length }} charges have related policy wording. {{ pendingPolicyRows().length }} need further clarification.</p>
+        @for (row of matchedPolicyRows(); track row.id) {
           <div class="card" style="margin-top:12px">
             <strong>{{ row.description }} ({{ row.id }}) · Bill page {{ row.billPage }} · {{ row.amount | inr }}</strong>
             <p>{{ row.explanation }}</p>
@@ -72,6 +73,19 @@
             @for (citation of row.citations; track $index) { <app-citation-chip [citation]="citation" /> }
             @for (missing of row.missingInformation; track $index) { <p class="muted small">Check: {{ missing }}</p> }
           </div>
+        }
+        @if (pendingPolicyRows().length) {
+          <details style="margin-top:12px"><summary>Charges needing clarification ({{ pendingPolicyRows().length }})</summary>
+            <p class="muted small">A bill charge alone may not establish the applicable benefit. These items need the schedule, item details or an insurer explanation; this does not mean they are excluded.</p>
+            @for (row of pendingPolicyRows(); track row.id) {
+              <div style="padding:12px 0;border-top:1px solid var(--cn-border)">
+                <strong>{{ row.description }} · {{ row.amount | inr }}</strong>
+                <p>Confirm the benefit or clause used for this charge.</p>
+                <button mat-button type="button" (click)="openPage(row.billPage)">See bill page {{ row.billPage }}</button>
+                @for (missing of row.missingInformation; track $index) { <p class="muted small">{{ missing }}</p> }
+              </div>
+            }
+          </details>
         }
         @if (analysis.omittedRows) { <p>{{ analysis.omittedRows }} additional rows need separate review.</p> }
       }

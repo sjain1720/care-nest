@@ -70,7 +70,7 @@ export class ChatService {
   readonly pageVisible = signal(false);
   /** Answers that arrived while the chat was closed. */
   readonly unread = computed(() => this.active().unread());
-  readonly live = isLive('ask');
+  get live(): boolean { return this.workspace.mode() !== 'example' || isLive('ask'); }
   /** False after a question failed, until the next one gets through. */
   readonly reachable = computed(() => this.active().reachable());
   readonly contextLabel = computed(() => this.workspace.mode() === 'general' ? 'General insurance guidance' : this.workspace.mode() === 'personal' ? 'Your documents · private guest workspace' : "Your fictional example workspace");

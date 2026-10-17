@@ -3,6 +3,18 @@ from unittest.mock import Mock, patch
 from app.services import bill_policy, conversation, copilot
 
 class EvidenceTests(unittest.TestCase):
+    def test_literal_room_context_retains_source_without_certifying_benefit_applicability(self):
+        text='If the Insured Person incurs Room Rent higher than the eligible Room Rent in the Policy Schedule, only a rateable proportion applies.'
+        rows=[{'id':'b1','category':'room','clauseRefs':['C1']}]
+        for original in (True,False):
+            results=[{'id':'b1','assessment':'needs_checking','citations':[]}]
+            result=bill_policy.retain_room_wording(results,rows,{'C1':{'page':17,'label':'Room rent','text':text,'originalPage':original}},'p')[0]
+            self.assertEqual(result['assessment'],'related_clause' if original else 'needs_checking')
+            if original:
+                self.assertEqual(result['basis'],'charge_type_wording')
+                self.assertEqual(result['verificationIssues'],['benefit_applicability_pending'])
+                self.assertNotIn('covered',result['explanation'])
+
     def setUp(self):
         self.text='Hospital room charges are payable subject to the room limit specified in the policy schedule.'
         self.rows=[{'id':'b1','amount':10000,'page':1,'clauseRefs':['C1']}]

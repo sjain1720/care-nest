@@ -133,7 +133,7 @@ export class ApiService {
     const mode = this.workspace.mode();
     return tap(value => { if (mode === this.workspace.mode()) fn(value); });
   }
-  private live(feature: Feature): boolean { return isLive(feature) || this.workspace.mode() === 'personal'; }
+  private live(feature: Feature): boolean { return isLive(feature) || this.workspace.mode() !== 'example'; }
   private http = inject(HttpClient);
   private settings = inject(SettingsService);
   readonly workspace = inject(WorkspaceService);

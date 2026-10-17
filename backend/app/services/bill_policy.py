@@ -5,6 +5,7 @@ import re
 from google.genai import types
 from pydantic import BaseModel, Field, create_model
 from typing import Literal
+from urllib.parse import urlencode
 from app.core.config import get_settings
 from app.core.gcp import gemini
 from app.services import case_store, policy_store
@@ -12,6 +13,7 @@ from app.services.embeddings import embed_texts
 from app.services.grounding import quote_in_text
 from app.services.policy_sources import page_sources
 from app.services.answer_support import check_rows
+from app.services.answer_evidence import matched_quote
 
 class Quote(BaseModel):
     ref: str
@@ -34,7 +36,7 @@ predict approval. If no wording fits, return no citations. General non-payable l
 proof of policy exclusions. At most 60 words per explanation and 3 missing-information entries.'''
 
 def fingerprint(policy_id, facts, bill):
-    payload = {'evidenceVersion': 'row-constrained-pages-v5', 'policy': policy_id, 'schedule': {k: facts.get(k) for k in ('roomRent','coPay','startDate','userProvided')},
+    payload = {'evidenceVersion': 'row-constrained-pages-v6-room-context', 'policy': policy_id, 'schedule': {k: facts.get(k) for k in ('roomRent','coPay','startDate','userProvided')},
                'items': bill['items'], 'reviewed': bill.get('reviewed')}
     return hashlib.sha256(json.dumps(payload, sort_keys=True, default=str).encode()).hexdigest()
 
@@ -77,7 +79,7 @@ def analyse_bill_policy():
     selected = bill['items'][:60]
     categories = sorted({r['category'] for r in selected})
     terms = {'room':'Room rent capping with proportionate deduction, eligible room rent, associated medical expenses and exceptions',
-             'implant':'Medical implants actual amounts, room rent proportionate deduction exception, surgical appliances and prosthetic devices'}
+             'implants':'Medical implants actual amounts, room rent proportionate deduction exception, surgical appliances and prosthetic devices'}
     queries = [terms.get(c, f'Health insurance benefits, exclusions and limits for {c}') + ': '+ '; '.join(r['description'] for r in selected if r['category']==c)[:450] for c in categories]
     candidates, by_category = {}, {}
     for category, vector in zip(categories, embed_texts(queries,'RETRIEVAL_QUERY')):
@@ -100,6 +102,7 @@ def analyse_bill_policy():
         output=Analysis(rows=[])
     verified = verify_rows(output,rows,candidates)
     relevant = check_relevance(verified, selected, candidates)
+    relevant = retain_room_wording(relevant, rows, candidates, policy_id)
     analysis={'policyId':policy_id,'fingerprint':digest,'rows':relevant,
               'omittedRows':max(0,len(bill['items'])-60),'limitations':['Quotes are checked; applicability requires review.','No approval or payout is established.']}
     current = case_store.get_case().get('bill')
@@ -109,6 +112,40 @@ def analyse_bill_policy():
         raise LookupError('The bill or policy changed during comparison. Compare the current reviewed bill again.')
     case_store.update_case({'bill':{**current,'policyAnalysis':analysis}})
     return analysis
+
+
+def retain_room_wording(verified, rows, candidates, policy_id):
+    """Literal room-rent wording can be shown as context, without certifying its applicability.
+
+    Independent AI rejection still withholds its interpretation. This bounded
+    fallback emits only a copied passage and questions, never a coverage finding.
+    """
+    for row in rows:
+        if row['category'] != 'room':
+            continue
+        result = next((r for r in verified if r['id'] == row['id']), None)
+        if not result or result['assessment'] == 'related_clause':
+            continue
+        for ref in row['clauseRefs']:
+            source = candidates.get(ref)
+            if not source or source.get('originalPage') is not True:
+                continue
+            for match in re.finditer(r'[^.\n]{0,120}\bRoom\s+Rent\b[^.]{0,650}\.', source['text'], re.I):
+                quote = match.group().strip()
+                if not (8 <= len(quote.split()) <= 120 and re.search(r'eligible|limit|policy\s+schedule|rateable|proportion', quote, re.I)
+                        and matched_quote(quote, source['text'])):
+                    continue
+                result.update(assessment='related_clause', basis='charge_type_wording',
+                    explanation='Room-rent wording is available for this charge. Confirm the selected benefit and daily limit in the issued schedule before applying it.',
+                    verificationIssues=['benefit_applicability_pending'],
+                    citations=[{'docId':'policy','docName':'Policy wording','page':source['page'],'clause':source['label'],
+                                'quote':quote,'docUrl':'/api/policy/document?'+urlencode({'policyId':policy_id})}],
+                    missingInformation=['Confirm the selected room benefit and daily limit in the issued schedule or certificate.',
+                                        'Confirm whether this hospital uses different tariffs by room category.'])
+                break
+            if result['assessment'] == 'related_clause':
+                break
+    return verified
 
 
 def constrained_output(rows):

@@ -82,10 +82,10 @@ def answer(question: str, on_step: Callable[[AgentStep], None] | None = None, la
     if general_only:
         # Public welcome chat never consults a selected policy, case, balances or
         # ADK, even if this browser has previously visited the example workspace.
-        from app.services.general_qa import general_answer
+        from app.services.general_qa import general_answer, needs_policy
+        if keyword_about(original_question or question) == 'mine':
+            return AskResponse(steps=log.steps, answer=needs_policy().model_copy(update={'general': True}))
         result = general_answer(question, log, language, has_policy=False)
-        result.nextAction = NextAction(label="Open the fictional dashboard", route='/dashboard')
-        result.secondaryAction = None
         return AskResponse(steps=log.steps, answer=result)
     if re.search(r"\b(remaining (cover|coverage|sum insured)|(?:cover|coverage) (?:is )?(?:left|remaining)|how much (?:cover|coverage).*left|my (?:insurance )?balance)\b|कितन[ाी].*कवर.*बचा|बीमा.*शेष", question, re.I):
         log.add('Verifier', 'Calculating from the selected policy and linked recorded payments')

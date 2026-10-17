@@ -19,7 +19,7 @@ from app.services.plain_language import NEXT_STEPS, STYLE, language_rule
 from app.services.steps import StepLog
 from app.services.answer_support import check_support
 from app.services.policy_sources import page_sources
-from app.services.answer_evidence import bound_dates, build_verification, include_waiting_sources, matched_quote, prepare_dates, restrict_timing_answer
+from app.services.answer_evidence import bound_dates, build_verification, include_waiting_sources, matched_quote, prepare_dates, restrict_timing_answer, timing_facts_answer
 
 TOP_K = 6
 _NEXT = {
@@ -163,13 +163,21 @@ def answer_question(question: str, today: date | None = None, log: StepLog | Non
         sources=[h for h in hits if any(c.page==h['page'] and c.clause==h['label'] for c in answer.citations)]
         support = check_support(question, answer.model_dump(), facts_text, sources)
         if not support:
-            answer=answer.model_copy(update={'verdict':'cant_confirm', 'headline':'I cannot verify this answer from the wording',
-                'summary':'The retrieved policy wording does not sufficiently support an answer to this question. Ask your insurer to confirm the applicable benefit and conditions.',
+            answer=answer.model_copy(update={'verdict':'cant_confirm', 'headline':'A policy detail needs clarification',
+                'summary':'I do not have enough supported information to answer this reliably yet. Check the relevant benefit and conditions in the issued schedule or certificate.',
                 'citations':[], 'toConfirm':['Ask the insurer for the applicable clause in writing.']})
+    timing_only = False
+    selected_period = out.waitingPeriodId
+    if support is not True or (dates['requested'] and not bound_dates(answer.citations, hits, dates, selected_period)):
+        fallback = timing_facts_answer(question, facts, dates)
+        if fallback:
+            answer, selected_period = fallback
+            timing_only = True
+            log.add('Verifier', 'Keeping source-checked timing facts separate from unconfirmed coverage conditions')
     source_url = '/api/policy/document?' + urlencode({'policyId': policy_id})
     for citation in answer.citations:
         citation.docUrl = source_url
-    proof = build_verification(facts.model_copy(update={'policyId': policy_id}), answer.citations, hits, support, dates, out.waitingPeriodId)
+    proof = build_verification(facts.model_copy(update={'policyId': policy_id}), answer.citations, hits, support, dates, selected_period, timing_only=timing_only)
     for calculation in proof.dates:
         calculation.citation = calculation.citation.model_copy(update={'docUrl': source_url})
     if dates['requested'] and not proof.dates and answer.citations:
@@ -213,9 +221,9 @@ def verify_answer(out: AnswerOut, hits: list[dict]) -> tuple[AnswerCard, tuple[i
     headline, summary, to_confirm = out.headline, out.summary, list(out.toConfirm)
     if not citations and verdict != "cant_confirm":
         verdict = "cant_confirm"
-        headline = "I couldn't confirm this from your policy"
-        summary = "The retrieved wording did not provide a verified source for this answer. Please check the policy or ask your insurer."
-        to_confirm.insert(0, "We couldn't find wording in your policy that supports an answer. Ask your insurer and keep the reply in writing.")
+        headline = 'A policy detail needs clarification'
+        summary = 'The available wording is not enough to answer this reliably. Check the applicable benefit in the issued schedule or certificate, or ask the insurer to confirm it in writing.'
+        to_confirm.insert(0, 'Confirm the applicable benefit and conditions in your issued schedule or certificate.')
     if _PROMISE.search(f"{headline} {summary}"):
         to_confirm.append("Only your insurer can confirm the final amount paid.")
 

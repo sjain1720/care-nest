@@ -14,15 +14,17 @@ import { ChatService } from '../services/chat.service';
   imports: [DatePipe, FormsModule, MatButtonModule, MatIconModule, CitationChipComponent],
   template: `
     <section class="proof" aria-label="Answer evidence and checks">
-      <h4>What we checked</h4>
+      <h4>{{ hasEvidence() ? 'What we checked' : 'One more policy detail is needed' }}</h4>
+      @if (hasEvidence()) {
       <ul class="checks" aria-label="Completed and missing checks">
-        @for (check of verification().checks; track check.kind) {
+        @for (check of visibleChecks(); track check.kind) {
           <li [class.passed]="check.status === 'passed'" [class.unconfirmed]="check.status === 'not_confirmed'">
             <mat-icon aria-hidden="true">{{ check.status === 'passed' ? 'check_circle' : check.status === 'not_run' ? 'radio_button_unchecked' : 'help_outline' }}</mat-icon>
             {{ check.label }}
           </li>
         }
       </ul>
+      } @else { <p class="qualification">The available information does not yet support a reliable answer. Add the relevant policy pages or issued schedule, or ask the insurer to clarify the benefit.</p> }
       @if (verification().dates.length) {
         <p class="date-origin">{{ verification().dates[0].startDateOrigin }} · timing only.</p>
       }
@@ -44,7 +46,7 @@ import { ChatService } from '../services/chat.service';
             <app-citation-chip [citation]="citation" />
             <blockquote>{{ citation.quote }}</blockquote>
           </div>
-        } @empty { <p>No supporting quotation is attached to this answer.</p> }
+        }
         @for (calculation of verification().dates; track calculation.periodId) {
           <section class="date-check" aria-label="Waiting-period date calculation">
             <h5>{{ calculation.label }} · {{ calculation.duration }}</h5>
@@ -57,16 +59,16 @@ import { ChatService } from '../services/chat.service';
             <p>{{ calculation.startDateOrigin }}. Confirm continuity, member applicability and any waivers.</p>
           </section>
         }
-        <dl class="check-details">
-          @for (check of verification().checks; track check.kind) {
+        @if (hasEvidence()) { <dl class="check-details">
+          @for (check of visibleChecks(); track check.kind) {
             <div><dt>{{ check.label }}</dt><dd>{{ check.detail }}</dd></div>
           }
-        </dl>
+        </dl> }
         @if (verification().missingInputs.length) {
           <p><strong>Still needed:</strong> {{ verification().missingInputs.join(' ') }}</p>
         }
       </details>
-      <p class="qualification">{{ verification().qualification }}</p>
+      @if (hasEvidence()) { <p class="qualification">{{ verification().qualification }}</p> }
     </section>
   `,
   styles: `
@@ -100,6 +102,11 @@ export class AnswerEvidenceComponent {
   citations = input<Citation[]>([]);
   readonly dateInputId = 'treatment-date-' + crypto.randomUUID();
   plannedDate = '';
+  hasEvidence(): boolean { return this.verification().checks.some(c => c.kind === 'quote' && c.status === 'passed'); }
+  visibleChecks() {
+    return this.verification().checks.filter(c => c.status === 'passed' || c.kind === 'dates'
+      || (c.kind === 'support' && this.verification().scope === 'timing_only'));
+  }
   needsTreatmentDate(): boolean { return this.verification().missingInputs.some(text => text.includes('planned treatment date')); }
   sendDate(): void {
     if (this.plannedDate && this.chat.send(`My planned treatment date is ${this.plannedDate}. Please recheck the waiting-period timing.`)) this.plannedDate = '';

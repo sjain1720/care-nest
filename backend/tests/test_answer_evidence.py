@@ -80,7 +80,7 @@ class AnswerEvidenceTests(unittest.TestCase):
     def test_service_attaches_actual_checks_and_does_not_approve_coverage(self):
         answer=self.answer('Cataract surgery on 2026-09-12?').answer
         self.assertEqual(answer.verification.dates[0].endDate,'2027-03-12')
-        self.assertIn('do not establish',answer.verification.qualification)
+        self.assertIn('insurer confirms',answer.verification.qualification)
 
     def test_unsupported_answer_or_missing_dates_cannot_inherit_green_checks(self):
         answer=self.answer('Cataract surgery on 2026-09-12?',support=False).answer
@@ -96,6 +96,28 @@ class AnswerEvidenceTests(unittest.TestCase):
         self.assertFalse(answer.citations)
         self.assertIsNone(answer.verification)
         self.assertIn('changed',answer.headline)
+
+    def test_failed_ai_interpretation_does_not_discard_independently_checked_timing(self):
+        answer=self.answer('For cataract surgery on 2026-09-12, has my specified disease waiting period ended?',support=False).answer
+        self.assertEqual(answer.verification.scope,'timing_only')
+        self.assertEqual(answer.verification.dates[0].endDate,'2027-03-12')
+        self.assertEqual(next(c.status for c in answer.verification.checks if c.kind=='support'),'not_run')
+        self.assertEqual(next(c.status for c in answer.verification.checks if c.kind=='dates'),'passed')
+        self.assertNotIn('is covered',answer.summary)
+        self.assertTrue(answer.citations)
+
+    def test_timing_fallback_does_not_infer_applicable_period_from_diagnosis(self):
+        answer=self.answer('Does cataract surgery on 2026-09-12 qualify?',support=False).answer
+        self.assertEqual(answer.verdict,'cant_confirm')
+        self.assertFalse(answer.verification.dates)
+
+    def test_timing_fallback_does_not_trust_extracted_kind_without_source_anchor(self):
+        from app.services.answer_evidence import timing_facts_answer
+        f=facts();text='This unrelated benefit requires 24 months of continuous coverage.'
+        f.waitingPeriods[0].citation.quote=text
+        dates=prepare_dates('For surgery on 2026-09-12, has the specified disease waiting period ended?',f,hits(text),date(2026,10,17))
+        self.assertTrue(dates['calculations'])
+        self.assertIsNone(timing_facts_answer('Has the specified disease waiting period ended?',f,dates))
 
     def test_old_citation_link_cannot_open_replacement_policy(self):
         from fastapi import HTTPException

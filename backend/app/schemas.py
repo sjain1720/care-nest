@@ -136,6 +136,7 @@ class WaitingDateEvidence(BaseModel):
 class AnswerVerification(BaseModel):
     policyId: str
     policyName: str
+    scope: Literal['explanation', 'timing_only'] = 'explanation'
     checks: list[AnswerCheck]
     dates: list[WaitingDateEvidence] = Field(default_factory=list)
     missingInputs: list[str] = Field(default_factory=list)

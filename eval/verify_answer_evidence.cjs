@@ -36,7 +36,8 @@ function check(name, passed) { report.checks.push({ name, passed: !!passed }); i
     report.verdict = answer.verdict; report.checksFromApi = answer.verification?.checks;
     check('Answer carries server-authored checks', !!answer.verification);
     check('Original policy citations retained', answer.citations.length > 0);
-    check('AI support review passed', answer.verification.checks.find(c => c.kind === 'support')?.status === 'passed');
+    check('Explanation reviewed or explicitly limited to checked timing', answer.verification.checks.find(c => c.kind === 'support')?.status === 'passed'
+      || (answer.verification.scope === 'timing_only' && answer.verification.checks.find(c => c.kind === 'support')?.status === 'not_run'));
     check('Backend date calculation attached', answer.verification.dates.length === 1);
     check('Real Kotak specific period is 12 months', answer.verification.dates[0].duration === '12 months');
     check('Date result uses recorded start and planned date', answer.verification.dates[0].endDate === '2025-03-12' && answer.verification.dates[0].comparisonDate === '2025-09-12');

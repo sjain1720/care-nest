@@ -30,7 +30,7 @@ class GeneralBoundaryTests(unittest.TestCase):
             result = copilot.answer('Investigate my claim and remaining cover', general_only=True)
             self.assertTrue(result.answer.general)
             self.assertEqual(result.answer.citations, [])
-            self.assertEqual(result.answer.nextAction.route, '/dashboard')
+            self.assertEqual(result.answer.nextAction.route, '/upload')
             self.assertEqual(conversation.scope_key(True), 'general-insurance-v1')
 
     def test_example_owner_is_server_resolved_but_cookie_remains_parent(self):

@@ -64,6 +64,8 @@ export class BillCheckComponent {
   bill = toSignal(this.api.getBill());
   claimCase = toSignal(this.api.getCase());
   settlement = toSignal(this.api.getSettlement());
+  matchedPolicyRows = computed(() => this.bill()?.policyAnalysis?.rows.filter(r => r.assessment === 'related_clause') ?? []);
+  pendingPolicyRows = computed(() => this.bill()?.policyAnalysis?.rows.filter(r => r.assessment !== 'related_clause') ?? []);
 
   issues = computed(() => (this.bill()?.checks ?? []).filter((c) => c.severity !== 'info'));
 
