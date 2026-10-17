@@ -42,6 +42,9 @@ function check(name, passed) { report.checks.push({ name, passed: !!passed }); i
     check('Real Kotak specific period is 12 months', answer.verification.dates[0].duration === '12 months');
     check('Date result uses recorded start and planned date', answer.verification.dates[0].endDate === '2025-03-12' && answer.verification.dates[0].comparisonDate === '2025-09-12');
     check('Timing does not become a coverage verdict', answer.verdict !== 'covered');
+    check('Treatment listing is linked to the actual waiting rule', answer.verification.treatment?.treatment === 'Cataract'
+      && answer.verification.treatment.ruleCitation.page === 18 && answer.verification.treatment.listCitation.page === 19);
+    check('Both policy pages retained', [18, 19].every(page => answer.citations.some(c => c.page === page)));
     const p = await c.newPage(), errors = []; p.on('pageerror', e => errors.push(e.message));
     let replay = answer; const sent = [];
     await p.route('**/api/copilot/ask/stream*', route => {
@@ -50,7 +53,9 @@ function check(name, passed) { report.checks.push({ name, passed: !!passed }); i
     });
     await p.goto(base + '/ask?workspace=example&q=' + encodeURIComponent(question), { waitUntil: 'networkidle' });
     const panel = p.locator('app-answer-evidence'); await panel.waitFor();
-    check('Evidence starts compact', await panel.locator('details').getAttribute('open') === null);
+    check('Evidence starts compact', await panel.locator('details').first().getAttribute('open') === null);
+    check('Check explanations start collapsed', await panel.locator('details.check-method').getAttribute('open') === null);
+    check('Treatment proof is visible without expanding', await panel.locator('.checks li').filter({ hasText: 'Treatment listed' }).isVisible());
     await panel.getByText('See policy evidence and inputs', { exact: true }).click();
     check('Quotation is readable before opening PDF', await panel.locator('blockquote').count() > 0);
     check('Fictional start-date origin disclosed', (await panel.innerText()).includes('Fictional example start date'));

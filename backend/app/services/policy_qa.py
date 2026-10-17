@@ -19,6 +19,7 @@ from app.services.plain_language import NEXT_STEPS, STYLE, language_rule
 from app.services.steps import StepLog
 from app.services.answer_support import check_support
 from app.services.policy_sources import page_sources
+from app.services.grounding import normalize
 from app.services.answer_evidence import bound_dates, build_verification, include_waiting_sources, matched_quote, prepare_dates, restrict_timing_answer, timing_facts_answer
 
 TOP_K = 6
@@ -65,6 +66,9 @@ Rules:
   Use only those computed dates; raw extracted/cached end dates are not verified. If dates are missing, ask for them.
   Elapsed waiting time alone NEVER establishes that treatment is covered. Mention relevant longer PED periods,
   continuity/portability, endorsements and schedule conditions when the cited wording makes them relevant.
+- For a named treatment, cite BOTH the waiting-duration rule and the treatment's entry in that rule's list,
+  including an adjacent continuation page when supplied. A mention in an unrelated benefit is not list evidence.
+  Keep the timing conclusion short; put remaining conditions in toConfirm rather than repeating the same caution.
 - If the policy type is not health_indemnity, explain what that policy type pays before answering.
 - A disease name alone does not establish that it is pre-existing. Unless the question or facts establish
   when it began under the policy's definition, use needs_checking when the answer depends on PED status;
@@ -155,12 +159,20 @@ def answer_question(question: str, today: date | None = None, log: StepLog | Non
 
     if out.verdict == 'covered' and re.match(r'^(what is|how much|how soon|which documents|what documents)\b', question.strip(), re.I):
         out = out.model_copy(update={'verdict': 'info'})
-    answer, checked = verify_answer(out, hits)
+    answer, _ = verify_answer(out, hits)
+    # Retain the literal rule/list chain even when the model quotes a shorter
+    # fragment. This adds source evidence, never an independent coverage verdict.
+    if bound_dates(answer.citations, hits, dates, out.waitingPeriodId):
+        linked = next((t for t in dates.get('treatments', []) if t.periodId == out.waitingPeriodId), None)
+        if linked:
+            for citation in (linked.ruleCitation, linked.listCitation, linked.conditionCitation):
+                if citation and not any(c.page == citation.page and normalize(c.quote) == normalize(citation.quote) for c in answer.citations):
+                    answer.citations.append(citation.model_copy())
     restrict_timing_answer(answer, bound_dates(answer.citations, hits, dates, out.waitingPeriodId), question)
     support = None
     if answer.citations:
         log.add('Verifier', 'Checking whether the cited wording supports the explanation')
-        sources=[h for h in hits if any(c.page==h['page'] and c.clause==h['label'] for c in answer.citations)]
+        sources=[h for h in hits if any(c.page==h['page'] for c in answer.citations)]
         support = check_support(question, answer.model_dump(), facts_text, sources)
         if not support:
             answer=answer.model_copy(update={'verdict':'cant_confirm', 'headline':'A policy detail needs clarification',
@@ -180,6 +192,11 @@ def answer_question(question: str, today: date | None = None, log: StepLog | Non
     proof = build_verification(facts.model_copy(update={'policyId': policy_id}), answer.citations, hits, support, dates, selected_period, timing_only=timing_only)
     for calculation in proof.dates:
         calculation.citation = calculation.citation.model_copy(update={'docUrl': source_url})
+    if proof.treatment:
+        for field in ('ruleCitation', 'listCitation', 'conditionCitation'):
+            citation = getattr(proof.treatment, field)
+            if citation:
+                setattr(proof.treatment, field, citation.model_copy(update={'docUrl': source_url}))
     if dates['requested'] and not proof.dates and answer.citations:
         # A model support score cannot substitute for the date arithmetic/binding.
         answer = answer.model_copy(update={'verdict': 'needs_checking', 'headline': 'Confirm the dates before relying on this answer',
@@ -194,7 +211,9 @@ def answer_question(question: str, today: date | None = None, log: StepLog | Non
         return AskResponse(steps=log.steps, answer=AnswerCard(verdict='cant_confirm',
             headline='Your policy details changed', summary='Please ask again so I can use the current policy and dates.',
             citations=[], toConfirm=[], nextAction=_NEXT['policy']))
-    log.add("Verifier", f"Checked sources: {checked[0]} of {checked[1]} quotes found in your policy")
+    retained = sum(any(h.get('originalPage') is True and h['page'] == c.page and matched_quote(c.quote,h['text']) for h in hits)
+                   for c in answer.citations)
+    log.add('Verifier', f'Retained {retained} source-matched policy quotations')
     if about == "general" and answer.verdict == "cant_confirm":
         # The policy doesn't cover a general question: explain it generally, clearly marked as not from the policy.
         return AskResponse(steps=log.steps, answer=general_answer(question, log, language, has_policy=True))

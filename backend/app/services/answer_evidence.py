@@ -2,7 +2,7 @@
 import re
 from datetime import date
 
-from app.schemas import AnswerCard, AnswerCheck, AnswerVerification, NextAction, PolicyFacts, WaitingDateEvidence
+from app.schemas import AnswerCard, AnswerCheck, AnswerVerification, Citation, NextAction, PolicyFacts, WaitingDateEvidence, WaitingTreatmentEvidence
 from app.services.grounding import normalize
 from app.services.waiting_periods import end_date, parse_date, status
 
@@ -14,6 +14,9 @@ _COMPARISON = re.compile(r'\b(?:today|now|yet|still|ended|elapsed)\b|\bafter\s+\
 _PLANNED_DATE = re.compile(
     r'\b(?:planned (?:admission|treatment|surgery) date\s*(?:is|:)?|'
     r'(?:admission|treatment|surgery|operation)\s+(?:(?:is\s+)?(?:planned|scheduled)\s+)?(?:on|for))\s*(\d{4}-\d{2}-\d{2})\b', re.I)
+_SPECIFIC_HEADING = re.compile(r'(?:specified|specific)\s+disease\s*/\s*procedure\s+waiting\s+period[^\n]*', re.I)
+_LIST_HEADING = re.compile(r'List\s+of\s+(?:specific|specified)\s+diseases\s*/\s*procedures', re.I)
+_SECTION = re.compile(r'^\s*(?:\d{1,2}[.)]\s+[A-Z]|Specific Exclusions\b)', re.M | re.I)
 
 
 def matched_quote(quote: str, text: str) -> bool:
@@ -91,7 +94,72 @@ def prepare_dates(question: str, facts: PolicyFacts, hits: list[dict], today: da
                 duration=period.duration, startDate=start.isoformat(), startDateOrigin=origin,
                 comparisonDate=comparison.isoformat(), endDate=end.isoformat(), periodEnded=checked['over'],
                 daysRemaining=checked['daysLeft'], citation=period.citation))
-    return {'waiting': waiting, 'requested': comparison_requested, 'calculations': calculations, 'missing': missing}
+    specific_ids = {w.id for w in facts.waitingPeriods if w.kind == 'specific'}
+    treatments = [link for c in calculations if c.periodId in specific_ids
+                  if (link := link_waiting_treatment(question, c, hits)) is not None]
+    return {'waiting': waiting, 'requested': comparison_requested, 'calculations': calculations,
+            'missing': missing, 'treatments': treatments}
+
+
+def link_waiting_treatment(question, calculation, hits):
+    """Literal list membership within the same waiting-rule section, never coverage.
+
+    Conservative format support: a named rule followed by an explicit lettered list
+    on that page or its immediate continuation. Unrecognized/conditional entries
+    remain for interpretation; a mention in a separate benefit cannot qualify.
+    """
+    pages = {h['page']: h for h in hits if h.get('originalPage') is True}
+    rule = pages.get(calculation.citation.page)
+    if not rule or not matched_quote(calculation.citation.quote, rule['text']):
+        return None
+    headings = list(_SPECIFIC_HEADING.finditer(rule['text']))
+    sections = []
+    for heading in headings:
+        tail = rule['text'][heading.end():]
+        boundary = _SECTION.search(tail)
+        body = tail[:boundary.start()] if boundary else tail
+        if not matched_quote(calculation.citation.quote, body):
+            continue
+        sections.append((rule, body))
+        if not boundary and rule['page'] + 1 in pages:
+            continuation = pages[rule['page'] + 1]
+            boundary = _SECTION.search(continuation['text'])
+            sections.append((continuation, continuation['text'][:boundary.start()] if boundary else continuation['text']))
+    links = []
+    for page, text in sections:
+        header = _LIST_HEADING.search(text)
+        if not header:
+            continue
+        entries = list(re.finditer(r'\([a-z]\)\s*', text[header.end():], re.I))
+        for i, entry in enumerate(entries):
+            start = header.end() + entry.end()
+            end = header.end() + entries[i + 1].start() if i + 1 < len(entries) else len(text)
+            raw = text[start:end].strip()
+            name = raw.rstrip('; .').strip()
+            # Only simple, complete entries. Do not erase "unless", alternatives,
+            # qualifiers, or infer synonyms/disease history from extracted metadata.
+            if not re.fullmatch(r'[A-Za-z]+(?:[ -][A-Za-z]+){0,5}', name) or re.search(
+                    r'\b(unless|except|and|or|not|following|subject|all|other)\b', name, re.I):
+                continue
+            named = re.search(r'\b' + re.escape(normalize(name)) + r'\b', normalize(question))
+            if not named or re.search(r'\b(not|without|except)\s*$', normalize(question)[:named.start()]):
+                continue
+            quote = text[header.start():end].strip()
+            if len(quote) > 1200 or not matched_quote(quote, page['text']):
+                continue
+            condition = None
+            # Retain the full conditional sentence, not a generic PED assertion.
+            condition_pattern = re.compile(r'If\s+any\s+of\s+the\s+specified\s+disease/procedure\s+falls\s+under[^.]{0,500}longer\s+of\s+the\s+two\s+waiting\s+periods\s+shall\s+apply\.', re.I)
+            for source, section in sections:
+                found = condition_pattern.search(section)
+                if found and matched_quote(found.group(), source['text']):
+                    condition = Citation(page=source['page'], clause='Longer waiting-period condition', quote=found.group())
+                    break
+            links.append(WaitingTreatmentEvidence(periodId=calculation.periodId, treatment=name,
+                ruleCitation=calculation.citation.model_copy(),
+                listCitation=Citation(page=page['page'], clause='Specified disease/procedure list', quote=quote),
+                conditionCitation=condition))
+    return links[0] if len(links) == 1 else None
 
 
 def bound_dates(citations, hits, dates, selected_period):
@@ -146,16 +214,29 @@ def timing_facts_answer(question, facts, dates):
     if len(choices) != 1:
         return None
     c = choices[0]
+    treatment = next((t for t in dates.get('treatments', []) if t.periodId == c.periodId), None)
     origin = 'fictional example' if facts.demoAssumptions else 'recorded'
     date_text = lambda value: date.fromisoformat(value).strftime('%d %b %Y').lstrip('0')
-    summary = (f'For the cited {c.duration} {c.label.lower()}, using the {origin} start date of {date_text(c.startDate)}, '
-        f'the period ends on {date_text(c.endDate)}. On {date_text(c.comparisonDate)}, this period '
-        + ('had ended. ' if c.periodEnded else 'was still running. ')
-        + 'Which waiting period and other conditions apply to your treatment still needs confirmation.')
-    return AnswerCard(verdict='info', headline='Waiting-period timing; other conditions still apply', summary=summary,
-        citations=[c.citation.model_copy()], toConfirm=[
-            'Ask whether a different or longer waiting period applies to this treatment or the member’s medical history.',
-            'Confirm continuous cover, any waiver and the benefit limits in the issued schedule or certificate.'],
+    outcome = 'had ended' if c.periodEnded else 'was still running'
+    if treatment:
+        summary = (f'For {treatment.treatment.lower()}, the cited {c.duration} period {outcome} by {date_text(c.comparisonDate)} '
+            f'(rule: page {c.citation.page}; treatment listed: page {treatment.listCitation.page}). '
+            f'Using the {origin} start of {date_text(c.startDate)}, it ends on {date_text(c.endDate)}.')
+    else:
+        summary = (f'The cited {c.duration} period {outcome} on {date_text(c.comparisonDate)}. '
+            f'Using the {origin} start of {date_text(c.startDate)}, it ends on {date_text(c.endDate)}. '
+            'Its applicability to this treatment still needs confirmation.')
+    citations = [c.citation.model_copy()]
+    confirm = ['Confirm continuous cover, member enrolment, any waiver and benefit limits in the issued schedule or certificate.']
+    if treatment:
+        citations.append(treatment.listCitation.model_copy())
+        if treatment.conditionCitation:
+            citations.append(treatment.conditionCitation.model_copy())
+            confirm.insert(0, 'If this treatment also falls under the pre-existing-disease rule, the longer of the two periods applies. Confirm this using the condition’s onset/diagnosis history.')
+    else:
+        confirm.insert(0, 'Ask whether a different or longer waiting period applies to this treatment or the member’s medical history.')
+    return AnswerCard(verdict='info', headline='Waiting period ended; coverage still needs checking' if c.periodEnded else 'Waiting period still running; check applicable conditions', summary=summary,
+        citations=citations, toConfirm=confirm,
         nextAction=NextAction(label='Check policy details',route='/policy')), c.periodId
 
 
@@ -178,11 +259,17 @@ def build_verification(facts, citations, hits, support, dates, selected_period=N
         checks[-1] = AnswerCheck(kind='support',status='not_run',label='Coverage conditions to confirm',
             detail='Showing only the source-checked waiting-period wording and calendar result. A full coverage interpretation is not provided.')
     bound = bound_dates(citations, hits, dates, selected_period) if (support is True or timing_only) and quotes else []
+    treatment = next((t for t in dates.get('treatments', []) if t.periodId == selected_period
+                      and bound and all(any(c.page == ref.page and normalize(c.quote) == normalize(ref.quote) for c in citations)
+                                        for ref in (t.ruleCitation, t.listCitation))), None)
+    if treatment:
+        checks.append(AnswerCheck(kind='treatment',status='passed',label='Treatment listed',
+            detail=f'{treatment.treatment} appears in the specified-disease/procedure list linked to this waiting rule. List membership alone does not establish coverage.'))
     if dates['waiting']:
         checks.append(AnswerCheck(kind='dates', status='passed' if bound else 'not_confirmed' if dates['requested'] else 'not_run',
             label='Dates compared in code' if bound else 'Dates still need checking' if dates['requested'] else 'Dates not compared',
             detail='Waiting-period end dates were recalculated from the source-matched duration and the recorded start date.' if bound else 'No verified date result is attached. Confirm the relevant waiting period, continuity/start date and planned treatment date.'))
     return AnswerVerification(policyId=facts.policyId, policyName=facts.planName, checks=checks, dates=bound,
-        scope='timing_only' if timing_only else 'explanation', missingInputs=dates['missing'],
+        scope='timing_only' if timing_only else 'explanation', missingInputs=dates['missing'], treatment=treatment,
         qualification='Timing only; confirm the applicable benefit and other conditions before relying on coverage.' if timing_only else
         'These checks support the explanation. Your insurer confirms coverage and payment.')

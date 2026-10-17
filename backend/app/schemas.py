@@ -114,7 +114,7 @@ class NextAction(BaseModel):
 
 
 class AnswerCheck(BaseModel):
-    kind: Literal['source', 'quote', 'support', 'dates']
+    kind: Literal['source', 'quote', 'support', 'dates', 'treatment']
     status: Literal['passed', 'not_confirmed', 'not_run']
     label: str
     detail: str
@@ -133,12 +133,21 @@ class WaitingDateEvidence(BaseModel):
     citation: Citation
 
 
+class WaitingTreatmentEvidence(BaseModel):
+    periodId: str
+    treatment: str
+    ruleCitation: Citation
+    listCitation: Citation
+    conditionCitation: Citation | None = None
+
+
 class AnswerVerification(BaseModel):
     policyId: str
     policyName: str
     scope: Literal['explanation', 'timing_only'] = 'explanation'
     checks: list[AnswerCheck]
     dates: list[WaitingDateEvidence] = Field(default_factory=list)
+    treatment: WaitingTreatmentEvidence | None = None
     missingInputs: list[str] = Field(default_factory=list)
     qualification: str = 'These checks support the explanation. They do not confirm coverage or claim approval.'
 

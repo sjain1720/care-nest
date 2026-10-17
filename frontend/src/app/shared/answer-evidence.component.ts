@@ -14,10 +14,10 @@ import { ChatService } from '../services/chat.service';
   imports: [DatePipe, FormsModule, MatButtonModule, MatIconModule, CitationChipComponent],
   template: `
     <section class="proof" aria-label="Answer evidence and checks">
-      <h4>{{ hasEvidence() ? 'What we checked' : 'One more policy detail is needed' }}</h4>
+      <h4>{{ hasEvidence() ? (verification().scope === 'timing_only' ? 'What we checked · timing only' : 'What we checked') : 'One more policy detail is needed' }}</h4>
       @if (hasEvidence()) {
       <ul class="checks" aria-label="Completed and missing checks">
-        @for (check of visibleChecks(); track check.kind) {
+        @for (check of compactChecks(); track check.kind) {
           <li [class.passed]="check.status === 'passed'" [class.unconfirmed]="check.status === 'not_confirmed'">
             <mat-icon aria-hidden="true">{{ check.status === 'passed' ? 'check_circle' : check.status === 'not_run' ? 'radio_button_unchecked' : 'help_outline' }}</mat-icon>
             {{ check.label }}
@@ -26,7 +26,7 @@ import { ChatService } from '../services/chat.service';
       </ul>
       } @else { <p class="qualification">The available information does not yet support a reliable answer. Add the relevant policy pages or issued schedule, or ask the insurer to clarify the benefit.</p> }
       @if (verification().dates.length) {
-        <p class="date-origin">{{ verification().dates[0].startDateOrigin }} · timing only.</p>
+        <p class="qualification">{{ verification().dates[0].startDateOrigin }}.</p>
       }
       @if (needsTreatmentDate()) {
         <form class="date-input" (ngSubmit)="sendDate()">
@@ -56,19 +56,21 @@ import { ChatService } from '../services/chat.service';
               <div><dt>Date compared</dt><dd>{{ calculation.comparisonDate | date:'d MMM y' }}</dd></div>
               <div><dt>Timing result</dt><dd>{{ calculation.periodEnded ? 'This period has ended' : 'Still running' }}@if (!calculation.periodEnded) { · {{ calculation.daysRemaining }} days remaining }</dd></div>
             </dl>
-            <p>{{ calculation.startDateOrigin }}. Confirm continuity, member applicability and any waivers.</p>
           </section>
         }
-        @if (hasEvidence()) { <dl class="check-details">
-          @for (check of visibleChecks(); track check.kind) {
+        @if (hasEvidence()) { <details class="check-method">
+          <summary>How these checks work</summary>
+          <dl class="check-details">
+          @for (check of verification().checks; track check.kind) {
             <div><dt>{{ check.label }}</dt><dd>{{ check.detail }}</dd></div>
           }
-        </dl> }
+          </dl>
+        </details> }
         @if (verification().missingInputs.length) {
           <p><strong>Still needed:</strong> {{ verification().missingInputs.join(' ') }}</p>
         }
+        @if (hasEvidence()) { <p class="qualification">{{ verification().qualification }}</p> }
       </details>
-      @if (hasEvidence()) { <p class="qualification">{{ verification().qualification }}</p> }
     </section>
   `,
   styles: `
@@ -90,7 +92,7 @@ import { ChatService } from '../services/chat.service';
     .date-check p, .check-details, details > p { font-size:.8rem; line-height:1.5; }
     .check-details > div { padding:6px 0; }.check-details dt { font-weight:600; }
     .qualification { font-size:.75rem; line-height:1.45; color:var(--cn-muted); margin:8px 0 0; }
-    .date-origin { font-size:.78rem; color:var(--cn-muted); margin:0 0 8px; }
+    .check-method { border-top:1px solid var(--cn-border); margin-top:10px; }
     .date-input { margin:10px 0; }.date-input label { display:block; font-size:.85rem; font-weight:600; margin-bottom:5px; }
     .date-controls { display:flex; flex-wrap:wrap; gap:8px; }.date-controls input { min-width:0; flex:1; max-width:230px; min-height:44px; box-sizing:border-box; padding:8px; border:1px solid var(--cn-border); border-radius:8px; background:var(--cn-bg); color:var(--cn-strong); font:inherit; }
     .date-input small { display:block; margin-top:4px; color:var(--cn-muted); }
@@ -103,9 +105,11 @@ export class AnswerEvidenceComponent {
   readonly dateInputId = 'treatment-date-' + crypto.randomUUID();
   plannedDate = '';
   hasEvidence(): boolean { return this.verification().checks.some(c => c.kind === 'quote' && c.status === 'passed'); }
-  visibleChecks() {
-    return this.verification().checks.filter(c => c.status === 'passed' || c.kind === 'dates'
-      || (c.kind === 'support' && this.verification().scope === 'timing_only'));
+  compactChecks() {
+    const checks = this.verification().checks;
+    const paired = ['source', 'quote'].every(kind => checks.some(c => c.kind === kind && c.status === 'passed'));
+    return checks.filter(c => (c.status === 'passed' || c.kind === 'dates') && !(paired && c.kind === 'quote'))
+      .map(c => paired && c.kind === 'source' ? { ...c, label: 'Source and quotation matched' } : c);
   }
   needsTreatmentDate(): boolean { return this.verification().missingInputs.some(text => text.includes('planned treatment date')); }
   sendDate(): void {

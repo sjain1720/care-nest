@@ -108,9 +108,11 @@ export interface AnswerVerification {
   policyId: string;
   policyName: string;
   scope?: 'explanation' | 'timing_only';
-  checks: { kind: 'source' | 'quote' | 'support' | 'dates'; status: 'passed' | 'not_confirmed' | 'not_run'; label: string; detail: string }[];
+  checks: { kind: 'source' | 'quote' | 'support' | 'dates' | 'treatment'; status: 'passed' | 'not_confirmed' | 'not_run'; label: string; detail: string }[];
   dates: { periodId: string; label: string; duration: string; startDate: string; startDateOrigin: string;
     comparisonDate: string; endDate: string; periodEnded: boolean; daysRemaining: number; citation: Citation }[];
+  treatment?: { periodId: string; treatment: string; ruleCitation: Citation; listCitation: Citation;
+    conditionCitation?: Citation | null } | null;
   missingInputs: string[];
   qualification: string;
 }

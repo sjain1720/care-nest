@@ -6,10 +6,26 @@ from pathlib import Path
 from unittest.mock import Mock, patch
 
 from app.schemas import Citation, PolicyFacts, WaitingPeriod
-from app.services.answer_evidence import bound_dates, build_verification, matched_quote, prepare_dates, restrict_timing_answer
+from app.services.answer_evidence import bound_dates, build_verification, matched_quote, prepare_dates, restrict_timing_answer, timing_facts_answer
 from app.services import policy_qa
 
 QUOTE = 'Listed cataract procedures require 24 months of continuous coverage.'
+RULE = 'Expenses related to the treatment of the listed Conditions, surgeries/treatments shall be excluded until the expiry of 12 months of continuous coverage after the date of inception of the first policy with us.'
+CONDITION = 'If any of the specified disease/procedure falls under the waiting period specified for pre -Existing diseases, then the longer of the two waiting periods shall apply.'
+RULE_PAGE = '3. Specified disease/ procedure waiting period (Code – Excl02)\na) ' + RULE + '\nc) ' + CONDITION
+LIST_PAGE = 'Policy wording · Page 19\ne) Prior continuous cover may reduce the waiting period.\nf) List of specific diseases/procedures\n(a) Cataract;\n(b) Benign Prostatic Hypertrophy;\n\nSpecific Exclusions\n4. Maternity Benefit Waiting Period'
+QUESTION = 'For cataract surgery on 2025-09-12, has my specified disease waiting period ended? What else needs confirmation?'
+
+
+def continued_rule():
+    f = facts()
+    f.startDate = '2024-03-12'
+    f.waitingPeriods[0] = WaitingPeriod(id='specific',label='Specific disease waiting period',kind='specific',
+        duration='12 months',startDate=f.startDate,endDate='1900-01-01',appliesTo='Untrusted extracted label',
+        citation=Citation(page=18,clause='Waiting periods',quote=RULE))
+    sources = [{'page':18,'label':'Policy wording (page 18)','text':RULE_PAGE,'originalPage':True},
+               {'page':19,'label':'Policy wording (page 19)','text':LIST_PAGE,'originalPage':True}]
+    return f, sources
 
 
 def facts():
@@ -118,6 +134,65 @@ class AnswerEvidenceTests(unittest.TestCase):
         dates=prepare_dates('For surgery on 2026-09-12, has the specified disease waiting period ended?',f,hits(text),date(2026,10,17))
         self.assertTrue(dates['calculations'])
         self.assertIsNone(timing_facts_answer('Has the specified disease waiting period ended?',f,dates))
+
+    def test_cross_page_list_is_linked_and_longer_period_stays_conditional(self):
+        f,sources=continued_rule()
+        dates=prepare_dates(QUESTION,f,sources,date(2026,10,17))
+        card,selected=timing_facts_answer(QUESTION,f,dates)
+        proof=build_verification(f,card.citations,sources,False,dates,selected,timing_only=True)
+        self.assertEqual(proof.treatment.treatment,'Cataract')
+        self.assertEqual({c.page for c in card.citations},{18,19})
+        self.assertEqual(proof.dates[0].endDate,'2025-03-12')
+        self.assertTrue(proof.dates[0].periodEnded)
+        self.assertLess(len(card.summary.split()),65)
+        self.assertIn('If this treatment also falls under',card.toConfirm[0])
+        self.assertEqual(proof.treatment.conditionCitation.quote,CONDITION)
+        self.assertEqual(next(c.status for c in proof.checks if c.kind=='support'),'not_run')
+        self.assertNotEqual(card.verdict,'covered')
+
+    def test_unrelated_benefit_or_unoriginal_list_cannot_link_a_treatment(self):
+        f,sources=continued_rule()
+        for replacement in (
+            LIST_PAGE.replace('f) List of specific diseases/procedures','4. Day care benefits\nList of specific diseases/procedures'),
+            LIST_PAGE.replace('List of specific diseases/procedures','List of day care treatments'),
+        ):
+            changed=[sources[0],dict(sources[1],text=replacement)]
+            self.assertFalse(prepare_dates(QUESTION,f,changed,date(2026,10,17))['treatments'])
+        changed=[sources[0],dict(sources[1],originalPage=False)]
+        self.assertFalse(prepare_dates(QUESTION,f,changed,date(2026,10,17))['treatments'])
+
+    def test_conditional_ambiguous_or_nonadjacent_entry_is_not_simplified(self):
+        f,sources=continued_rule()
+        for replacement in ('Cataract unless due to accident;', 'Cataract or glaucoma;', 'Not cataract;'):
+            changed=[sources[0],dict(sources[1],text=LIST_PAGE.replace('Cataract;',replacement))]
+            self.assertFalse(prepare_dates(QUESTION,f,changed,date(2026,10,17))['treatments'])
+        self.assertFalse(prepare_dates(QUESTION,f,[sources[0],dict(sources[1],page=20)],date(2026,10,17))['treatments'])
+        changed=[dict(sources[0],text=RULE_PAGE+'\n4. Other waiting period'),sources[1]]
+        self.assertFalse(prepare_dates(QUESTION,f,changed,date(2026,10,17))['treatments'])
+
+    def test_membership_requires_both_retained_quotes_and_matching_period(self):
+        f,sources=continued_rule();dates=prepare_dates(QUESTION,f,sources,date(2026,10,17))
+        card,selected=timing_facts_answer(QUESTION,f,dates)
+        for citations,period in ((card.citations[:1],selected),(card.citations,'wrong-period')):
+            proof=build_verification(f,citations,sources,False,dates,period,timing_only=True)
+            self.assertIsNone(proof.treatment)
+            self.assertFalse(any(c.kind=='treatment' for c in proof.checks))
+
+    def test_failed_ai_review_service_retains_both_pages_and_scoped_links(self):
+        f,sources=continued_rule();doc={'facts':f.model_dump()}
+        ai=Mock();ai.models.generate_content.return_value=Mock(parsed=policy_qa.AnswerOut(
+            verdict='needs_checking',headline='Period',summary='Unconfirmed interpretation.',
+            citations=[policy_qa.CiteRef(ref='C1',quote=RULE)],toConfirm=[],waitingPeriodId='specific'))
+        with patch.object(policy_qa.store,'get_active_policy',return_value=('owned-policy',doc)), \
+             patch.object(policy_qa.store,'search_clauses',return_value=sources), \
+             patch.object(policy_qa.store,'load_page',side_effect=lambda _,p: next((h['text'] for h in sources if h['page']==p),None)), \
+             patch.object(policy_qa,'embed_texts',return_value=[[0.0]]), \
+             patch.object(policy_qa,'gemini',return_value=ai), \
+             patch.object(policy_qa,'check_support',return_value=False):
+            card=policy_qa.answer_question(QUESTION,today=date(2026,10,17)).answer
+        self.assertEqual(card.verification.treatment.treatment,'Cataract')
+        self.assertEqual(card.verification.treatment.listCitation.docUrl,'/api/policy/document?policyId=owned-policy')
+        self.assertTrue(all(c.docUrl.endswith('policyId=owned-policy') for c in card.citations))
 
     def test_old_citation_link_cannot_open_replacement_policy(self):
         from fastapi import HTTPException
