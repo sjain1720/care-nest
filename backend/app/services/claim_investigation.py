@@ -125,7 +125,15 @@ def build_draft(review, case, facts):
         points.append(label + ': ' + (' '.join(dict.fromkeys(requests)) if requests else
             'Please explain the policy basis and itemized calculation for this deduction.'))
         if row.evidence and row.evidence.get('calculation'):
-            points.append('Recorded implant calculation: ' + row.evidence['calculation']['formula'] + '. ' + row.evidence['qualification'])
+            calculation = row.evidence['calculation']
+            points.append('Implant amount used in the recorded calculation: the hospital charged '
+                + money(calculation['gross']) + ' and gave an implant-only discount of '
+                + money(calculation['discount']) + ', leaving ' + money(calculation['net']) + '. '
+                + 'The settlement calculation then applies the room-rate ratio ('
+                + money(calculation['eligibleDailyRate']) + ' daily limit compared with '
+                + money(calculation['actualDailyRate']) + ' charged per day) to this net implant amount, producing '
+                + money(calculation['result']) + '. The hospital discount and insurer reduction are separate. '
+                + 'Please explain the policy basis for applying this room-related reduction to the implant.')
         for citation in row.citations:
             entry = f'Policy wording — {citation.clause}, page {citation.page}: "{citation.quote}"'
             if entry not in evidence: evidence.append(entry)

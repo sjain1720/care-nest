@@ -98,7 +98,7 @@ def snapshot():
         rows = [{'id': 'rejection', 'label': 'Claim rejection', 'amount': None,
                  'insurerReason': r.get('reason'), 'page': r.get('page'), 'docUrl': r.get('docUrl')}]
     bill = case.get('bill') or {}
-    data = {'verificationVersion': 'original-page-evidence-v5-qualified-correspondence', 'policyId': policy_id, 'preparation': preparation.model_dump(), 'rows': rows,
+    data = {'verificationVersion': 'original-page-evidence-v6-labelled-implant-amounts', 'policyId': policy_id, 'preparation': preparation.model_dump(), 'rows': rows,
             'billRows': [{k: i.get(k) for k in ('id', 'description', 'category', 'rate', 'qty', 'amount', 'page')} for i in bill.get('items', [])],
             'policyFacts': {k: facts.get(k) for k in ('insurer', 'planName', 'productType', 'startDate', 'renewalDate',
                                                    'sumInsured', 'demoAssumptions', 'roomRent', 'coPay', 'deductible', 'subLimits', 'waitingPeriods')},
