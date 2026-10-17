@@ -65,3 +65,30 @@ class SemanticSupportTests(unittest.TestCase):
         from app.services import answer_support
         with patch.object(answer_support,'gemini',side_effect=RuntimeError('unavailable')):
             self.assertFalse(answer_support.check_support('Dental implant?',{},'',[]))
+
+class ConstrainedBillOutputTests(unittest.TestCase):
+    def test_each_required_bill_id_has_only_its_own_reference_choices(self):
+        from pydantic import ValidationError
+        schema=bill_policy.constrained_output([{'id':'b1','clauseRefs':['C1']},{'id':'b2','clauseRefs':['C2']}])
+        valid={'b1':{'citations':[{'ref':'C1','quote':'Original room quote'}],'missingInformation':[]},
+               'b2':{'citations':[],'missingInformation':[]}}
+        self.assertEqual(schema.model_validate(valid).b1.citations[0].ref,'C1')
+        valid['b1']['citations'][0]['ref']='C2'
+        with self.assertRaises(ValidationError):schema.model_validate(valid)
+        with self.assertRaises(ValidationError):schema.model_validate({'b2':valid['b2']})
+
+    def test_exact_but_irrelevant_quote_is_withheld(self):
+        rows=[{'id':'b1','description':'Consultant fees','assessment':'related_clause','citations':[{'page':20,'quote':'Blacklisted hospitals are excluded.'}]}]
+        with patch.object(bill_policy,'check_rows',return_value=([{'id':'b1','supported':False,'unsupportedClaims':['No blacklisting evidence.']}],None)):
+            result=bill_policy.check_relevance(rows,[{'id':'b1','description':'Consultant fees','category':'doctor','amount':100}],{})
+        self.assertEqual(result[0]['assessment'],'needs_checking')
+        self.assertEqual(result[0]['citations'],[])
+
+    def test_broad_exclusion_cannot_become_specific_evidence_even_if_model_accepts(self):
+        rows=[{'id':'b1','description':'Consultant fees','assessment':'related_clause','citations':[
+            {'page':20,'quote':'Any Medical Practitioner specifically excluded by the Insurer and disclosed in its website'}]}]
+        with patch.object(bill_policy,'check_rows') as model:
+            result=bill_policy.check_relevance(rows,[{'id':'b1','description':'Consultant fees','category':'doctor','amount':100}],{})
+        model.assert_not_called()
+        self.assertEqual(result[0]['verificationIssues'],['applicability_condition_unconfirmed'])
+        self.assertEqual(result[0]['citations'],[])
