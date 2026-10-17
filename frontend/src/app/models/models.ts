@@ -104,6 +104,16 @@ export interface AgentStep {
   label: string;
 }
 
+export interface AnswerVerification {
+  policyId: string;
+  policyName: string;
+  checks: { kind: 'source' | 'quote' | 'support' | 'dates'; status: 'passed' | 'not_confirmed' | 'not_run'; label: string; detail: string }[];
+  dates: { periodId: string; label: string; duration: string; startDate: string; startDateOrigin: string;
+    comparisonDate: string; endDate: string; periodEnded: boolean; daysRemaining: number; citation: Citation }[];
+  missingInputs: string[];
+  qualification: string;
+}
+
 export interface AnswerCard {
   verdict: Verdict;
   headline: string;
@@ -115,6 +125,7 @@ export interface AnswerCard {
   /** From general insurance knowledge, not from the user's own documents. */
   general?: boolean;
   investigation?: DisputeReview | null;
+  verification?: AnswerVerification | null;
 }
 
 /** Streamed by /api/copilot/ask: progress steps first, then one answer. */

@@ -78,7 +78,9 @@ def update_policy_details(body: PolicyDetailsInput):
 
 
 @router.get("/policy/document")
-def get_policy_document():
+def get_policy_document(policyId: str | None = None):
     policy_id, _ = _active_policy()
+    if policyId is not None and policyId != policy_id:
+        raise HTTPException(409, 'This source belongs to a previous policy. Ask again using the current policy.')
     return Response(store.load_original(policy_id), media_type="application/pdf",
                     headers={"Content-Disposition": 'inline; filename="policy.pdf"', "Cache-Control": "private, max-age=300"})

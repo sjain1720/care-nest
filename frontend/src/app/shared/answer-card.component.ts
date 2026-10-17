@@ -8,12 +8,13 @@ import { VerdictBadgeComponent } from './verdict-badge.component';
 import { CitationChipComponent } from './citation-chip.component';
 import { InrPipe } from './inr.pipe';
 import { TranslatePipe } from './translate.pipe';
+import { AnswerEvidenceComponent } from './answer-evidence.component';
 
 /** Structured answer: verdict first, then plain-English summary, sources, things to confirm and the next step. */
 @Component({
   selector: 'app-answer-card',
   standalone: true,
-  imports: [RouterLink, MatButtonModule, MatIconModule, VerdictBadgeComponent, CitationChipComponent, GlossComponent, TranslatePipe, InrPipe],
+  imports: [RouterLink, MatButtonModule, MatIconModule, VerdictBadgeComponent, CitationChipComponent, GlossComponent, TranslatePipe, InrPipe, AnswerEvidenceComponent],
   template: `
     <article class="answer">
       <app-verdict-badge [verdict]="answer().verdict" />
@@ -23,7 +24,9 @@ import { TranslatePipe } from './translate.pipe';
       <h3 class="headline">{{ answer().headline }}</h3>
       <p><app-gloss [text]="answer().summary" /></p>
 
-      @if (answer().citations.length) {
+      @if (answer().verification; as proof) {
+        <app-answer-evidence [verification]="proof" [citations]="answer().citations" />
+      } @else if (answer().citations.length) {
         <div class="row sources" [attr.aria-label]="'Sources' | t">
           @for (c of answer().citations; track $index) {
             <app-citation-chip [citation]="c" />

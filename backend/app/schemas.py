@@ -113,6 +113,35 @@ class NextAction(BaseModel):
     route: str
 
 
+class AnswerCheck(BaseModel):
+    kind: Literal['source', 'quote', 'support', 'dates']
+    status: Literal['passed', 'not_confirmed', 'not_run']
+    label: str
+    detail: str
+
+
+class WaitingDateEvidence(BaseModel):
+    periodId: str
+    label: str
+    duration: str
+    startDate: str
+    startDateOrigin: str
+    comparisonDate: str
+    endDate: str
+    periodEnded: bool
+    daysRemaining: int
+    citation: Citation
+
+
+class AnswerVerification(BaseModel):
+    policyId: str
+    policyName: str
+    checks: list[AnswerCheck]
+    dates: list[WaitingDateEvidence] = Field(default_factory=list)
+    missingInputs: list[str] = Field(default_factory=list)
+    qualification: str = 'These checks support the explanation. They do not confirm coverage or claim approval.'
+
+
 class AnswerCard(BaseModel):
     verdict: Verdict
     headline: str
@@ -124,6 +153,8 @@ class AnswerCard(BaseModel):
     # True when the answer comes from general insurance knowledge, not the user's own documents.
     general: bool = False
     investigation: DisputeReview | None = None
+    # Server-authored evidence; never accepted from a model's answer JSON.
+    verification: AnswerVerification | None = None
 
 
 class AskRequest(BaseModel):

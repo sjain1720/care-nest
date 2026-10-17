@@ -11,5 +11,5 @@ def page_sources(policy_id: str, hits: list[dict]) -> list[dict]:
         text=policy_store.load_page(policy_id,page)
         # Legacy documents without page text retain their exact retrieved excerpt.
         result.append({'page':page,'label':f'Policy wording (page {page})',
-                       'text':(text or hit['text'])[:10000]})
+                       'text':(text or hit['text'])[:10000], 'originalPage': bool(text)})
     return result
