@@ -42,20 +42,46 @@ def refine_questions(review, case):
             for question in row.missingInformation]
 
 
+def qualify_implant_finding(review):
+    """Keep a verified actual-cost proviso distinct from this claim's entitlement."""
+    from app.services.grounding import normalize
+    for row in review.rows:
+        if row.assessment != 'related_wording' or not re.search(r'\bimplants?\b', row.label, re.I):
+            continue
+        quotes = [normalize(c.quote) for c in row.citations]
+        if not any(all(term in quote for term in ('reasonable and customary', 'medical implants', 'actual amounts incurred'))
+                   for quote in quotes):
+            continue
+        row.explanation = ('The cited proviso says reasonable and customary medical-implant costs are reimbursed based on actual amounts incurred. '
+            'The decision records a room-ratio reduction on the implant. Ask the insurer to explain its basis against this proviso; '
+            'applicable benefit selections and other policy conditions still need confirmation.')
+        row.missingInformation = [re.sub(r'\bpolicy exclusion\b', 'cited actual-cost proviso', q, flags=re.I)
+                                  for q in row.missingInformation]
+
+
 def correspondence_request(question):
     """Convert action instructions to correspondence without adding new findings."""
     text = question.strip()
     text = re.sub(r'^ask (?:the |your )?insurer (?:for|to provide) ', 'Please provide ', text, flags=re.I)
     text = re.sub(r'^ask (?:the |your )?insurer to ', 'Please ', text, flags=re.I)
+    text = re.sub(r'^request\s+', 'Please provide ', text, flags=re.I)
+    text = re.sub(r'^confirm\s+', 'Please confirm ', text, flags=re.I)
+    text = re.sub(r'^confirmation (?:from the insurer )?on why ', 'Please explain why ', text, flags=re.I)
+    text = re.sub(r'^confirmation (?:from the insurer )?on whether ', 'Please confirm whether ', text, flags=re.I)
+    text = re.sub(r'^confirmation of whether ', 'Please confirm whether ', text, flags=re.I)
+    text = re.sub(r'^evidence from the hospital confirming whether ', 'Please identify the hospital evidence showing whether ', text, flags=re.I)
+    text = re.sub(r'^the specific ', 'Please confirm the specific ', text, flags=re.I)
     if re.match(r'can you provide ', text, re.I):
         text = re.sub(r'^can you provide ', 'Please provide ', text, flags=re.I).rstrip('?') + '.'
     if re.match(r'do you have the discharge summary', text, re.I):
         return 'Please confirm the hospital-stay duration used in your calculation and identify any supporting discharge evidence you still require.'
     text = re.sub(r'\byour plan\b', 'this policy', text, flags=re.I)
     text = re.sub(r'\byour policy schedule\b', 'the policy schedule', text, flags=re.I)
+    text = re.sub(r'\byour policy\b', 'this policy', text, flags=re.I)
+    text = re.sub(r'\byour Schedule/Certificate\b', 'the Schedule/Certificate', text, flags=re.I)
     text = re.sub(r',? and compare (?:them|it) with the original decision letter\.?', '.', text, flags=re.I)
     if not re.match(r'please\b', text, re.I):
-        return 'Please clarify the following evidence or calculation question: ' + text
+        return 'Please clarify: ' + text
     return text
 
 
@@ -93,7 +119,11 @@ def build_draft(review, case, facts):
     evidence = [f"{doc['type']}: {doc.get('name', 'original document')}" for doc in case.get('documents', [])]
     for row in review.rows:
         label = row.label + (f' ({money(row.amount)})' if row.amount is not None else '')
-        points.append(label + ': ' + (row.explanation + ' ' if row.assessment == 'related_wording' else '') + ' '.join(correspondence_request(q) for q in row.missingInformation))
+        # Patient-facing AI prose is not correspondence or a proven cause. The
+        # source index retains wording; the letter asks only verified questions.
+        requests = [correspondence_request(q) for q in row.missingInformation]
+        points.append(label + ': ' + (' '.join(dict.fromkeys(requests)) if requests else
+            'Please explain the policy basis and itemized calculation for this deduction.'))
         if row.evidence and row.evidence.get('calculation'):
             points.append('Recorded implant calculation: ' + row.evidence['calculation']['formula'] + '. ' + row.evidence['qualification'])
         for citation in row.citations:
@@ -131,6 +161,7 @@ async def investigate(question, on_step=None):
         case = case_store.get_case(); active = policy_store.get_active_policy()
         from app.services.deduction_trace import attach_evidence
         await asyncio.to_thread(attach_evidence,review,case,active[1].get('facts',{}) if active else {},initial_scope)
+        qualify_implant_finding(review)
         refine_questions(review, case)
         review.actions = action_plan(review)
         reconciliation = review.preparation.reconciliation

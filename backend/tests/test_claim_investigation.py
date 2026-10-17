@@ -56,6 +56,33 @@ class InvestigationTests(unittest.TestCase):
                          'Please provide the applicable clause and itemized calculation.')
         self.assertNotIn('Do you have', claim.correspondence_request('Do you have the discharge summary to verify the stay?'))
         self.assertIn('this policy', claim.correspondence_request('Please confirm the limit applicable to your plan from your policy schedule.'))
+        self.assertEqual(claim.correspondence_request('Request a detailed breakdown of the associated charges.'),
+                         'Please provide a detailed breakdown of the associated charges.')
+        self.assertEqual(claim.correspondence_request('Confirm whether differential billing was used.'),
+                         'Please confirm whether differential billing was used.')
+        self.assertEqual(claim.correspondence_request('Confirmation of whether the hospital follows differential billing.'),
+                         'Please confirm whether the hospital follows differential billing.')
+        self.assertIn('this policy',claim.correspondence_request('The specific eligible limit applicable to your policy.'))
+
+    def test_letter_does_not_copy_patient_facing_model_prose(self):
+        review = DisputeReview(status='reviewed',preparation=prepare_dispute({},None),rows=[
+            DisputeReviewRow(id='d1',label='Implant',amount=6100,insurerReason='Room ratio',assessment='related_wording',
+                explanation='Your implant must be reimbursed.',citations=[],missingInformation=['Request the applicable clause.'])])
+        draft=claim.build_draft(review,{'documents':[]},{})
+        self.assertNotIn('must be reimbursed',draft['body'])
+        self.assertIn('Please provide the applicable clause.',draft['body'])
+
+    def test_implant_qualification_requires_verified_cost_proviso(self):
+        from app.schemas import Citation
+        review = DisputeReview(status='reviewed',preparation=prepare_dispute({},None),rows=[
+            DisputeReviewRow(id='d1',label='Implant',amount=6100,insurerReason='Room ratio',assessment='related_wording',
+                explanation='Implants are exempt.',citations=[],missingInformation=[])])
+        claim.qualify_implant_finding(review)
+        self.assertEqual(review.rows[0].explanation,'Implants are exempt.')
+        review.rows[0].citations=[Citation(page=17,clause='Proviso',quote='Reasonable and Customary costs incurred on medical implants will be reimbursed based on the actual amounts incurred.')]
+        claim.qualify_implant_finding(review)
+        self.assertIn('other policy conditions still need confirmation',review.rows[0].explanation)
+        self.assertNotIn('are exempt',review.rows[0].explanation)
 
     def test_reviewed_room_itemization_is_not_requested_again(self):
         review = DisputeReview(status='reviewed',preparation=prepare_dispute({},None),rows=[
