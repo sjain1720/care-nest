@@ -10,7 +10,7 @@ import {
 } from '../models/models';
 import { diaryStage, guessReply, sortedTimeline, todayIso } from '../shared/claim-diary';
 
-interface WorkspaceReady { workspaceKey: string; ready?: boolean; mock?: boolean; }
+interface WorkspaceReady { workspaceKey: string; ready?: boolean; mock?: boolean; outdated?: boolean; }
 
 export type Feature = 'policy' | 'ask' | 'upload' | 'case' | 'bill' | 'settlement' | 'letter' | 'query';
 
@@ -139,6 +139,8 @@ export class ApiService {
   readonly workspace = inject(WorkspaceService);
   readonly workspaceKey = signal('');
   private exampleReady?: Observable<WorkspaceReady>;
+  readonly exampleOutdated = signal(false);
+  resetExampleWorkspace() { return this.http.post('/api/demo/reset', {}, { params: { workspace: 'example' } }); }
 
   // Live mode: null means "not uploaded yet" (404).
   private sessionInfo = resource<{ expiresAt: string; mode: 'guest' | 'live_demo' } | null>(of(null));
@@ -175,7 +177,8 @@ export class ApiService {
   ensureExampleWorkspace(): Observable<WorkspaceReady> {
     if (!FEATURES.some((feature) => this.live(feature.id))) return of({ ready: true, workspaceKey: 'mock-preview' });
     if (!this.exampleReady) {
-      this.exampleReady = this.http.post<{ ready: boolean; workspaceKey: string }>('/api/demo/ensure', {}, { params: { workspace: 'example' } }).pipe(
+      this.exampleReady = this.http.post<WorkspaceReady>('/api/demo/ensure', {}, { params: { workspace: 'example' } }).pipe(
+        tap((ready) => this.exampleOutdated.set(!!ready.outdated)),
         catchError((error) => { this.exampleReady = undefined; throw error; }),
         shareReplay({ bufferSize: 1, refCount: false }),
       );

@@ -74,7 +74,9 @@ skewed or handwritten). Extract it as JSON. Rules:
   procedure, pharmacy (medicines/drugs), consumables, implants, investigations (lab/radiology/scans), equipment
   (monitors/ventilator/oxygen), food, admin (registration/documentation/service), other.
 - For room/ICU lines give rate per day and qty = number of days when shown.
-- statedTotal: the bill's grand total before payments/advances. discount and tax only if printed separately.
+- statedTotal: the NET bill total AFTER hospital discounts and taxes, but BEFORE payments/advances.
+  If both gross charges and net bill are printed, choose the net bill, not the gross.
+  discount and tax only if printed separately. Payments received and balance due are not charge items.
 - pageMarkers: for each page, any printed "Page X of N" / "X/N" (pdfPage = page in this document, printedPage = X, printedTotal = N).
 - Dates as YYYY-MM-DD. patientName and patientAge only; do NOT copy addresses, phone numbers or ID numbers.
 - If a line's amount cannot be read, skip it and count it in unreadableLines. Never invent numbers.

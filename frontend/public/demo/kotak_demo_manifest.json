@@ -1,0 +1,27 @@
+{
+  "schema": 2,
+  "policySha256": "0bd43987c8812a866229f93c6f238b9b9f67de5810b4fb520e503c600b0313fc",
+  "files": {
+    "hospital_bill.pdf": "064ccd5483c97a94b0848ed3ae142d10f77440a56eb22d2e443ece00e41ff919",
+    "previous_bill.pdf": "ec3438bf9a223016591804d1d256e983d16dc4dc45c487701fed91f26d7cf64c",
+    "settlement_letter.pdf": "0b2c94a750ea744b43c576ad0efc422a6e58f30275ff3cafb94f3a0ea41cd127",
+    "previous_settlement.pdf": "f992f7ee3c5a536bc6729761460c59800888b8882c2b931018bc6d1291596d00",
+    "coverage_assumptions.pdf": "b663c121e92024a5d0b780418421e9f8fb2b6c9249d98218b3bbe87dcc203c9b",
+    "kotak_group_health_assure.pdf": "0bd43987c8812a866229f93c6f238b9b9f67de5810b4fb520e503c600b0313fc"
+  },
+  "current": {
+    "gross": 189825,
+    "discount": 4825,
+    "net": 185000,
+    "approved": 165000,
+    "deducted": 20000,
+    "rows": 15
+  },
+  "previous": {
+    "net": 73420,
+    "approved": 73420,
+    "rows": 5
+  },
+  "sumInsured": 1000000,
+  "estimatedRemaining": 761580
+}

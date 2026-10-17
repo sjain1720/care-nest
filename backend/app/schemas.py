@@ -83,6 +83,7 @@ class PolicyFacts(BaseModel):
     productType: ProductType = "health_indemnity"
     productNote: str | None = None
     isGroupPolicy: bool = False
+    demoAssumptions: list[str] = []
     userProvided: list[str] = []
 
 

@@ -6,6 +6,14 @@
     </div>
 
     <nav class="section-tabs" aria-label="Policy sections"><a routerLink="/policy" fragment="details">Overview</a><a routerLink="/policy" fragment="limits">Benefits & limits</a><a routerLink="/policy" fragment="waiting-periods">Waiting periods</a><a routerLink="/policy" fragment="traps">Watch-outs</a><a routerLink="/policy" fragment="source-document">Document</a></nav>
+    @if (p.demoAssumptions?.length) {
+      <section class="card notice" role="note"><mat-icon>science</mat-icon><div>
+        <strong>Original policy wording · fictional family selections</strong>
+        <p>The Kotak PDF is unchanged. Shubham's family, enrolment, ₹10 lakh cover and selected benefits are demonstration inputs.</p>
+        <details><summary>View the demo assumptions</summary><ul>@for (note of p.demoAssumptions; track note) { <li>{{ note }}</li> }</ul></details>
+        <a href="/demo/coverage_assumptions.pdf" target="_blank" rel="noopener">Open fictional coverage assumptions ↗</a>
+      </div></section>
+    }
     <div class="policy-document-layout">
       <aside class="policy-source" id="source-document"><app-document-preview [url]="sourceUrl()" title="Policy document" /></aside>
       <div class="policy-analysis">

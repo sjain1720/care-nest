@@ -13,7 +13,7 @@ from google.cloud import firestore
 from app.core.config import get_settings
 from app.core.gcp import bucket, db
 from app.core.session import expiry, root_session_id, session_id
-from app.services.demo_loader import _demo_dir, _FILES, DEMO_DETAILS
+from app.services.demo_loader import _demo_dir, _PUBLIC_FILES, DEMO_DETAILS, DEMO_ASSUMPTIONS
 from app.services import policy_store
 
 
@@ -24,8 +24,8 @@ class ExampleNotPrepared(RuntimeError):
 @lru_cache
 def template_version() -> str:
     folder = _demo_dir()
-    manifest = [(name, sha256((folder / name).read_bytes()).hexdigest()) for name, _ in _FILES]
-    return sha256(json.dumps({'schema': 1, 'files': manifest, 'encoder': get_settings().embedding_model}, sort_keys=True).encode()).hexdigest()[:24]
+    manifest = [(name, sha256((folder / name).read_bytes()).hexdigest()) for name in _PUBLIC_FILES]
+    return sha256(json.dumps({'schema': 2, 'files': manifest, 'details': DEMO_DETAILS, 'assumptions': DEMO_ASSUMPTIONS, 'encoder': get_settings().embedding_model}, sort_keys=True).encode()).hexdigest()[:24]
 
 
 def ensure_example_workspace() -> dict:
@@ -36,9 +36,9 @@ def ensure_example_workspace() -> dict:
     client = db()
     identity = client.collection('guestSessions').document(session_id())
     state = identity.get().to_dict() or {}
-    if state.get('examplePrepared'):
-        return result
     version = template_version()
+    if state.get('examplePrepared'):
+        return {**result, 'outdated': state['examplePrepared'] != version}
     template = client.collection('demoTemplates').document(version).get().to_dict() or {}
     if template.get('status') != 'ready' or template.get('embeddingModel') != get_settings().embedding_model:
         raise ExampleNotPrepared('The example workspace is temporarily unavailable. Please retry shortly.')
@@ -50,7 +50,9 @@ def ensure_example_workspace() -> dict:
     storage = bucket()
     # Original PDFs are copied into this visitor's private file paths; existing
     # document authorization and deletion behavior therefore remain unchanged.
-    for document in case.get('documents', []):
+    past_claims = deepcopy(template.get('pastClaims', []))
+    documents = case.get('documents', []) + [doc for past in past_claims for doc in past['case'].get('documents', [])]
+    for document in documents:
         doc_id = document['id']
         if doc_id not in template['originals']:
             raise ExampleNotPrepared('The example document bundle is incomplete.')
@@ -70,9 +72,25 @@ def ensure_example_workspace() -> dict:
         if existing_case.exists:
             raise ValueError('An existing workspace cannot be replaced by the example')
         transaction.set(case_ref, {**case, 'expireAt': expiry(), 'updatedAt': firestore.SERVER_TIMESTAMP})
-        transaction.set(session_ref, {'activePolicyId': policy_id, 'policyDetails': deepcopy(DEMO_DETAILS),
+        for past in past_claims:
+            transaction.set(case_ref.collection('pastClaims').document(past['id']), {'summary': past['summary'], 'case': past['case'], 'expireAt': expiry()})
+        transaction.set(session_ref, {'activePolicyId': policy_id, 'policyDetails': deepcopy(DEMO_DETAILS), 'demoAssumptions': DEMO_ASSUMPTIONS,
                                      'expireAt': expiry(), 'updatedAt': firestore.SERVER_TIMESTAMP})
         transaction.set(identity, {'examplePrepared': version}, merge=True)
 
     attach(client.transaction())
     return result
+
+
+def reset_example_workspace() -> dict:
+    """Reset only the server-resolved owned example; personal documents survive."""
+    root, child = root_session_id(), session_id()
+    if root == child:
+        raise ValueError('The example workspace selector is required')
+    state = db().collection('guestSessions').document(child).get().to_dict() or {}
+    if state.get('parentSessionId') != root:
+        raise ValueError('This example does not belong to the browser')
+    from app.services.data_lifecycle import delete_guest
+    delete_guest(child)
+    # The root's stale pointer is replaced by resolve_example_session on reload.
+    return {'reset': True}

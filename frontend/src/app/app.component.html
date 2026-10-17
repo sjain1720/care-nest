@@ -104,6 +104,7 @@
       </aside>
     }
     @if (!live && workspace.mode() !== 'personal') { <aside class="fictional-context">Developer preview: some or all responses use mock data. Live controls are in session settings.</aside> }
+    <app-workspace-chooser />
     <router-outlet />
     @if (!onAskPage()) {
     @if (onHome()) {
@@ -214,5 +215,3 @@
     <path class="st st-bot" d="M19 15l-1.25 2.75L15 19l2.75 1.25L19 23l1.25-2.75L23 19l-2.75-1.25z" />
   </svg>
 </ng-template>
-
-<app-workspace-chooser />

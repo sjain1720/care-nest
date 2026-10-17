@@ -64,3 +64,6 @@ Thumbs.db
 
 # Local package manager cache
 .pnpm-store/
+
+# Supplied hospital records: local references only
+bill sample data/

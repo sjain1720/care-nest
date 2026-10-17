@@ -74,7 +74,7 @@ def update_policy_details(body: PolicyDetailsInput):
     details = body.model_dump(exclude_none=True)
     facts = PolicyFacts.model_validate(apply_user_details(doc.get("baseFacts") or doc["facts"], details))
     store.save_session_details(details)
-    return facts
+    return PolicyFacts.model_validate(store.get_active_policy()[1]["facts"])
 
 
 @router.get("/policy/document")

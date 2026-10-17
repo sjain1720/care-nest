@@ -94,6 +94,7 @@ export interface PolicyFacts {
   productType: ProductType;
   productNote?: string | null;
   isGroupPolicy?: boolean;
+  demoAssumptions?: string[];
   /** Fields the user entered from their schedule, e.g. ['startDate', 'members']. */
   userProvided?: string[];
 }

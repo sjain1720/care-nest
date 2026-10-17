@@ -151,7 +151,11 @@ def get_active_policy() -> tuple[str, dict] | None:
             {**member, "name": "Shubham Sharma"} if member.get("name") == "Ravi Sharma" else member
             for member in details["members"]
         ]}
-    return policy_id, {**doc, "facts": apply_user_details(base, details) if details else base}
+    facts = apply_user_details(base, details) if details else base
+    if doc.get('isDemoTemplate') and state.get('demoAssumptions'):
+        from app.services.demo_profile import apply_demo_selections
+        facts = apply_demo_selections(facts, state['demoAssumptions'])
+    return policy_id, {**doc, "facts": facts}
 
 
 def delete_session_state() -> None:

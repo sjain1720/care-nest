@@ -99,7 +99,7 @@ def snapshot():
     data = {'policyId': policy_id, 'preparation': preparation.model_dump(), 'rows': rows,
             'billRows': [{k: i.get(k) for k in ('id', 'description', 'category', 'amount', 'page')} for i in bill.get('items', [])],
             'policyFacts': {k: facts.get(k) for k in ('insurer', 'planName', 'productType', 'startDate', 'renewalDate',
-                                                   'sumInsured', 'roomRent', 'coPay', 'deductible', 'subLimits', 'waitingPeriods')},
+                                                   'sumInsured', 'demoAssumptions', 'roomRent', 'coPay', 'deductible', 'subLimits', 'waitingPeriods')},
             'documents': [{k: d.get(k) for k in ('id', 'type', 'pages')} for d in case.get('documents', [])],
             'claimIdentity': case.get('conversationKey') or case.get('id')}
     data['scope'] = hashlib.sha256(json.dumps({'snapshot': data, 'claimHeader': case.get('billHeader'), 'policyFacts': facts}, sort_keys=True, default=str).encode()).hexdigest()

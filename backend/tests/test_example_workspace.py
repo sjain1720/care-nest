@@ -106,6 +106,7 @@ class GeneralBoundaryTests(unittest.TestCase):
 class Ref:
     def __init__(self, database, path): self.database, self.path = database, path
     def document(self, name): return Ref(self.database, self.path + '/' + name)
+    def collection(self, name): return Ref(self.database, self.path + '/' + name)
     def get(self, **kwargs):
         value = deepcopy(self.database.records.get(self.path))
         return SimpleNamespace(exists=value is not None, to_dict=lambda: value)
@@ -198,3 +199,35 @@ class ExampleTemplateTests(unittest.TestCase):
         self.database.records['cases/' + child] = {'bill': {'total': 777}}
         with self.assertRaises(ValueError): self.ensure('root-a', child)
         self.assertEqual(self.database.records['cases/' + child]['bill']['total'], 777)
+
+
+class KotakExampleTests(unittest.TestCase):
+    def test_reset_only_deletes_owned_example(self):
+        root, child = session.new_session_id(), session.new_session_id()
+        database = Database({'guestSessions/' + child: {'parentSessionId': root}})
+        tokens = session.set_session(child), session.set_root_session(root)
+        try:
+            with patch.object(example_workspace, 'db', return_value=database), patch('app.services.data_lifecycle.delete_guest') as delete:
+                self.assertTrue(example_workspace.reset_example_workspace()['reset'])
+                delete.assert_called_once_with(child)
+                database.records['guestSessions/' + child]['parentSessionId'] = 'another-owner'
+                with self.assertRaises(ValueError): example_workspace.reset_example_workspace()
+                self.assertEqual(delete.call_count, 1)
+        finally:
+            session.reset_root_session(tokens[1]); session.reset_session(tokens[0])
+
+    def test_fictional_room_selection_preserves_edited_limit(self):
+        from app.services.demo_profile import apply_demo_selections
+        result = apply_demo_selections({'roomRent': {'amount': 3200}}, ['fictional'])
+        self.assertEqual(result['roomRent']['amount'], 3200)
+        self.assertIn('3,200', result['roomRent']['label'])
+
+    def test_past_claim_and_originals_are_attached_to_child(self):
+        helper = ExampleTemplateTests(); helper.setUp()
+        helper.template['pastClaims'] = [{'id': 'older', 'summary': {'claimedAmount': 73420}, 'case': {'documents': [{'id': 'doc-old'}]}}]
+        helper.template['originals']['doc-old'] = 'demo/templates/v1/doc-old.pdf'
+        child = session.new_session_id()
+        helper.ensure('root', child)
+        self.assertEqual(helper.database.records[f'cases/{child}/pastClaims/older']['summary']['claimedAmount'], 73420)
+        self.assertEqual(helper.storage.copy_blob.call_count, 2)
+        self.assertNotIn('cases/root', helper.database.records)
