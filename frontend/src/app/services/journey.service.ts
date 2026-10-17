@@ -81,9 +81,9 @@ export class JourneyService {
       { label: 'Policy read', todo: 'Add your policy', done: !!this.policy(), route: '/policy' },
       { label: 'Bill checked', todo: 'Check your bill', done: this.bill()?.reviewed === true, route: '/case/bill' },
       { label: 'Papers ready', todo: 'Collect your papers', done: collected, route: '/case', fragment: 'checklist' },
-      { label: 'Claim sent', todo: 'Send your claim', done: sent, route: '/case/letter', query: { kind: 'cover_letter' } },
+      { label: 'Claim submitted', todo: 'Submit your original claim', done: sent, route: '/case/letter', query: { kind: 'cover_letter' } },
       { label: 'Insurer decided', todo: 'Wait for their decision', done: this.decided(), route: '/case/settlement' },
-      { label: 'Letter sent', todo: 'Write to the insurer', done: skip || this.lettersSent().length > 0, route: '/case/letter', query: { kind: this.suggestedLetter() } },
+      { label: 'Follow-up sent', todo: 'Send a clarification or appeal', done: skip || this.lettersSent().length > 0, route: '/case/letter', query: { kind: this.suggestedLetter() } },
       { label: 'Insurer replied', todo: 'Wait for their reply', done: skip || !!this.lastReply(), route: '/case/reply' },
       { label: 'Claim closed', todo: 'Close the claim', done: this.closed(), route: '/case', fragment: 'diary' },
     ];

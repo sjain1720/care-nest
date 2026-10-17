@@ -316,7 +316,10 @@
 @keyframes sheet-up { from { transform: translateY(100%); } to { transform: none; } }
 @keyframes menu-drop { from { opacity: 0; transform: translate(-50%, -12px); } to { opacity: 1; transform: translateX(-50%); } }
 
-.chat-page .content { padding: 0; }
+.layout.chat-page { height: calc(100dvh - var(--cn-topbar-h)); min-height: 0; overflow: hidden; }
+.chat-page .content { display: flex; flex-direction: column; height: 100%; min-height: 0; overflow: hidden; padding: 0; }
+.chat-page .content > :not(app-ask) { flex-shrink: 0; }
+.chat-page .content > router-outlet { display: none; }
 .chat-launcher { display: inline-flex; align-items: center; gap: 8px; padding: 12px 18px; min-height: 48px; border: 1px solid var(--cn-border); border-radius: 28px; font: inherit; font-size: .85rem; font-weight: 650; color: var(--cn-green-strong); background: var(--cn-surface); box-shadow: var(--cn-shadow-lg); cursor: pointer; }
 .chat-launcher:hover { background: var(--cn-green-soft); }
 .chat-launcher:focus-visible { outline: 2px solid var(--cn-green-strong); outline-offset: 3px; }
