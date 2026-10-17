@@ -1,7 +1,8 @@
+import { DocumentTasksComponent } from '../../shared/document-tasks.component';
 import { Component, computed, inject, signal } from '@angular/core';
 import { DisputeReviewComponent } from '../../shared/dispute-review.component';
 import { toSignal } from '@angular/core/rxjs-interop';
-import { DatePipe, NgTemplateOutlet } from '@angular/common';
+import { DatePipe } from '@angular/common';
 import { ActivatedRoute, RouterLink } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { TranslatePipe } from '../../shared/translate.pipe';
@@ -30,7 +31,7 @@ const STATUS_META: Record<ChecklistStatus, { label: string; icon: string; tone: 
 @Component({
   selector: 'app-case',
   standalone: true,
-  imports: [DisputeReviewComponent, DocumentPreviewComponent, CoverageEstimateComponent, DatePipe, NgTemplateOutlet, FormsModule, RouterLink, MatButtonModule, MatIconModule, MatProgressBarModule, NextStepsComponent, SkeletonComponent, EmptyStateComponent, ClaimsListComponent, TranslatePipe, InrPipe],
+  imports: [DocumentTasksComponent, DisputeReviewComponent, DocumentPreviewComponent, CoverageEstimateComponent, DatePipe, FormsModule, RouterLink, MatButtonModule, MatIconModule, MatProgressBarModule, NextStepsComponent, SkeletonComponent, EmptyStateComponent, ClaimsListComponent, TranslatePipe, InrPipe],
   templateUrl: './case.component.html',
   styleUrl: './case-overview.css',
   styles: `

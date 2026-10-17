@@ -1,3 +1,5 @@
+import hashlib
+import json
 import re
 import asyncio
 import contextvars
@@ -9,7 +11,7 @@ from fastapi.responses import Response, StreamingResponse
 from google.api_core.exceptions import GoogleAPIError, NotFound
 from google.genai import errors as genai_errors
 
-from app.schemas import AskRequest, BillReviewIn, ChecklistUpdate, DisputePreparation, DisputeReview, QueryHelpRequest, ReplyRequest, TimelineEventIn
+from app.schemas import ClaimDocuments, DocumentTaskUpdate, AskRequest, BillReviewIn, ChecklistUpdate, DisputePreparation, DisputeReview, QueryHelpRequest, ReplyRequest, TimelineEventIn
 from app.services.sse import sse_event
 from app.services import case_store, policy_store
 from app.services.case_builder import build_case
@@ -125,6 +127,26 @@ def update_checklist_item(item_id: str, body: ChecklistUpdate):
 
 @router.post("/case/timeline")
 def add_timeline_event(body: TimelineEventIn):
+    if body.letterKind == 'document_response':
+        from app.services.claim_flow import response_draft, FlowConflict
+        try:
+            current = response_draft()
+            if any(getattr(body, key) != current[key] for key in ('claimKey', 'replyId', 'inputFingerprint')):
+                raise FlowConflict('The reply or documents changed. Review a fresh response before marking it sent.')
+        except FlowConflict as exc:
+            raise HTTPException(409, str(exc)) from exc
+        from app.services.claim_flow import response_fingerprint
+        active = policy_store.get_active_policy()
+        facts = active[1]['facts'] if active else {}
+        def record(case):
+            if case.get('flowId') != body.claimKey or response_fingerprint(case, facts) != body.inputFingerprint:
+                raise FlowConflict('The reply or documents changed. Review the response again.')
+            return {'timeline': case.get('timeline', []) + [mask_all({'id':new_event_id(), **body.model_dump(exclude_none=True)})]}
+        try:
+            case_store.mutate_case(record)
+        except FlowConflict as exc:
+            raise HTTPException(409, str(exc)) from exc
+        return build_case(case_store.get_case())
     case_store.add_timeline_event(mask_all({"id": new_event_id(), **body.model_dump(exclude_none=True)}))
     return build_case(case_store.get_case())
 
@@ -152,7 +174,26 @@ def get_letter(kind: str = Query("clarification")):
     if kind not in LETTER_KINDS:
         raise HTTPException(400, f"kind must be one of {', '.join(LETTER_KINDS)}")
     try:
-        return draft_letter(kind)
+        if kind == "document_response":
+            from app.services.claim_flow import response_draft, FlowConflict
+            try:
+                return response_draft()
+            except FlowConflict as exc:
+                raise HTTPException(409, str(exc)) from exc
+        from app.services.claim_flow import ensure_context
+        claim_key = ensure_context()
+        case_before = case_store.get_case()
+        relevant = {k:case_before.get(k) for k in ('flowId','bill','billHeader','settlement','rejection','documents','timeline','policyId')}
+        active = policy_store.get_active_policy()
+        fingerprint = hashlib.sha256(json.dumps([relevant,active],sort_keys=True,default=str).encode()).hexdigest()
+        draft = draft_letter(kind)
+        now = case_store.get_case()
+        active_now = policy_store.get_active_policy()
+        current_relevant = {k:now.get(k) for k in relevant}
+        current_fingerprint = hashlib.sha256(json.dumps([current_relevant,active_now],sort_keys=True,default=str).encode()).hexdigest()
+        if current_fingerprint != fingerprint:
+            raise HTTPException(409, 'The selected claim or policy changed while preparing the letter. Open it again.')
+        return {**draft,'claimKey':claim_key,'inputFingerprint':fingerprint}
     except _GOOGLE_ERRORS as exc:
         raise HTTPException(502, f"A Google service failed while drafting: {exc.__class__.__name__}") from exc
 
@@ -173,3 +214,18 @@ def get_bill_policy_evidence():
         raise HTTPException(409, str(exc)) from exc
     except _GOOGLE_ERRORS as exc:
         raise HTTPException(502, 'Policy comparison service failed. Please retry.') from exc
+
+
+@router.get('/case/document-tasks',response_model=ClaimDocuments)
+def get_document_tasks():
+    from app.services.claim_flow import current_tasks
+    return current_tasks()
+
+
+@router.put('/case/document-tasks/{task_id}',response_model=ClaimDocuments)
+def put_document_task(task_id: str, body: DocumentTaskUpdate):
+    from app.services.claim_flow import update_task, FlowConflict
+    try:
+        return update_task(task_id, body)
+    except FlowConflict as exc:
+        raise HTTPException(409, str(exc)) from exc

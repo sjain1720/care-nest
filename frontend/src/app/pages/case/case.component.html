@@ -88,14 +88,15 @@
       @if (settlement()?.reconciliation; as amounts) { @if (!amounts.arithmeticOk) {
         <p class="tone-warn">The decision amounts do not reconcile. Open Why money was cut to review the discrepancy.</p>
       } }
-      <div class="overview-steps"><strong>{{ 'Your claim steps' | t }} · {{ journey.doneCount() }}/{{ journey.steps().length }}</strong>
+      <p class="small muted">Recorded milestones below describe your claim history; use the four stages above to continue.</p>
+      <details class="overview-steps"><summary><strong>{{ 'Your claim steps' | t }} · {{ journey.doneCount() }}/{{ journey.steps().length }}</strong></summary>
         <ol>@for (step of journey.steps(); track step.label) {
           <li><a [class.complete]="step.done" [routerLink]="step.route" [fragment]="step.fragment" [queryParams]="step.query"><span>{{ step.label | t }}</span><small>{{ (step.done ? 'Done' : 'To do') | t }}</small></a></li>
         }</ol>
-      </div>
+      </details>
       <a mat-flat-button class="btn-teal" routerLink="/case/settlement">{{ 'Explain deductions or rejection' | t }} <mat-icon>arrow_forward</mat-icon></a>
     </section>
-    <div id="next-steps"><app-next-steps [steps]="nextSteps()" /></div>
+    <details id="next-steps" class="card"><summary>Other checklist guidance</summary><app-next-steps [steps]="nextSteps()" /></details>
     }
     @if (!dashboard && section() === 'overview') {
     <section class="card">
@@ -154,27 +155,26 @@
     }
     }
 
+    @if (!dashboard && section() === 'history') { @if (journey.lastReply(); as reply) {
+      <section class="card"><h2>Recorded insurer outcome</h2><p>{{reply.summary || 'Review the original reply and its recorded outcome.'}}</p>
+      @if(reply.newApprovedAmount){<p>Revised approved amount: <strong>{{reply.newApprovedAmount | inr}}</strong>. Approval is not confirmation of payment.</p>}
+      <a mat-stroked-button routerLink="/case/reply" [queryParams]="{workspace:workspace.mode()}">Review insurer reply</a>
+      <p class="small muted">Only close the claim when you choose to. A refusal or an explanation does not automatically close it.</p></section>
+    } }
     @if (!dashboard && section() === 'documents') {
     <section class="card" id="checklist">
       <h2>{{ 'Papers checklist' | t }}</h2>
+      @if (journey.lastReply()?.outcome === 'asks_for_papers') {
+        <section class="card"><h3>Documents requested in the latest insurer reply</h3><app-document-tasks group="reply" /></section>
+      }
       <p class="muted small" style="margin:0">{{ 'Tick each paper when you have it.' | t }}</p>
       <mat-progress-bar mode="determinate" [value]="progressPct()" [attr.aria-label]="'Papers collected' | t" />
       <p class="small"><strong>{{ collected() }} {{ 'of' | t }} {{ claimItems().length }}</strong> {{ 'ready' | t }}</p>
 
-      @for (item of claimItems(); track item.id) {
-        <ng-container *ngTemplateOutlet="row; context: { $implicit: item }" />
-      }
+      <a mat-stroked-button routerLink="/upload" [queryParams]="{workspace:workspace.mode(),returnTo:'documents',type:'Other'}">Add documents</a>
+      <app-document-tasks group="checklist" />
+      <p class="small muted">Having a paper, uploading it and checking its contents are separate. Missing items do not prevent preparing a draft.</p>
     </section>
-
-    @if (disputeItems().length) {
-      <section class="card" id="dispute-papers">
-        <h2>{{ 'Extra papers if you want to question a cut' | t }}</h2>
-        <p class="muted small" style="margin:0">{{ 'You only need these if you ask the insurer to look at a cut again.' | t }}</p>
-        @for (item of disputeItems(); track item.id) {
-          <ng-container *ngTemplateOutlet="row; context: { $implicit: item }" />
-        }
-      </section>
-    }
 
     @if (!isEmpty()) {
     <section class="card" id="documents">

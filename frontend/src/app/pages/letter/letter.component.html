@@ -15,6 +15,12 @@
   @if (error()) { <p class="warn">{{ error() }}</p> }
   @if (loading()) { <app-skeleton label="Writing your letter…" [count]="1" /> }
 
+  @if (previousDrafts().length) {
+    <details class="card no-print"><summary>Earlier edits kept on this browser ({{previousDrafts().length}})</summary>
+    <p>These drafts used earlier inputs. Review before reusing; the current draft below uses the latest documents.</p>
+    @for(text of previousDrafts();track $index){<pre style="white-space:pre-wrap;overflow-wrap:anywhere">{{text}}</pre>}
+    </details>
+  }
   @if (letter(); as l) {
     <section class="card">
       @for (w of l.warnings ?? []; track $index) { <div class="warn no-print">{{ w }}</div> }
@@ -84,8 +90,8 @@
   }
 
   @if (claimCase(); as c) {
-    <section class="card no-print" id="escalation">
-      <h2>{{ "If the insurer's reply doesn't help" | t }}</h2>
+    <details class="card no-print" id="escalation" [open]="kind() === 'grievance'">
+      <summary>{{ "If the insurer's reply doesn't help" | t }}</summary>
       <ol class="escalation">
         @for (step of c.escalation; track step.level) {
           <li>
@@ -116,7 +122,7 @@
           </li>
         }
       </ol>
-    </section>
+    </details>
   }
 
   <p class="muted small">{{ "CareNest can't promise the insurer will change its decision." | t }}</p>

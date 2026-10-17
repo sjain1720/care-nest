@@ -337,6 +337,9 @@ export interface TimelineEvent {
   /** YYYY-MM-DD */
   date: string;
   letterKind?: LetterKind;
+  replyId?: string;
+  claimKey?: string;
+  inputFingerprint?: string;
   /** Complaint level: 1 insurer, 2 Bima Bharosa, 3 Ombudsman. */
   level?: number;
   reference?: string;
@@ -351,11 +354,22 @@ export interface TimelineEvent {
   docUrl?: string;
 }
 
-export type TimelineEventInput = Pick<TimelineEvent, 'kind' | 'date' | 'letterKind' | 'level' | 'reference' | 'note'>;
+export type TimelineEventInput = Pick<TimelineEvent, 'kind' | 'date' | 'letterKind' | 'level' | 'reference' | 'note' | 'replyId' | 'claimKey' | 'inputFingerprint'>;
 
-export type LetterKind = 'clarification' | 'reconsideration' | 'grievance' | 'cover_letter';
+export type LetterKind = 'clarification' | 'reconsideration' | 'grievance' | 'cover_letter' | 'document_response';
+
+export interface DocumentTask {
+  id: string; label: string; kind: 'checklist' | 'reply'; checklistId?: string | null; replyId?: string | null;
+  basis: string; source: string; why: string; checklistStatus?: ChecklistStatus | null; documents: CaseDocument[]; reviewed: boolean; notApplicable: boolean; note: string;
+}
+export interface ClaimDocuments { claimKey: string; fingerprint: string; replyId?: string | null; tasks: DocumentTask[]; }
+export interface DocumentTaskUpdate { expectedFingerprint?: string; claimKey: string; documentIds: string[]; reviewed: boolean; notApplicable: boolean; note: string; }
+export interface UploadContext { claimKey: string; taskId?: string; replaceExisting?: boolean; }
 
 export interface LetterDraft {
+  claimKey?: string;
+  inputFingerprint?: string;
+  replyId?: string;
   kind: LetterKind;
   to: string;
   subject: string;
@@ -365,7 +379,7 @@ export interface LetterDraft {
   warnings?: string[];
 }
 
-export type UploadEvent = { type: 'step'; label: string } | { type: 'done'; detectedType: string; pages: number; message?: string };
+export type UploadEvent = { type: 'step'; label: string } | { type: 'done'; detectedType: string; pages: number; message?: string; documentId?: string };
 
 /** Plain-language help for an insurer/TPA query raised during a cashless admission. */
 export interface QueryHelp {

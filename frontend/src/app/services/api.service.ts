@@ -1,3 +1,4 @@
+import { ClaimDocuments, DocumentTaskUpdate, UploadContext } from '../models/models';
 import { Injectable, inject, signal } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
 import { Observable, MonoTypeOperatorFunction, BehaviorSubject, catchError, combineLatest, concat, concatMap, delay, from, map, of, shareReplay, switchMap, tap, timeout } from 'rxjs';
@@ -334,9 +335,14 @@ export class ApiService {
     this.claims.set(this.loadClaims());
   }
   getLetter(kind: LetterKind = 'clarification'): Observable<LetterDraft> {
-    return this.live('letter')
+    return this.live('letter') || kind === 'document_response'
       ? this.http.get<LetterDraft>('/api/case/letter', { params: { kind } })
       : this.http.get<Record<LetterKind, LetterDraft>>('/mocks/letter.json').pipe(map((all) => all[kind]));
+  }
+
+  getDocumentTasks(): Observable<ClaimDocuments> { return this.http.get<ClaimDocuments>('/api/case/document-tasks'); }
+  updateDocumentTask(id: string, body: DocumentTaskUpdate): Observable<ClaimDocuments> {
+    return this.http.put<ClaimDocuments>('/api/case/document-tasks/' + encodeURIComponent(id), body);
   }
 
   /** Saves a checklist tick. Demo mode keeps it in this browser. */
@@ -407,14 +413,19 @@ export class ApiService {
     );
   }
 
-  uploadDocument(file: File, docType: DocType = 'auto'): Observable<UploadEvent> {
+  uploadDocument(file: File, docType: DocType = 'auto', context?: UploadContext): Observable<UploadEvent> {
     if (this.live('upload')) {
       const body = new FormData();
       body.append('file', file);
       body.append('docType', docType);
-      return this.http.post<{ detectedType: string; pages: number; message?: string | null }>('/api/documents', body).pipe(
+      if (context) {
+        body.append('claimKey', context.claimKey);
+        if (context.taskId) body.append('taskId', context.taskId);
+        body.append('replaceExisting', String(!!context.replaceExisting));
+      }
+      return this.http.post<{ detectedType: string; pages: number; message?: string | null; documentId?: string }>('/api/documents', body).pipe(
         timeout(285000),
-        map((r): UploadEvent => ({ type: 'done', detectedType: r.detectedType, pages: r.pages, message: r.message ?? undefined })),
+        map((r): UploadEvent => ({ type: 'done', detectedType: r.detectedType, pages: r.pages, message: r.message ?? undefined, documentId: r.documentId })),
       );
     }
     const steps = ['Uploading securely', 'Reading pages with Document AI', 'Finding clauses and amounts', 'Saving to your case'];

@@ -29,7 +29,7 @@
     </nav>
   }
   <!-- Claim pages only; the dashboard has its own step row. -->
-  @if (showProgress() && !onHome()) {
+  @if (showProgress() && !onHome() && !onClaimSubpage() && path() !== '/case') {
   <a class="journey" routerLink="/case" [attr.aria-label]="journeyLabel()" [title]="journeyLabel()">
     <span class="dots" aria-hidden="true">
       @for (s of journey.steps(); track s.label; let i = $index) {
@@ -62,7 +62,7 @@
 <div class="layout" [class.chat-side]="chat.panelOpen() && !onAskPage()" [class.chat-page]="onAskPage()">
   <main id="main" class="content">
     <!-- Phones: the header has no room for the progress chip, so it shows here on the dashboard and the claim pages. -->
-    @if (journey.claimCase() && showProgress()) {
+    @if (journey.claimCase() && showProgress() && !onClaimSubpage() && path() !== '/case') {
       <a class="m-progress no-print" [routerLink]="journey.current()?.route ?? '/case'" [fragment]="journey.current()?.fragment" [queryParams]="journey.current()?.query"
          [attr.aria-label]="journeyLabel()">
         <span class="mp-top">
@@ -107,7 +107,9 @@
     }
     @if (!live && workspace.mode() !== 'personal') { <aside class="fictional-context">Developer preview: some or all responses use mock data. Live controls are in session settings.</aside> }
     <app-workspace-chooser />
+    <app-claim-flow />
     <router-outlet />
+    <app-claim-flow [footer]="true" />
     @if (!onAskPage()) {
     @if (onHome()) {
       <footer class="landing-footer"><span>CareNest · Your health insurance, in plain words.</span><a routerLink="/status">Demo and session controls</a><p>Guidance based on available evidence. Only your insurer can confirm a claim decision.</p></footer>

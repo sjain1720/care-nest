@@ -4,7 +4,17 @@
     <p>Policies: PDF, up to 100 pages. Bills and letters: PDF or photo. Up to 20 MB per file.</p>
   </div>
 
-  <section class="card notice"><mat-icon>policy</mat-icon><div><strong>Which policy would you like to use?</strong><p>The fictional example uses Kotak Group Health Assure. Use that example, or choose your own file below. Uploading here changes only My documents; it does not replace the example.</p><a routerLink="/policy" [queryParams]="{workspace:'example'}">Use the example’s Kotak Group Health Assure policy ↗</a></div></section>
+  <section class="card notice"><div><strong>{{workspace.mode()==='example' ? 'Adding to your isolated example claim' : 'Adding to My documents'}}</strong>
+    <p>{{workspace.mode()==='example' ? 'This changes only your copy of the example. The shared sample and other visitors are unchanged. Use My documents for personal files.' : 'Your files remain separate from the fictional example.'}}</p>
+    @if(workspace.mode()==='example'){<a routerLink="/upload" [queryParams]="{workspace:'personal'}">Use My documents instead</a>}
+    @if(targetTask();as task){<p><strong>For: {{task.label}}</strong> · Uploaded files still need your review.</p>}
+    <a [routerLink]="returnRoute()" [queryParams]="returnQuery()">Return to claim documents</a>
+  </div></section>
+  @if(contextError()){<p class="error" role="alert">{{contextError()}}</p>}
+  @if(context() && (hasExistingDocument())) {
+    <section class="card"><strong>This claim already has this document type.</strong><p>To add a different hospital stay, start a new claim from My claim. To update this claim, explicitly allow replacement below. The new bill reading will need review.</p>
+    <label><input type="checkbox" [ngModel]="replaceExisting()" (ngModelChange)="replaceExisting.set($event)"> Replace the current bill or decision for this claim</label></section>
+  }
   <div id="upload-results" tabindex="-1" aria-label="Document processing results">
   @for (it of items(); track it.id) {
     <section class="card">
@@ -27,10 +37,11 @@
         <p class="small" style="margin:8px 0 0">{{ it.pages }} {{ 'pages read.' | t }}@if (it.message) { {{ it.message }} }</p>
       }
       @if (it.done) {
-        <div class="upload-success" role="status"><mat-icon>task_alt</mat-icon><div><strong>Ready in My documents</strong><p>This file is separate from the fictional example. Check the extracted details before relying on them.</p></div></div>
+        <div class="upload-success" role="status"><mat-icon>task_alt</mat-icon><div><strong>{{workspace.mode()==='example' ? 'Saved in your example claim' : 'Saved in My documents'}}</strong><p>Uploaded does not mean reviewed or sent. Check the document and any extracted details.</p></div></div>
         <div class="row upload-next-action">
-          <a mat-flat-button class="btn-teal" [routerLink]="uploadAction(it.detectedType).route" [fragment]="uploadAction(it.detectedType).fragment" [queryParams]="it.detectedType === 'Policy document' ? {workspace: 'personal', q: 'Summarise my uploaded policy and tell me which personal schedule details are missing.'} : {workspace: 'personal'}">{{ uploadAction(it.detectedType).label }} <mat-icon>arrow_forward</mat-icon></a>
-          @if (it.detectedType === 'Policy document') { <a mat-button routerLink="/policy" [queryParams]="{workspace: 'personal'}">View policy details</a> }
+          @if(!taskId){<a mat-flat-button class="btn-teal" [routerLink]="uploadAction(it.detectedType).route" [fragment]="uploadAction(it.detectedType).fragment" [queryParams]="it.detectedType === 'Policy document' ? {workspace: workspace.mode(), q: 'Summarise my uploaded policy and tell me which personal schedule details are missing.'} : {workspace: workspace.mode()}">{{ uploadAction(it.detectedType).label }} <mat-icon>arrow_forward</mat-icon></a>}
+          @if(taskId){<a mat-flat-button [routerLink]="returnRoute()" [queryParams]="returnQuery()">Review this item and continue →</a>}
+          @if (it.detectedType === 'Policy document') { <a mat-button routerLink="/policy" [queryParams]="{workspace: workspace.mode()}">View policy details</a> }
         </div>
       }
     </section>
@@ -52,16 +63,17 @@
 
   <label class="photo-btn">
     <mat-icon>photo_camera</mat-icon> {{ 'Take a photo of a bill or letter' | t }}
-    <input type="file" accept="image/jpeg,image/png,image/webp" capture="environment" class="sr-only" (change)="onPick($event)">
+    <input type="file" [disabled]="!context() || !!contextError() || processing()" accept="image/jpeg,image/png,image/webp" capture="environment" class="sr-only" (change)="onPick($event)">
   </label>
 
   <label class="drop" [class.over]="dragOver()" (dragover)="onDragOver($event)" (dragleave)="dragOver.set(false)" (drop)="onDrop($event)">
     <mat-icon>upload_file</mat-icon>
     <strong>{{ 'Drop PDFs or photos here, or tap to choose' | t }}</strong>
     <span class="muted small">PDF, JPG, PNG or WebP · up to 20 MB</span>
-    <input type="file" [accept]="accept" multiple class="sr-only" (change)="onPick($event)">
+    <input type="file" [disabled]="!context() || !!contextError() || processing()" [accept]="accept" [multiple]="!taskId" class="sr-only" (change)="onPick($event)">
   </label>
 
+  @if(completedUpload()) {<section class="card"><a mat-flat-button [routerLink]="returnRoute()" [queryParams]="returnQuery()">Review documents and continue →</a><p>Missing papers do not prevent preparing a draft. Review what is still needed.</p></section>}
   <details class="card upload-help"><summary>Which documents should I add?</summary>
     <app-next-steps [steps]="nextSteps()" [title]="'Add these, in this order'" />
     <p class="small muted">We can read policy papers, hospital bills, discharge summaries and insurer letters. For a bill with several pages, upload one PDF containing every page.</p>

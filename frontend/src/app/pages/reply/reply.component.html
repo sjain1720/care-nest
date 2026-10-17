@@ -4,7 +4,7 @@
     <p>{{ 'Paste their email or letter, or upload it as a PDF. We tell you what it means and what to do next.' | t }}</p>
   </div>
 
-  <app-next-steps [steps]="nextSteps()" />
+  @if (latest()?.outcome !== 'asks_for_papers') { <app-next-steps [steps]="nextSteps()" /> }
 
   @if (latest(); as r) {
     <section [class]="'card result out-' + meta(r.outcome).tone" id="result" aria-live="polite">
@@ -20,7 +20,8 @@
         <div class="section-label">{{ 'Their words' | t }}</div>
         <blockquote class="quote">“{{ r.quote }}”</blockquote>
       }
-      @if (r.papersAsked?.length) {
+      @if (r.outcome === 'asks_for_papers') { <app-document-tasks group="reply" /> }
+      @if (r.papersAsked?.length && r.outcome !== 'asks_for_papers') {
         <div class="section-label">{{ 'Papers they asked for' | t }}</div>
         <ul>
           @for (p of r.papersAsked; track p) { <li>{{ p }}</li> }

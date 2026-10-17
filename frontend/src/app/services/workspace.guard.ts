@@ -9,7 +9,7 @@ import { WorkspaceService, Workspace } from './workspace.service';
 export const exampleWorkspaceGuard: CanActivateFn = (route, state) => {
   const workspace = inject(WorkspaceService), router = inject(Router), api = inject(ApiService);
   const requested = route.queryParamMap.get('workspace');
-  const mode = state.url.split('?')[0] === '/upload' ? 'personal'
+  const mode = state.url.split('?')[0] === '/upload' && requested !== 'example' ? 'personal'
     : requested === 'personal' || requested === 'example' ? requested : workspace.choice() ?? 'example';
   if (requested !== mode) {
     const url = router.parseUrl(state.url); url.queryParams['workspace'] = mode;

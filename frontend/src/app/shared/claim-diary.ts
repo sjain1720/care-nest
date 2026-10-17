@@ -9,6 +9,7 @@ export const LETTER_LABELS: Record<LetterKind, string> = {
   reconsideration: 'Ask them to look again at a rejection',
   grievance: 'Make a complaint',
   cover_letter: 'Cover letter for your claim',
+  document_response: 'Response to requested documents',
 };
 
 export const COMPLAINT_PLACES: Record<number, string> = {
@@ -92,6 +93,7 @@ export function suggestLetter(c: ClaimCase | null | undefined, s: Settlement | n
   if (lastReply && (lastReply.outcome === 'no_change' || lastReply.outcome === 'rejected')) return 'grievance';
   const lastSent = [...events].reverse().find((e) => e.kind === 'letter_sent');
   if (lastSent && !lastReply && daysSince(lastSent.date) > REPLY_DAYS) return 'grievance';
+  if (lastReply?.outcome === 'asks_for_papers') return 'document_response';
   if (c?.rejection) return 'reconsideration';
   if (s) return 'clarification';
   return 'cover_letter';

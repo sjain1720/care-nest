@@ -5,6 +5,8 @@ cases/{sessionId}                         the claim being worked on: documents[]
 cases/{sessionId}/pastClaims/{claimId}    earlier claims: summary{}, case{} (kept CareNest claims only), expireAt
 Storage                                   cases/{sessionId}/doc-….pdf and img-… (photos)   (shared by all of the guest's claims)
 """
+from contextlib import contextmanager
+from contextvars import ContextVar
 import re
 
 from google.api_core.exceptions import NotFound
@@ -36,15 +38,33 @@ def get_case() -> dict:
 
 
 def update_case(data: dict) -> None:
-    _case().set({**data, "updatedAt": firestore.SERVER_TIMESTAMP, "expireAt": expiry()}, merge=True)
+    if _expected_flow.get():
+        def update(current):
+            check_flow(current)
+            return data
+        mutate_case(update)
+    else:
+        _case().set({**data, "updatedAt": firestore.SERVER_TIMESTAMP, "expireAt": expiry()}, merge=True)
 
 
 def add_document(doc: dict) -> None:
+    if _expected_flow.get():
+        def append(current):
+            check_flow(current)
+            return {'documents': [d for d in current.get('documents', []) if d['id'] != doc['id']] + [doc]}
+        mutate_case(append)
+        return
     current = [d for d in get_case().get("documents", []) if d["id"] != doc["id"]]
     update_case({"documents": current + [doc]})
 
 
 def add_timeline_event(event: dict) -> None:
+    if _expected_flow.get():
+        def append(current):
+            check_flow(current)
+            return {'timeline': current.get('timeline', []) + [event]}
+        mutate_case(append)
+        return
     update_case({"timeline": (get_case().get("timeline") or []) + [event]})
 
 
@@ -58,6 +78,8 @@ def remove_timeline_event(event_id: str) -> bool:
 
 
 def save_file(doc_id: str, data: bytes, mime: str) -> None:
+    if _expected_flow.get():
+        check_flow(get_case())
     _blob(doc_id).upload_from_string(data, content_type=mime)
 
 
@@ -133,3 +155,37 @@ def delete_case() -> None:
     for snap in _past().stream():
         snap.reference.delete()
     _case().delete()
+
+
+def mutate_case(change):
+    """Apply a small owned-case mutation transactionally; callers validate context."""
+    client = db()
+    ref = _case()
+    @firestore.transactional
+    def apply(transaction):
+        snap = ref.get(transaction=transaction)
+        current = snap.to_dict() or {}
+        patch = change(current)
+        if patch:
+            transaction.set(ref, {**patch, 'updatedAt': firestore.SERVER_TIMESTAMP, 'expireAt': expiry()}, merge=True)
+        return {**current, **patch}
+    return apply(client.transaction())
+
+
+_expected_flow = ContextVar('expected_case_flow', default=None)
+
+
+@contextmanager
+def guard_flow(identity):
+    token = _expected_flow.set(identity)
+    try:
+        yield
+    finally:
+        _expected_flow.reset(token)
+
+
+def check_flow(current):
+    expected = _expected_flow.get()
+    if expected and current.get('flowId') != expected:
+        from app.services.claim_flow import FlowConflict
+        raise FlowConflict('The selected claim changed during processing. Return to documents and retry in the correct claim.')

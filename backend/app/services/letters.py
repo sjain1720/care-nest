@@ -3,7 +3,7 @@ import re
 
 from app.services.policy_details import format_inr
 
-LETTER_KINDS = ("clarification", "reconsideration", "grievance", "cover_letter")
+LETTER_KINDS = ("clarification", "reconsideration", "grievance", "cover_letter", "document_response")
 _AMOUNT = re.compile(r"(?:₹|rs\.?|inr)\s?([\d,]+(?:\.\d{1,2})?)", re.IGNORECASE)
 
 

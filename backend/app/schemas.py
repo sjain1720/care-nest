@@ -178,6 +178,38 @@ class ChecklistUpdate(BaseModel):
     status: Literal["collected", "missing", "requested"]
 
 
+class DocumentTaskUpdate(BaseModel):
+    expectedFingerprint: str | None = Field(default=None, pattern=r'^[a-f0-9]{64}$')
+    claimKey: str = Field(pattern=r'^[a-f0-9]{32}$')
+    documentIds: list[str] = Field(default_factory=list, max_length=30)
+    reviewed: bool = False
+    notApplicable: bool = False
+    note: str = Field(default='', max_length=500)
+
+
+class DocumentTask(BaseModel):
+    id: str
+    label: str
+    kind: Literal['checklist', 'reply']
+    checklistId: str | None = None
+    replyId: str | None = None
+    basis: str
+    source: str = ''
+    why: str = ''
+    checklistStatus: Literal['collected','requested','missing'] | None = None
+    documents: list[dict] = Field(default_factory=list)
+    reviewed: bool = False
+    notApplicable: bool = False
+    note: str = ''
+
+
+class ClaimDocuments(BaseModel):
+    claimKey: str
+    fingerprint: str
+    replyId: str | None = None
+    tasks: list[DocumentTask]
+
+
 class QueryHelpRequest(BaseModel):
     queryText: str = Field(min_length=10, max_length=3000)
 
@@ -186,7 +218,10 @@ class TimelineEventIn(BaseModel):
     """Something the family did: sent the claim or a letter, answered a query, filed a complaint, or closed the claim."""
     kind: Literal["claim_sent", "letter_sent", "query_answered", "complaint_filed", "closed"]
     date: str = Field(pattern=r"^\d{4}-\d{2}-\d{2}$")
-    letterKind: Literal["clarification", "reconsideration", "grievance", "cover_letter"] | None = None
+    letterKind: Literal["clarification", "reconsideration", "grievance", "cover_letter", "document_response"] | None = None
+    replyId: str | None = Field(default=None, max_length=80)
+    claimKey: str | None = Field(default=None, pattern=r'^[a-f0-9]{32}$')
+    inputFingerprint: str | None = Field(default=None, pattern=r'^[a-f0-9]{64}$')
     level: int | None = Field(default=None, ge=1, le=3)
     reference: str | None = Field(default=None, max_length=60)
     note: str | None = Field(default=None, max_length=300)
@@ -236,6 +271,7 @@ class AskResponse(BaseModel):
 
 
 class UploadResult(BaseModel):
+    documentId: str | None = None
     detectedType: str
     pages: int
     policyId: str | None = None

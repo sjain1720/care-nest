@@ -1,0 +1,22 @@
+// Pure navigation checks: page transitions cannot manufacture claim milestones.
+const fs=require('fs'),vm=require('vm'),assert=require('assert/strict');
+const ts=require('../frontend/node_modules/typescript');
+const source=fs.readFileSync(__dirname+'/../frontend/src/app/shared/claim-flow.ts','utf8');
+const compiled=ts.transpileModule(source,{compilerOptions:{module:ts.ModuleKind.CommonJS,target:ts.ScriptTarget.ES2022}}).outputText;
+const box={exports:{}};vm.runInNewContext(compiled,box);
+const resolve=box.exports.resolveClaimFlow;
+const request={id:'reply-1',kind:'reply',date:'2026-10-17',outcome:'asks_for_papers'};
+const claim={timeline:[request],rejection:null};
+const frozen=JSON.stringify(claim);
+assert.equal(resolve(claim,null,true,'/case/reply',null,false,null).next.query.section,'documents');
+assert.equal(resolve(claim,null,true,'/case','documents',false,null).next.query.kind,'document_response');
+assert.equal(resolve({timeline:[]},null,false,'/case','documents',false,null).next.query.kind,'cover_letter');
+assert.equal(resolve({timeline:[]},{reviewed:false},true,'/case',null,false,null).next.route,'/case/bill');
+assert.equal(resolve(claim,null,true,'/case/letter',null,false,'document_response').next.fragment,'sent');
+const sent={...claim,timeline:[request,{kind:'letter_sent',date:'2026-10-17',letterKind:'document_response',replyId:'reply-1'}]};
+assert.equal(resolve(sent,null,true,'/case/letter',null,false,'document_response').next.route,'/case/reply');
+const old={...claim,timeline:[request,{kind:'letter_sent',date:'2026-10-17',letterKind:'document_response',replyId:'older-reply'}]};
+assert.equal(resolve(old,null,true,'/case/letter',null,false,'document_response').next.fragment,'sent');
+assert.equal(resolve({timeline:[{kind:'reply',date:'2026-10-17',outcome:'rejected'}]},null,true,'/case','history',true,null).next.query.kind,'grievance');
+assert.equal(JSON.stringify(claim),frozen);
+console.log('9 pure claim-flow assertions passed; no AI/cloud requests.');

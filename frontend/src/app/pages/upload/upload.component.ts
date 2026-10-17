@@ -1,3 +1,5 @@
+import { ClaimDocuments } from '../../models/models';
+import { WorkspaceService } from '../../services/workspace.service';
 import { Component, DestroyRef, computed, inject, signal } from '@angular/core';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { FormsModule } from '@angular/forms';
@@ -63,6 +65,26 @@ interface UploadItem {
 })
 export class UploadComponent {
   private api = inject(ApiService);
+  readonly workspace = inject(WorkspaceService);
+  readonly context = signal<ClaimDocuments|null>(null);
+  readonly contextError = signal('');
+  readonly replaceExisting = signal(false);
+  readonly taskId = inject(ActivatedRoute).snapshot.queryParamMap.get('task') ?? undefined;
+  readonly returnTo = inject(ActivatedRoute).snapshot.queryParamMap.get('returnTo') === 'reply' ? 'reply' : 'documents';
+  readonly targetTask = computed(()=>this.context()?.tasks.find(t=>t.id===this.taskId));
+  readonly processing = computed(()=>this.items().some(it=>!it.done && !it.error));
+  private loadContext(): void {
+    const expected = this.routeKey;
+    this.api.getDocumentTasks().pipe(takeUntilDestroyed(this.destroyRef)).subscribe({next:data=>{
+      if(expected && data.claimKey !== expected){this.contextError.set('This claim changed. Return to the claim documents before uploading.');return;}
+      if(this.taskId && !data.tasks.some(t=>t.id===this.taskId)){this.contextError.set('This requested item changed. Return to the insurer reply.');return;}
+      this.context.set(data);
+    },error:()=>this.contextError.set('Could not open the selected claim. Return to its documents and retry.')});
+  }
+  private readonly routeKey = inject(ActivatedRoute).snapshot.queryParamMap.get('claimKey');
+  returnRoute(){return this.returnTo === 'reply' ? '/case/reply' : '/case';}
+  returnQuery(){return this.returnTo === 'reply' ? {workspace:this.workspace.mode()} : {workspace:this.workspace.mode(),section:'documents'};}
+
   readonly chat = inject(ChatService);
   private destroyRef = inject(DestroyRef);
 
@@ -70,8 +92,8 @@ export class UploadComponent {
   readonly completedUpload = computed(() => this.items().some((it) => it.done));
   dragOver = signal(false);
   private hasPolicy = toSignal(this.api.getPolicy());
-  private hasBill = toSignal(this.api.getBill());
-  private hasSettlement = toSignal(this.api.getSettlement());
+  readonly hasBill = toSignal(this.api.getBill());
+  readonly hasSettlement = toSignal(this.api.getSettlement());
   private journey = inject(JourneyService);
   nextSteps = computed<NextStep[]>(() => [
     { text: 'Start with your policy papers. We read every page.', done: !!this.hasPolicy() },
@@ -92,6 +114,7 @@ export class UploadComponent {
     this.destroyRef.onDestroy(() => clearInterval(timer));
     const wanted = inject(ActivatedRoute).snapshot.queryParamMap.get('type');
     if (wanted && (DOC_TYPES as readonly string[]).includes(wanted)) this.docType = wanted as DocType;
+    this.loadContext();
   }
 
   uploadAction(type?: string): { label: string; route: string; fragment?: string } {
@@ -101,6 +124,8 @@ export class UploadComponent {
     if (type === 'Insurer reply') return { label: 'Understand this reply', route: '/case/reply' };
     return { label: 'Review my claim documents', route: '/case', fragment: 'documents' };
   }
+
+  hasExistingDocument(): boolean { return this.docType === 'Hospital bill' ? !!this.hasBill() : this.docType === 'Settlement letter' ? !!this.hasSettlement() : this.docType === 'Rejection letter' ? !!this.journey.rejection() : false; }
 
   typeLabel(t: DocType): string {
     return TYPE_LABELS[t] ?? t;
@@ -124,6 +149,8 @@ export class UploadComponent {
   }
 
   private addFiles(files: FileList | null): void {
+    if (!this.context() || this.contextError() || this.processing()) return;
+    if (this.taskId && files && files.length > 1) { this.contextError.set('Choose one file at a time for a requested item.'); return; }
     for (const file of Array.from(files ?? [])) {
       const id = this.nextId++;
       const photo = PHOTO_TYPES.includes(file.type);
@@ -145,7 +172,7 @@ export class UploadComponent {
 
   private process(id: number, file: File): void {
     this.patch(id, (it) => ({ ...it, startedAt: Date.now() }));
-    this.api.uploadDocument(file, this.docType).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
+    this.api.uploadDocument(file, this.docType, {claimKey:this.context()!.claimKey,taskId:this.taskId,replaceExisting:this.replaceExisting()}).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: (event) => {
         if (event.type === 'done') {
           if (event.detectedType === 'Policy document') this.api.refreshPolicy();

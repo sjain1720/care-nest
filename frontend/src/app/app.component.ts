@@ -1,3 +1,4 @@
+import { ClaimFlowComponent } from './shared/claim-flow.component';
 import { VisitorWelcomeComponent } from './shared/visitor-welcome.component';
 import { VisitorProfileService } from './services/visitor-profile.service';
 import { Component, DestroyRef, HostListener, computed, effect, inject, signal } from '@angular/core';
@@ -38,7 +39,7 @@ const SCROLL_REVEAL_PX = 120;
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [VisitorWelcomeComponent, WorkspaceChooserComponent, RouterOutlet, RouterLink, RouterLinkActive, NgTemplateOutlet, MatIconModule, CitationDrawerComponent, ChatBarComponent, TranslatePipe],
+  imports: [ClaimFlowComponent, VisitorWelcomeComponent, WorkspaceChooserComponent, RouterOutlet, RouterLink, RouterLinkActive, NgTemplateOutlet, MatIconModule, CitationDrawerComponent, ChatBarComponent, TranslatePipe],
   templateUrl: './app.component.html',
   styleUrl: './app.component.css',
 })
@@ -57,7 +58,7 @@ export class AppComponent {
   readonly menuOpen = signal(false);
   readonly scrolled = signal(false);
 
-  private path = toSignal(
+  readonly path = toSignal(
     inject(Router).events.pipe(filter((e): e is NavigationEnd => e instanceof NavigationEnd), map((e) => e.urlAfterRedirects.split(/[?#]/)[0])),
     { initialValue: '/' },
   );
