@@ -1,8 +1,7 @@
 <div class="page">
   <div class="page-head">
     <h1>{{ 'Add your documents' | t }}</h1>
-    <p class="muted small">Files are saved in My documents, separate from Shubham’s example. A new policy becomes the selected policy in your private space.</p>
-    <p>{{ 'Policies as PDF (up to 100 pages). Bills and insurer letters as PDF or a phone photo (JPG, PNG). We read every page, so answers can show you the exact page.' | t }}</p>
+    <p>Policies: PDF, up to 100 pages. Bills and letters: PDF or photo. Up to 20 MB per file.</p>
   </div>
 
   <div id="upload-results" tabindex="-1" aria-label="Document processing results">
@@ -37,8 +36,6 @@
   }
   </div>
 
-  <app-next-steps [steps]="nextSteps()" [title]="'Add these, in this order'" />
-
   <h2>{{ (completedUpload() ? "Add another document" : "Choose a document") | t }}</h2>
   <div class="upload-categories" aria-label="Choose document type">
     @for (type of ['Policy document', 'Hospital bill', 'Settlement letter']; track type) {
@@ -60,14 +57,14 @@
   <label class="drop" [class.over]="dragOver()" (dragover)="onDragOver($event)" (dragleave)="dragOver.set(false)" (drop)="onDrop($event)">
     <mat-icon>upload_file</mat-icon>
     <strong>{{ 'Drop PDFs or photos here, or tap to choose' | t }}</strong>
-    <span class="muted small">{{ 'We can read:' | t }}</span>
-    <span class="types">
-      @for (t of acceptedTypes; track t) { <span class="pill tone-info">{{ t | t }}</span> }
-    </span>
-    <span class="muted small">{{ 'A bill with several pages: upload one PDF with every page, so none is missed.' | t }}</span>
+    <span class="muted small">PDF, JPG, PNG or WebP · up to 20 MB</span>
     <input type="file" [accept]="accept" multiple class="sr-only" (change)="onPick($event)">
   </label>
 
+  <details class="card upload-help"><summary>Which documents should I add?</summary>
+    <app-next-steps [steps]="nextSteps()" [title]="'Add these, in this order'" />
+    <p class="small muted">We can read policy papers, hospital bills, discharge summaries and insurer letters. For a bill with several pages, upload one PDF containing every page.</p>
+  </details>
   <p class="muted small">{{ "Only use your own papers or our sample papers. We use them only to answer your questions. We don't share them." | t }}</p>
 
 

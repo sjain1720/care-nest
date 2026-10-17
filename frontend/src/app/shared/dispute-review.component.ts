@@ -9,15 +9,18 @@ import { isLive } from '../services/api.service';
     <section class="card" id="ai-review">
       <h2>Investigate deductions or rejection</h2>
       <p>Understand the insurer’s decision and prepare a response grounded in your documents.</p>
-      <ol class="investigation-path"><li>Check documents and amounts</li><li>Examine each reason and policy clause</li><li>Prepare a checklist and editable letter</li></ol>
-      <label for="dispute-clarification">Any clarification? (optional)</label>
-      <textarea id="dispute-clarification" rows="2" maxlength="350" [value]="clarification()"
-        (input)="clarification.set($any($event.target).value)"></textarea>
       <button mat-flat-button type="button" [disabled]="chat.busy()" (click)="run()">Investigate with Nessi</button>
+      <details class="investigation-options"><summary>Add a clarification (optional)</summary>
+        <label for="dispute-clarification">What else should Nessi know?</label>
+        <textarea id="dispute-clarification" rows="2" maxlength="350" [value]="clarification()" (input)="clarification.set($any($event.target).value)"></textarea>
+      </details>
+      <details class="investigation-options"><summary>What Nessi will check</summary>
+        <ol class="investigation-path"><li>Check documents and amounts</li><li>Examine each reason and policy clause</li><li>Prepare a checklist and editable letter</li></ol>
+      </details>
       <p class="small muted">Your investigation opens in full chat. Missing evidence stays explicit; only the insurer can confirm a claim decision.</p>
     </section>
   }`,
-  styles: `.investigation-path { display:flex;flex-wrap:wrap;gap:12px 28px;padding-left:20px;font-size:.88rem;color:var(--cn-muted);margin:20px 0; } textarea { display:block; width:100%; box-sizing:border-box; margin:8px 0 12px; padding:10px; font:inherit; color:var(--cn-ink); background:var(--cn-surface); border:1px solid var(--cn-border); border-radius:8px; }`,
+  styles: `.investigation-options { margin:12px 0; }.investigation-options summary { min-height:40px;display:list-item;align-content:center;color:var(--cn-link);cursor:pointer;font-size:.88rem; }.investigation-options label { display:block;margin-top:10px; } .investigation-path { display:flex;flex-wrap:wrap;gap:12px 28px;padding-left:20px;font-size:.88rem;color:var(--cn-muted);margin:20px 0; } textarea { display:block; width:100%; box-sizing:border-box; margin:8px 0 12px; padding:10px; font:inherit; color:var(--cn-ink); background:var(--cn-surface); border:1px solid var(--cn-border); border-radius:8px; }`,
 })
 export class DisputeReviewComponent {
   readonly chat = inject(ChatService);

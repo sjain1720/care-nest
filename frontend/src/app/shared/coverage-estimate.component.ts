@@ -25,8 +25,15 @@ import { TranslatePipe } from './translate.pipe';
           </span>
         </div>
       </div>
-      @for (warning of result()?.warnings ?? []; track $index) {
-        <p class="muted small">{{ warning }}</p>
+      @if (compact() && estimate()) {
+        @if (result()?.warnings?.[0]; as warning) { <p class="muted small">{{ warning }}</p> }
+        @if ((result()?.warnings?.length ?? 0) > 1) {
+          <details class="coverage-cautions"><summary>Estimate assumptions and cautions ({{ (result()?.warnings?.length ?? 1) - 1 }})</summary>
+            @for (warning of result()?.warnings?.slice(1) ?? []; track $index) { <p class="muted small">{{ warning }}</p> }
+          </details>
+        }
+      } @else {
+        @for (warning of result()?.warnings ?? []; track $index) { <p class="muted small">{{ warning }}</p> }
       }
       @if (estimate(); as e) {
         <div class="cov-main">
@@ -69,6 +76,7 @@ import { TranslatePipe } from './translate.pipe';
     </section>
   `,
   styles: `
+    .coverage-cautions { margin-bottom:12px; }.coverage-cautions summary { cursor:pointer;min-height:32px;color:var(--cn-link);font-size:.85rem; }.coverage-cautions p { margin-top:8px; }
     .cov { background: linear-gradient(135deg, var(--cn-c1-soft), var(--cn-surface) 70%); border-color: var(--cn-c1-line); }
     .cov-head { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
     .cov-icon { flex: none; width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; background: var(--cn-c1-soft); color: var(--cn-c1-ink); }

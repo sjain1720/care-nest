@@ -95,8 +95,12 @@
     @if (!onHome() && workspace.mode() !== 'general') {
       <aside class="fictional-context" [class.personal-context]="workspace.mode() === 'personal'">
         <mat-icon>{{ workspace.mode() === 'example' ? 'science' : 'lock_outline' }}</mat-icon>
-        <span>{{ workspace.mode() === 'example' ? "Shubham Sharma · Fictional example. Your edits are separate from other visitors." : "My documents · Your private guest workspace. Shubham's example stays separate." }}</span>
-        <button type="button" (click)="workspace.choosing.set(true)">Switch space <mat-icon>swap_horiz</mat-icon></button>
+        <strong class="workspace-name">{{ workspace.mode() === 'example' ? 'Shubham · Fictional example' : 'My documents · Private guest' }}</strong>
+        <details class="workspace-about">
+          <summary aria-label="About this workspace" title="About this workspace"><mat-icon>info_outline</mat-icon></summary>
+          <p>{{ workspace.mode() === 'example' ? "This is a fictional profile with prepared sample documents. Your edits are separate from other visitors. Switch to My documents to use your own files." : "Your uploads and claim details stay separate from Shubham’s example. A new policy becomes your selected policy. Switching spaces or returning to Welcome does not delete your work." }} <a routerLink="/status">Expiry and data controls</a></p>
+        </details>
+        <button type="button" class="workspace-change" (click)="workspace.choosing.set(true)" aria-label="Change workspace">Change <mat-icon>swap_horiz</mat-icon></button>
       </aside>
     }
     @if (!live && workspace.mode() !== 'personal') { <aside class="fictional-context">Developer preview: some or all responses use mock data. Live controls are in session settings.</aside> }
