@@ -32,7 +32,14 @@ def _answer(body, question, on_step=None):
         kwargs['on_step'] = on_step
     if body.generalOnly:
         kwargs['general_only'] = True
-    return answer(question, **kwargs)
+    result = answer(question, **kwargs)
+    from app.services.greetings import is_greeting
+    if is_greeting(body.question):
+        from app.services.session_profile import get_display_name
+        name = get_display_name()
+        if name and body.language == 'en':
+            result.answer.headline = f"Hi {name}! I'm Nessi."
+    return result
 
 
 @router.post("/copilot/ask", response_model=AskResponse)

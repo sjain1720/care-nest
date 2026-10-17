@@ -1,6 +1,7 @@
 import { inject } from '@angular/core';
 import { CanActivateFn, Router } from '@angular/router';
-import { catchError, finalize, map, of } from 'rxjs';
+import { catchError, finalize, map, of, from, switchMap } from 'rxjs';
+import { VisitorProfileService } from './visitor-profile.service';
 import { ApiService } from './api.service';
 import { WorkspaceService, Workspace } from './workspace.service';
 
@@ -16,7 +17,7 @@ export const exampleWorkspaceGuard: CanActivateFn = (route, state) => {
   }
   workspace.select(mode);
   workspace.opening.set(true);
-  return api.activateWorkspace(mode).pipe(map(() => true), catchError(() => of(router.createUrlTree(['/workspace-unavailable']))),
+  return from(inject(VisitorProfileService).load()).pipe(switchMap(() => api.activateWorkspace(mode))).pipe(map(() => true), catchError(() => of(router.createUrlTree(['/workspace-unavailable']))),
     finalize(() => workspace.opening.set(false)));
 };
 export const generalWorkspaceGuard: CanActivateFn = (route) => {
@@ -24,12 +25,12 @@ export const generalWorkspaceGuard: CanActivateFn = (route) => {
   const requested = route.queryParamMap.get('workspace');
   const mode: Workspace = requested === 'personal' || requested === 'example' ? requested : workspace.choice() ?? 'general';
   if (mode !== 'general') workspace.select(mode);
-  return api.activateWorkspace(mode).pipe(map(() => true), catchError(() => { api.clearWorkspace(); return of(true); }));
+  return from(inject(VisitorProfileService).load()).pipe(switchMap(() => api.activateWorkspace(mode))).pipe(map(() => true), catchError(() => { api.clearWorkspace(); return of(true); }));
 };
 export const chatWorkspaceGuard: CanActivateFn = (route, state) => {
   if (!inject(WorkspaceService).choice() && !route.queryParamMap.get('workspace')) {
     inject(WorkspaceService).choosing.set(true); return generalWorkspaceGuard(route, state);
   }
   return route.queryParamMap.get('workspace') === 'general'
-    ? inject(ApiService).activateWorkspace('general').pipe(map(() => true)) : exampleWorkspaceGuard(route, state);
+    ? generalWorkspaceGuard(route, state) : exampleWorkspaceGuard(route, state);
 };

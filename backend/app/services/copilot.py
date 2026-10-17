@@ -13,7 +13,7 @@ from app.core.gcp import gemini
 from app.schemas import AgentStep, AnswerCard, AskResponse, NextAction
 from app.services.case_qa import answer_case_question
 from app.services.intents import keyword_about, keyword_intent
-from app.services.policy_qa import answer_question
+from app.services.policy_qa import answer_question, answer_recorded_room_limit
 from app.services.steps import StepLog
 from app.services.coverage import coverage_answer
 from app.services import policy_store
@@ -84,12 +84,15 @@ def answer(question: str, on_step: Callable[[AgentStep], None] | None = None, la
         # ADK, even if this browser has previously visited the example workspace.
         from app.services.general_qa import general_answer
         result = general_answer(question, log, language, has_policy=False)
-        result.nextAction = NextAction(label="Open Ravi's fictional dashboard", route='/dashboard')
+        result.nextAction = NextAction(label="Open the fictional dashboard", route='/dashboard')
         result.secondaryAction = None
         return AskResponse(steps=log.steps, answer=result)
     if re.search(r"\b(remaining (cover|coverage|sum insured)|(?:cover|coverage) (?:is )?(?:left|remaining)|how much (?:cover|coverage).*left|my (?:insurance )?balance)\b|कितन[ाी].*कवर.*बचा|बीमा.*शेष", question, re.I):
         log.add('Verifier', 'Calculating from the selected policy and linked recorded payments')
         return AskResponse(steps=log.steps, answer=coverage_answer(language))
+    recorded = answer_recorded_room_limit(original_question or question, log)
+    if recorded:
+        return recorded
     from app.services.claim_investigation import wants_investigation, investigate
     if wants_investigation(original_question or question):
         log.add('Claim Copilot', 'Starting a bounded multi-document ADK investigation')

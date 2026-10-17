@@ -1,7 +1,7 @@
 <div class="landing">
   <section class="landing-hero" aria-labelledby="landing-title">
     <div class="intro">
-      <p class="eyebrow">YOUR HEALTH COVERAGE, UNDERSTOOD</p>
+      <p class="eyebrow">WELCOME, {{ workspace.profile.name() }}</p>
       <h1 id="landing-title">Health insurance,<br><span>made simple.</span></h1>
       <p class="lead">Understand your policy, make sense of your bills,<br class="desktop-break"> and know what to do next.</p>
       <p class="detail">From waiting periods to unexplained deductions, CareNest helps you find the evidence and prepare your next step.</p>
@@ -47,12 +47,12 @@
     <div class="action-grid">
       <button class="action-card" type="button" (click)="chat.openPanel()">
         <span class="action-icon"><mat-icon>forum</mat-icon></span>
-        <h3>Ask Nessi</h3><p>Understand insurance terms, waiting periods and how to question a claim decision. Choose Shubham’s example or ask using your own documents.</p>
+        <h3>Ask Nessi</h3><p>Understand insurance terms, waiting periods and how to question a claim decision. Choose the fictional example or ask using your own documents.</p>
         <span class="card-action">Start a conversation <mat-icon>arrow_forward</mat-icon></span>
       </button>
       <a class="action-card" routerLink="/dashboard" [queryParams]="{workspace: 'example'}">
         <span class="action-icon"><mat-icon>dashboard</mat-icon></span>
-        <h3>Explore Shubham’s example</h3><p>See a fictional family's policy, hospital bill and settlement. Ask questions, inspect the evidence and prepare a clarification letter.</p>
+        <h3>Explore the fictional example</h3><p>See a fictional family's policy, hospital bill and settlement. Ask questions, inspect the evidence and prepare a clarification letter.</p>
         <span class="card-action">Open dashboard <mat-icon>arrow_forward</mat-icon></span>
       </a>
       <a class="action-card" routerLink="/upload" [queryParams]="{workspace: 'personal'}">
@@ -63,5 +63,5 @@
     </div>
   </section>
   <aside class="guest-note"><mat-icon>info_outline</mat-icon><div><strong>Two separate spaces. One helpful assistant.</strong>
-    <p>No sign-in required. Each visitor has separate conversations and changes. Switch between Shubham’s example and My documents at any time. Returning here does not erase either space.</p></div></aside>
+    <p>No sign-in required. Each visitor has separate conversations and changes. Switch between the fictional example and My documents at any time. Returning here does not erase either space.</p></div></aside>
 </div>

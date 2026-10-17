@@ -1,3 +1,5 @@
+import { VisitorWelcomeComponent } from './shared/visitor-welcome.component';
+import { VisitorProfileService } from './services/visitor-profile.service';
 import { Component, DestroyRef, HostListener, computed, effect, inject, signal } from '@angular/core';
 import { NgTemplateOutlet, ViewportScroller } from '@angular/common';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
@@ -36,11 +38,12 @@ const SCROLL_REVEAL_PX = 120;
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [WorkspaceChooserComponent, RouterOutlet, RouterLink, RouterLinkActive, NgTemplateOutlet, MatIconModule, CitationDrawerComponent, ChatBarComponent, TranslatePipe],
+  imports: [VisitorWelcomeComponent, WorkspaceChooserComponent, RouterOutlet, RouterLink, RouterLinkActive, NgTemplateOutlet, MatIconModule, CitationDrawerComponent, ChatBarComponent, TranslatePipe],
   templateUrl: './app.component.html',
   styleUrl: './app.component.css',
 })
 export class AppComponent {
+  readonly profile = inject(VisitorProfileService);
   readonly theme = inject(ThemeService);
   readonly settings = inject(SettingsService);
   readonly journey = inject(JourneyService);
@@ -132,7 +135,7 @@ export class AppComponent {
 
   readonly mainNav: NavItem[] = [
     { path: '/', label: 'Welcome', short: 'Welcome', icon: 'home', exact: true, desc: 'General insurance guidance from Nessi' },
-    { path: '/dashboard', label: 'Dashboard', short: 'Home', icon: 'dashboard', exact: true, desc: "Shubham's fictional example workspace" },
+    { path: '/dashboard', label: 'Dashboard', short: 'Home', icon: 'dashboard', exact: true, desc: "Your fictional example workspace" },
     { path: '/policy', label: 'My policy', short: 'Policy', icon: 'policy', exact: true, desc: 'Cover, limits, waiting times' },
     { path: '/case', label: 'My claim', short: 'Claim', icon: 'folder_shared', exact: false, desc: 'Papers, diary, your files' },
     { path: '/ask', label: 'Chat', icon: 'forum', exact: true, desc: 'Answers from your own papers' },

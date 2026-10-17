@@ -10,7 +10,7 @@ import { ChatService } from '../services/chat.service';
 @Component({ selector: 'app-workspace-chooser', standalone: true, imports: [A11yModule, MatIconModule],
   template: `@if (workspace.mode() === 'example' && api.exampleOutdated()) {
     <section class="card notice" role="status"><mat-icon>update</mat-icon><div><strong>A new example is ready</strong><p>Original Kotak wording, two hospital bills and a ₹10 lakh fictional family profile.</p><button type="button" class="action-link" [disabled]="busy()" (click)="reloadExample()">Load updated example</button>@if (error()) { <p role="alert">{{ error() }}</p> }</div></section>
-  }@if (workspace.choosing()) {
+  }@if (workspace.choosing() && workspace.profile.name()) {
     <div class="workspace-overlay">
       <section class="workspace-dialog" role="dialog" aria-modal="true" aria-labelledby="workspace-title" (keydown.escape)="!busy() && chat.cancelChoice()" cdkTrapFocus [cdkTrapFocusAutoCapture]="true">
         <button class="dialog-close" type="button" aria-label="Close workspace choice" (click)="chat.cancelChoice()" [disabled]="busy()"><mat-icon>close</mat-icon></button>
@@ -18,10 +18,10 @@ import { ChatService } from '../services/chat.service';
         <h2 id="workspace-title">How would you like to use CareNest?</h2>
         <p>Nessi will use only the documents in the space you choose. You can switch at any time.</p>
         <button class="workspace-option" type="button" (click)="choose('example')" [disabled]="busy()" cdkFocusInitial>
-          <mat-icon>account_circle</mat-icon><span><strong>Try as Shubham</strong><small>A fictional family's policy, bill and claim. Everything is ready to explore.</small></span><mat-icon>arrow_forward</mat-icon>
+          <mat-icon>account_circle</mat-icon><span><strong>Try the fictional example</strong><small>Use the example’s Kotak Group Health Assure policy, two hospital bills and claim history.</small></span><mat-icon>arrow_forward</mat-icon>
         </button>
         <button class="workspace-option" type="button" (click)="choose('personal')" [disabled]="busy()">
-          <mat-icon>folder_open</mat-icon><span><strong>Use my own documents</strong><small>Ask general questions now. Add your policy, bills or letters when needed.</small></span><mat-icon>arrow_forward</mat-icon>
+          <mat-icon>folder_open</mat-icon><span><strong>Use my own documents</strong><small>Ask general questions or upload another policy. Your files stay separate from the fictional example.</small></span><mat-icon>arrow_forward</mat-icon>
         </button>
         @if (busy()) { <p role="status">Opening your workspace…</p> }
         @if (error()) { <p class="error" role="alert">{{ error() }}</p> }
@@ -38,7 +38,7 @@ export class WorkspaceChooserComponent {
   readonly busy = signal(false);
   readonly error = signal('');
   async reloadExample(): Promise<void> {
-    if (!confirm("Replace only Shubham's example with the latest sample? Edits and chat in the example will be cleared. My documents will remain unchanged.")) return;
+    if (!confirm("Replace only the fictional example with the latest sample? Edits and chat in the example will be cleared. My documents will remain unchanged.")) return;
     this.busy.set(true); this.error.set('');
     try { await firstValueFrom(this.api.resetExampleWorkspace()); location.reload(); }
     catch { this.busy.set(false); this.error.set('Could not reload the example. Please try again.'); }

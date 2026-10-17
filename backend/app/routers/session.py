@@ -2,6 +2,7 @@ from fastapi import APIRouter, Response
 from hashlib import sha256
 
 from app.core.session import COOKIE, expiry, root_session_id, session_id
+from app.schemas import DisplayNameInput, VisitorProfile
 from app.services import policy_store
 from app.services.data_lifecycle import delete_guest
 
@@ -21,3 +22,15 @@ def delete_my_data():
     response = Response(status_code=204)
     response.delete_cookie(COOKIE, path="/", httponly=True, samesite="lax")
     return response
+
+
+@router.get('/session/profile', response_model=VisitorProfile)
+def get_profile():
+    from app.services.session_profile import get_display_name
+    return {'displayName': get_display_name(), 'expiresAt': expiry().isoformat()}
+
+
+@router.put('/session/profile', response_model=VisitorProfile)
+def set_profile(body: DisplayNameInput):
+    from app.services.session_profile import save_display_name
+    return {'displayName': save_display_name(body.displayName), 'expiresAt': expiry().isoformat()}

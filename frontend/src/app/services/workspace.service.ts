@@ -1,3 +1,4 @@
+import { VisitorProfileService } from './visitor-profile.service';
 import { Injectable, inject, signal } from '@angular/core';
 import { HttpInterceptorFn, HttpResponse } from '@angular/common/http';
 import { map } from 'rxjs';
@@ -13,11 +14,12 @@ function savedChoice(): DocumentWorkspace | null {
 /** Selectors are not owner IDs. Personal uses the browser owner; example uses its owned child. */
 @Injectable({ providedIn: 'root' })
 export class WorkspaceService {
+  readonly profile = inject(VisitorProfileService);
   readonly choice = signal<DocumentWorkspace | null>(savedChoice());
   readonly mode = signal<Workspace>('general');
   readonly opening = signal(false);
   readonly choosing = signal(false);
-  readonly label = () => this.mode() === 'example' ? "Shubham's example" : this.mode() === 'personal' ? 'My documents' : 'General questions';
+  readonly label = () => this.mode() === 'example' ? `${this.profile.name() || 'Your'}${this.profile.name() ? "'s" : ''} example` : this.mode() === 'personal' ? 'My documents' : 'General questions';
   select(mode: DocumentWorkspace): void {
     this.choice.set(mode);
     try { sessionStorage.setItem(CHOICE_KEY, mode); } catch { /* storage disabled */ }

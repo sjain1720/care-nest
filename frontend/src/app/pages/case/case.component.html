@@ -2,7 +2,7 @@
   @if (dashboard) {
     <header class="dashboard-hero">
       <div><p class="eyebrow">{{ workspace.mode() === 'example' ? 'FICTIONAL EXAMPLE PROFILE' : 'YOUR PRIVATE GUEST WORKSPACE' }}</p>
-      <h1>{{ workspace.mode() === 'example' ? 'Welcome, Shubham' : 'Your health coverage, understood.' }}</h1>
+      <h1>{{ workspace.mode() === 'example' ? 'Welcome, ' + workspace.profile.name() : 'Your health coverage, understood.' }}</h1>
       <p class="muted">Your policy, hospital bills and claim journey, in one place.</p></div>
       <span class="dashboard-emblem" aria-hidden="true"><mat-icon>health_and_safety</mat-icon></span>
     </header>

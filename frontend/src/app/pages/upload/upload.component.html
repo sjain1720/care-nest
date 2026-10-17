@@ -4,6 +4,7 @@
     <p>Policies: PDF, up to 100 pages. Bills and letters: PDF or photo. Up to 20 MB per file.</p>
   </div>
 
+  <section class="card notice"><mat-icon>policy</mat-icon><div><strong>Which policy would you like to use?</strong><p>The fictional example uses Kotak Group Health Assure. Use that example, or choose your own file below. Uploading here changes only My documents; it does not replace the example.</p><a routerLink="/policy" [queryParams]="{workspace:'example'}">Use the example’s Kotak Group Health Assure policy ↗</a></div></section>
   <div id="upload-results" tabindex="-1" aria-label="Document processing results">
   @for (it of items(); track it.id) {
     <section class="card">
@@ -26,7 +27,7 @@
         <p class="small" style="margin:8px 0 0">{{ it.pages }} {{ 'pages read.' | t }}@if (it.message) { {{ it.message }} }</p>
       }
       @if (it.done) {
-        <div class="upload-success" role="status"><mat-icon>task_alt</mat-icon><div><strong>Ready in My documents</strong><p>This file is separate from Shubham’s example. Check the extracted details before relying on them.</p></div></div>
+        <div class="upload-success" role="status"><mat-icon>task_alt</mat-icon><div><strong>Ready in My documents</strong><p>This file is separate from the fictional example. Check the extracted details before relying on them.</p></div></div>
         <div class="row upload-next-action">
           <a mat-flat-button class="btn-teal" [routerLink]="uploadAction(it.detectedType).route" [fragment]="uploadAction(it.detectedType).fragment" [queryParams]="it.detectedType === 'Policy document' ? {workspace: 'personal', q: 'Summarise my uploaded policy and tell me which personal schedule details are missing.'} : {workspace: 'personal'}">{{ uploadAction(it.detectedType).label }} <mat-icon>arrow_forward</mat-icon></a>
           @if (it.detectedType === 'Policy document') { <a mat-button routerLink="/policy" [queryParams]="{workspace: 'personal'}">View policy details</a> }

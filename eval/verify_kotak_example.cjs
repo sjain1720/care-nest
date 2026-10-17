@@ -11,10 +11,11 @@ function check(name,passed){report.checks.push({name,passed:!!passed});if(!passe
  const get=async(route)=>{const r=await context.request.get(base+route,{timeout:60000});if(!r.ok())throw Error(route+': '+r.status());return r.json();};
  try {
   await page.goto(base+'/policy?workspace=example',{waitUntil:'networkidle'});
+  if (await page.locator('#visitor-name').count()) { await page.locator('#visitor-name').fill('Demo reviewer'); await page.getByRole('button',{name:'Continue',exact:true}).click(); await page.locator('#visitor-name').waitFor({state:'hidden'}); }
   await page.getByText('Original policy wording · fictional family selections',{exact:true}).waitFor();
   const policy=await get('/api/policy?workspace=example');
   check('Original Kotak, 43 pages and fictional 10 lakh cover',policy.pageCount===43&&policy.sumInsured===1000000&&/kotak/i.test(policy.planName));
-  check('Mother enrolment explicitly fictional',policy.members.some(m=>m.name==='Kamala Sharma'&&m.relation==='Mother')&&policy.demoAssumptions.some(n=>n.includes('assumed enrolled')));
+  check('Mother enrolment explicitly fictional',policy.members.some(m=>m.name==='Mother (example)'&&m.relation==='Mother')&&policy.demoAssumptions.some(n=>n.includes('assumed enrolled')));
   check('Five watch-outs cite original pages',policy.traps.length===5&&policy.traps.every(t=>[17,18,22].includes(t.citation.page)&&t.citation.quote));
   const source=await context.request.get(base+'/api/policy/document?workspace=example');
   check('Policy byte-identical to original',crypto.createHash('sha256').update(await source.body()).digest('hex')==='0bd43987c8812a866229f93c6f238b9b9f67de5810b4fb520e503c600b0313fc');

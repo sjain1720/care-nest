@@ -1,0 +1,37 @@
+const {chromium}=require('playwright'),fs=require('fs'),path=require('path');
+const base='http://127.0.0.1:8088',out=path.join(__dirname,'results','recorded-limit-welcome','local');fs.mkdirSync(out,{recursive:true});
+const report={checks:[],base};const check=(name,value)=>{report.checks.push({name,passed:!!value});if(!value)throw Error(name);};
+(async()=>{const browser=await chromium.launch({headless:true,executablePath:'/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'});const contexts=[];
+try{
+const c=await browser.newContext({viewport:{width:1440,height:1000}});contexts.push(c);const p=await c.newPage();const errors=[];p.on('pageerror',e=>errors.push(e.message));
+await p.goto(base,{waitUntil:'networkidle'});await p.locator('#visitor-name').waitFor();
+check('Fresh visit requires a name',await p.getByRole('button',{name:'Continue',exact:true}).isDisabled());
+check('Underlying app is inert',await p.locator('[inert]').count()===1);
+await p.screenshot({path:out+'/welcome-gate.png',fullPage:true});
+await p.locator('#visitor-name').fill('Ananya');await p.getByRole('button',{name:'Continue',exact:true}).click();await p.locator('#visitor-name').waitFor({state:'hidden'});
+check('Welcome uses display name',(await p.locator('.landing-hero').innerText()).includes('Ananya'));
+await p.reload({waitUntil:'networkidle'});check('Name persists across refresh',await p.locator('#visitor-name').count()===0);
+await p.goto(base+'/dashboard?workspace=example',{waitUntil:'networkidle'});await p.getByRole('heading',{name:'Welcome, Ananya',exact:true}).waitFor();
+const profile=await (await c.request.get(base+'/api/session/profile?workspace=example')).json();check('Example and general share only root display name',profile.displayName==='Ananya');
+const facts=await (await c.request.get(base+'/api/policy?workspace=example')).json();check('Example self label personalized',facts.members.find(m=>m.relation==='Self').name==='Ananya');
+check('Fictional mother is generic, not visitor name',facts.members.find(m=>m.relation==='Mother').name==='Mother (example)');
+const question='What is my room-rent limit?';const result=await (await c.request.post(base+'/api/copilot/ask?workspace=example',{data:{question}})).json();
+check('Suggested room question returns recorded limit',result.answer.verdict==='info'&&result.answer.summary.includes('₹2,500'));
+check('Limit origin disclosed',result.answer.summary.includes('fictional')&&result.answer.summary.includes('not a numeric limit established'));
+check('No fabricated policy citation',result.answer.citations.length===0);
+check('No embedding or model search for recorded fact',!result.steps.some(s=>/^(Searching|Passing your question|Reading page|Checked sources)/i.test(s.label)));
+await p.getByRole('button',{name:'Talk to CareNest AI',exact:true}).click();await p.getByRole('button',{name:question,exact:true}).first().click();await p.getByText('Normal room: ₹2,500 per day',{exact:true}).waitFor();
+check('Actual suggested-question UI works',await p.getByText('Normal room: ₹2,500 per day',{exact:true}).isVisible());
+check('Completed steps collapsed',!(await p.locator('.completed-steps').last().getAttribute('open')));
+await p.screenshot({path:out+'/room-limit-answer.png',fullPage:true});
+const hi=await (await c.request.post(base+'/api/copilot/ask?workspace=general',{data:{question:'Hi',generalOnly:true}})).json();check('Chat greeting personalized',hi.answer.headline.includes('Ananya'));
+await p.goto(base+'/policy?workspace=example',{waitUntil:'networkidle'});await p.locator('#room-rent details summary').waitFor();
+check('Room scenario starts collapsed',!await p.locator('#room-rent details').getAttribute('open'));
+await p.goto(base+'/upload?workspace=personal',{waitUntil:'networkidle'});check('Policy choice names correct Kotak product',(await p.locator('main').innerText()).includes('Kotak Group Health Assure'));
+const personal=await (await c.request.get(base+'/api/case?workspace=personal')).json();check('Opening uploader does not upload example documents',personal.documents.length===0);
+const c2=await browser.newContext();contexts.push(c2);const p2=await c2.newPage();await p2.goto(base,{waitUntil:'networkidle'});await p2.locator('#visitor-name').waitFor();check('Second visitor does not inherit first name',await p2.locator('#visitor-name').inputValue()==='');
+await p.setViewportSize({width:390,height:844});await p.goto(base+'/dashboard?workspace=example',{waitUntil:'networkidle'});check('Phone dashboard no overflow',await p.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));
+await p.screenshot({path:out+'/dashboard-phone.png',fullPage:true});
+check('No JavaScript errors',errors.length===0);report.passed=true;
+}catch(e){report.passed=false;report.error=e.message;}
+finally{report.cleanup=[];for(const c of contexts){try{report.cleanup.push((await c.request.delete(base+'/api/session?workspace=general',{timeout:60000})).status());}catch{report.cleanup.push('failed');}}await browser.close();fs.writeFileSync(out+'/report.json',JSON.stringify(report,null,2));console.log(JSON.stringify(report));if(!report.passed||report.cleanup.some(s=>s!==204))process.exitCode=1;}})();

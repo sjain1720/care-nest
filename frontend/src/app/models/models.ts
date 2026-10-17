@@ -444,3 +444,6 @@ export interface TreatmentPlanPreparation {
   coPay: LimitFact | null; deductible: LimitFact | null;
   questionsToConfirm: string[]; warnings: string[];
 }
+
+export interface VisitorProfile { displayName: string | null; expiresAt: string; }
+export interface DisplayNameInput { displayName: string; }

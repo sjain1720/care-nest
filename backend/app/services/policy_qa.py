@@ -75,7 +75,9 @@ def _facts_block(facts: PolicyFacts, today: date) -> str:
              f"Sum insured: ₹{facts.sumInsured:,.0f}" if facts.sumInsured else "Sum insured: unknown",
              f"Policy start: {facts.startDate or 'unknown'}",
              f"Room rent: {facts.roomRent.label}", f"Co-pay: {facts.coPay.label}"]
-    if facts.userProvided:
+    if facts.demoAssumptions:
+        lines.append('DEMO ASSUMPTIONS (fictional, NOT insurer-issued wording): ' + '; '.join(facts.demoAssumptions))
+    if facts.userProvided and not facts.demoAssumptions:
         lines.append(f"Entered by the user from their schedule: {', '.join(facts.userProvided)}")
     lines += [f"Member: {m.name} ({m.relation}{f', {m.age} yrs' if m.age else ''})" for m in facts.members]
     for w in facts.waitingPeriods:
@@ -98,6 +100,10 @@ def answer_question(question: str, today: date | None = None, log: StepLog | Non
         return AskResponse(steps=log.steps, answer=needs_policy())
     policy_id, doc = active
     facts = PolicyFacts.model_validate(doc["facts"])
+
+    recorded = recorded_room_limit(question, facts, log)
+    if recorded:
+        return recorded
 
     log.add("Policy Specialist", f"Searching {doc.get('clauseCount', 'all')} clauses in your policy")
     hits = store.search_clauses(policy_id, embed_texts([question], "RETRIEVAL_QUERY")[0], TOP_K)
@@ -157,3 +163,39 @@ def verify_answer(out: AnswerOut, hits: list[dict]) -> tuple[AnswerCard, tuple[i
     card = AnswerCard(verdict=verdict, headline=headline, summary=summary, citations=citations,
                       toConfirm=to_confirm[:3], nextAction=_NEXT.get(out.nextAction))
     return card, (len(citations), len(out.citations))
+
+
+_SIMPLE_ROOM_LIMIT = re.compile(
+    r"^(?:(?:what(?:'s| is| are)|how much is) (?:my |the |our )?(?:normal[- ]room |normal )?(?:room[- ]rent|room)(?: daily| per[- ]day)? (?:limit|cap|eligibility)|"
+    r"how much (?:room[- ]rent|room rent) (?:is covered|can I claim|does my policy cover))\??$", re.I)
+
+
+def recorded_room_limit(question: str, facts: PolicyFacts, log: StepLog) -> AskResponse | None:
+    """Known selections are not policy quotes. Only a narrow factual question takes this path."""
+    if not _SIMPLE_ROOM_LIMIT.fullmatch(question.strip()):
+        return None
+    entered = 'roomRentPerDay' in facts.userProvided
+    if not entered:
+        return None  # Document-extracted amounts retain the ordinary source verification path.
+    from app.services.policy_details import format_inr
+    amount = facts.roomRent.amount
+    unit = (facts.roomRent.unit or '').lower()
+    if not amount or unit not in ('per day', '/day', 'per_day', 'day'):
+        return None
+    log.add('Recorded policy details', 'Reading the selected normal-room limit; no model or clause search needed')
+    demo = bool(facts.demoAssumptions)
+    origin = 'Fictional example selection' if demo else 'User-entered policy details'
+    summary = (f'Your recorded normal-room limit is {format_inr(amount)} per day. '
+        + ('This is an assumed selection for the fictional example, not a numeric limit established by the Kotak wording. '
+           if demo else 'This is the value entered in your policy details; it has not been independently verified against an issued schedule. ')
+        + 'It does not establish the ICU limit or guarantee payment of a claim.')
+    return AskResponse(steps=log.steps, answer=AnswerCard(verdict='info', headline=f'Normal room: {format_inr(amount)} per day',
+        summary=summary, citations=[], toConfirm=[f'Source: {origin}. Confirm the applicable room option and limit in the issued schedule or certificate.'],
+        nextAction=NextAction(label='View the recorded policy details', route='/policy')))
+
+
+def answer_recorded_room_limit(question: str, log: StepLog) -> AskResponse | None:
+    if not _SIMPLE_ROOM_LIMIT.fullmatch(question.strip()):
+        return None
+    active = store.get_active_policy()
+    return recorded_room_limit(question, PolicyFacts.model_validate(active[1]['facts']), log) if active else None

@@ -155,6 +155,10 @@ def get_active_policy() -> tuple[str, dict] | None:
     if doc.get('isDemoTemplate') and state.get('demoAssumptions'):
         from app.services.demo_profile import apply_demo_selections
         facts = apply_demo_selections(facts, state['demoAssumptions'])
+        from app.services.session_profile import get_display_name
+        name = get_display_name()
+        if name:
+            facts = {**facts, 'members': [{**m, 'name': name} if m.get('relation') == 'Self' else m for m in facts.get('members', [])]}
     return policy_id, {**doc, "facts": facts}
 
 

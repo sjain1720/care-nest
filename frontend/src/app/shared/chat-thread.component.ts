@@ -23,7 +23,8 @@ import { TranslatePipe } from './translate.pipe';
         } @else {
           <div class="bubble-ai" [class.compact]="compact()">
             @if (m.steps?.length) {
-              <app-agent-progress [steps]="m.steps ?? []" [running]="!m.answer && !m.text" />
+              @if (m.answer || m.text) { <details class="completed-steps"><summary>View {{ m.steps?.length }} processing steps</summary><app-agent-progress [steps]="m.steps ?? []" [running]="false" /></details> }
+              @else { <app-agent-progress [steps]="m.steps ?? []" [running]="true" /> }
             } @else if (!m.answer && !m.text) {
               <div class="typing" aria-label="Thinking"><span></span><span></span><span></span></div>
             }

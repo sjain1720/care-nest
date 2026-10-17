@@ -1,3 +1,5 @@
+<app-visitor-welcome />
+<div [attr.inert]="!profile.name() ? '' : null">
 <a class="skip-link" href="#main">{{ 'Skip to content' | t }}</a>
 
 <header class="topbar no-print" [class.scrolled]="scrolled()" [class.on-hero]="onHome() && !scrolled()">
@@ -51,7 +53,7 @@
   </button>
   <button type="button" class="mode live workspace-switch" (click)="workspace.choosing.set(true)" aria-label="Switch workspace">
     <mat-icon class="icon-sm">{{ workspace.mode() === 'example' ? 'account_circle' : 'folder_open' }}</mat-icon>
-    <span class="mode-long">{{ workspace.label() }}</span><span class="mode-short">{{ workspace.mode() === 'example' ? 'Shubham' : 'My space' }}</span>
+    <span class="mode-long">{{ workspace.label() }}</span><span class="mode-short">{{ workspace.mode() === 'example' ? profile.name() || 'Example' : 'My space' }}</span>
     <mat-icon class="icon-sm">expand_more</mat-icon>
   </button>
   </div>
@@ -95,10 +97,10 @@
     @if (!onHome() && workspace.mode() !== 'general') {
       <aside class="fictional-context" [class.personal-context]="workspace.mode() === 'personal'">
         <mat-icon>{{ workspace.mode() === 'example' ? 'science' : 'lock_outline' }}</mat-icon>
-        <strong class="workspace-name">{{ workspace.mode() === 'example' ? 'Shubham · Fictional example' : 'My documents · Private guest' }}</strong>
+        <strong class="workspace-name">{{ workspace.mode() === 'example' ? 'Fictional example' : 'My documents · Private guest' }}</strong>
         <details class="workspace-about">
           <summary aria-label="About this workspace" title="About this workspace"><mat-icon>info_outline</mat-icon></summary>
-          <p>{{ workspace.mode() === 'example' ? "This is a fictional profile with prepared sample documents. Your edits are separate from other visitors. Switch to My documents to use your own files." : "Your uploads and claim details stay separate from Shubham’s example. A new policy becomes your selected policy. Switching spaces or returning to Welcome does not delete your work." }} <a routerLink="/status">Expiry and data controls</a></p>
+          <p>{{ workspace.mode() === 'example' ? "This is a fictional profile with prepared sample documents. Your edits are separate from other visitors. Switch to My documents to use your own files." : "Your uploads and claim details stay separate from the fictional example. A new policy becomes your selected policy. Switching spaces or returning to Welcome does not delete your work." }} <a routerLink="/status">Expiry and data controls</a></p>
         </details>
         <button type="button" class="workspace-change" (click)="workspace.choosing.set(true)" aria-label="Change workspace">Change <mat-icon>swap_horiz</mat-icon></button>
       </aside>
@@ -215,3 +217,5 @@
     <path class="st st-bot" d="M19 15l-1.25 2.75L15 19l2.75 1.25L19 23l1.25-2.75L23 19l-2.75-1.25z" />
   </svg>
 </ng-template>
+
+</div>

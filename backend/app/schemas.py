@@ -3,7 +3,8 @@ from __future__ import annotations
 from typing import Literal
 from datetime import date
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
+import unicodedata
 
 Verdict = Literal["covered", "partial", "not_covered", "needs_checking", "cant_confirm", "info"]
 Trust = Literal["supported", "check", "unknown"]
@@ -335,3 +336,20 @@ class TreatmentPlanPreparation(BaseModel):
 
 
 AnswerCard.model_rebuild()
+
+
+class DisplayNameInput(BaseModel):
+    displayName: str = Field(min_length=1, max_length=60)
+
+    @field_validator('displayName')
+    @classmethod
+    def clean_name(cls, value):
+        value = value.strip()
+        if not value or any(unicodedata.category(c).startswith('C') or c in '<>' for c in value):
+            raise ValueError('Enter a name or nickname without markup or control characters.')
+        return value
+
+
+class VisitorProfile(BaseModel):
+    displayName: str | None = None
+    expiresAt: str

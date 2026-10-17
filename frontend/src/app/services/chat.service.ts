@@ -19,7 +19,7 @@ const CONTEXT: { prefix: string; label: string; prompts: string[] }[] = [
 
 /** Suggested questions and the floating button's label for the page the user is on. */
 export function chatContext(path: string): { label: string; prompts: string[] } {
-  if (path.startsWith('/dashboard')) return { label: "Ask about Shubham's example", prompts: ['What is my room-rent limit?', 'Why was money deducted from my claim?', 'Which documents am I missing?'] };
+  if (path.startsWith('/dashboard')) return { label: "Ask about the fictional example", prompts: ['What is my room-rent limit?', 'Why was money deducted from my claim?', 'Which documents am I missing?'] };
   return CONTEXT.find((c) => path.startsWith(c.prefix)) ?? { label: 'Ask CareNest', prompts: GENERAL_PROMPTS };
 }
 
@@ -73,7 +73,7 @@ export class ChatService {
   readonly live = isLive('ask');
   /** False after a question failed, until the next one gets through. */
   readonly reachable = computed(() => this.active().reachable());
-  readonly contextLabel = computed(() => this.workspace.mode() === 'general' ? 'General insurance guidance' : this.workspace.mode() === 'personal' ? 'Your documents · private guest workspace' : "Shubham's fictional workspace");
+  readonly contextLabel = computed(() => this.workspace.mode() === 'general' ? 'General insurance guidance' : this.workspace.mode() === 'personal' ? 'Your documents · private guest workspace' : "Your fictional example workspace");
 
   constructor() {
     effect(() => { this.workspace.mode(); this.panelOpen.set(false); });

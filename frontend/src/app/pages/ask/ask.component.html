@@ -7,7 +7,7 @@
     <div class="document-context">
       <mat-icon>description</mat-icon>
       <strong>{{ chat.contextLabel() }}</strong>
-      <p>{{ chat.workspace.mode() === 'example' ? (policy()?.planName ?? "Shubham's fictional policy") : chat.workspace.mode() === 'personal' ? (policy()?.planName ?? 'Ask general questions or add your own documents for specific answers.') : 'General insurance guidance.' }}</p>
+      <p>{{ chat.workspace.mode() === 'example' ? (policy()?.planName ?? "Example policy") : chat.workspace.mode() === 'personal' ? (policy()?.planName ?? 'Ask general questions or add your own documents for specific answers.') : 'General insurance guidance.' }}</p>
       <a routerLink="/upload">Add my own documents <mat-icon>arrow_forward</mat-icon></a>
     </div>
   </aside>

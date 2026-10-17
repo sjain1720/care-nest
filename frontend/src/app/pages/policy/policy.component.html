@@ -9,7 +9,7 @@
     @if (p.demoAssumptions?.length) {
       <section class="card notice" role="note"><mat-icon>science</mat-icon><div>
         <strong>Original policy wording · fictional family selections</strong>
-        <p>The Kotak PDF is unchanged. Shubham's family, enrolment, ₹10 lakh cover and selected benefits are demonstration inputs.</p>
+        <p>The Kotak PDF is unchanged. Family membership, enrolment, ₹10 lakh cover and selected benefits are demonstration inputs.</p>
         <details><summary>View the demo assumptions</summary><ul>@for (note of p.demoAssumptions; track note) { <li>{{ note }}</li> }</ul></details>
         <a href="/demo/coverage_assumptions.pdf" target="_blank" rel="noopener">Open fictional coverage assumptions ↗</a>
       </div></section>
@@ -90,14 +90,16 @@
     </section>
 
     <section class="card" id="room-rent">
-      <h2>{{ 'Before a hospital stay: check the room cost' | t }}</h2>
-      <p class="muted small">{{ 'If your room costs more than your limit, the insurer cuts more than just the room rent. Pick a room type to see what you may pay.' | t }}</p>
+      <h2>{{ 'Before a hospital stay' | t }}</h2>
+      <details><summary>Explore a room-cost scenario</summary>
+      <p class="muted small">{{ 'A room above the recorded limit may affect other charges, depending on the selected policy benefit and hospital tariffs. These are conditional estimates, not a claim decision.' | t }}</p>
       @if (p.roomRent.amount) {
         <app-room-rent-simulator [limit]="p.roomRent.amount" [citations]="roomRentCitations()" />
       } @else {
         <p>{{ 'We need your room-rent limit per day to run this check.' | t }}
           <button mat-button type="button" (click)="editing.set(true)">{{ 'Add it from your schedule' | t }}</button></p>
       }
+      </details>
     </section>
 
     <h2 id="traps">{{ 'Watch out for these' | t }}</h2>
@@ -157,7 +159,7 @@
         }
       </section>
     }
-      <app-treatment-planning />
+      <details class="card"><summary>Plan an admission: dates, limits and questions</summary><app-treatment-planning /></details>
       </div>
     </div>
   } @else if (policy() === null) {
