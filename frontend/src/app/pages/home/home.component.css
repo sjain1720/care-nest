@@ -35,3 +35,21 @@ a { color: var(--cn-link); }
 @media (max-width: 1100px) { .action-card { padding: 20px; } .action-grid { gap: 12px; } .landing-hero { gap: 16px; } }
 @media (max-width: 699px) { .landing { padding-top: 28px; } .landing-hero { grid-template-columns: minmax(0,1fr); } .hero-art { display: none; } .action-grid { grid-template-columns: minmax(0,1fr); } .action-card { min-height: 0; padding: 22px; } .action-icon { width: 42px; height: 42px; margin-bottom: 12px; } .start-section { margin-top: 30px; } .guest-note { padding: 20px; } .desktop-break { display: none; } .lead { font-size: 1rem; } .resume a { margin-left: 0; } }
 @media(max-width:699px){.landing{padding-top:20px}.intro .detail{display:none}h1{margin-bottom:14px;font-size:2.1rem}.lead{margin-bottom:18px;font-size:.95rem}.start-section{margin-top:28px}.guest-note{padding:16px}.action-card{padding:18px}.action-card p{margin-bottom:14px}}
+
+.hospital-help { max-width:620px; margin:0 0 22px; border:1px solid var(--cn-border); border-radius:10px; background:var(--cn-green-soft); }
+.hospital-help summary { display:flex; align-items:center; gap:10px; padding:14px 16px; color:var(--cn-green-strong); font-size:.9rem; font-weight:650; cursor:pointer; list-style:none; }
+.hospital-help summary::-webkit-details-marker { display:none; }
+.hospital-help summary span { flex:1; min-width:0; }
+.hospital-help summary mat-icon { flex:none; }
+.hospital-help summary:focus-visible { outline:2px solid var(--cn-green-strong); outline-offset:3px; border-radius:10px; }
+.hospital-help[open] .expand { transform:rotate(180deg); }
+.hospital-guide { padding:0 16px 16px; color:var(--cn-ink); font-size:.85rem; line-height:1.6; }
+.hospital-guide h2 { margin:4px 0 10px; font-size:1rem; }
+.hospital-guide p { margin:8px 0; }
+.hospital-guide ol { padding-left:22px; margin:12px 0; }
+.hospital-guide li { margin:10px 0; }
+.help-note,.help-source { font-size:.78rem; }
+.help-note { color:var(--cn-muted); }
+.help-actions { display:flex; flex-wrap:wrap; gap:8px 18px; margin:12px 0; }
+.help-actions a { display:inline-flex; align-items:center; gap:5px; min-height:44px; font-weight:600; }
+.help-actions mat-icon { flex:none; font-size:18px; width:18px; height:18px; }

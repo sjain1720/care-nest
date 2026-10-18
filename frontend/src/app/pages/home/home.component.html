@@ -5,6 +5,24 @@
       <h1 id="landing-title">Health insurance,<br><span>made simple.</span></h1>
       <p class="lead">Understand your policy, make sense of your bills,<br class="desktop-break"> and know what to do next.</p>
       <p class="detail">From waiting periods to unexplained deductions, CareNest helps you find the evidence and prepare your next step.</p>
+      <details class="hospital-help">
+        <summary><mat-icon aria-hidden="true">local_hospital</mat-icon><span>At the hospital? Need insurance help?</span><mat-icon class="expand" aria-hidden="true">expand_more</mat-icon></summary>
+        <div class="hospital-guide">
+          <h2>Hospital insurance help</h2>
+          <p>Start with the hospital’s insurance desk and the insurer or TPA listed on your health card or policy.</p>
+          <ol>
+            <li><strong>Ask about cashless requests.</strong> Confirm the process for this hospital, who submits the pre-authorization request and how to track it.</li>
+            <li><strong>Keep your details ready.</strong> Ask which policy or health-card details, ID and admission documents are needed for your case.</li>
+            <li><strong>Keep a written record.</strong> Ask for the request reference, any missing documents, and the authorization amount and conditions when available.</li>
+          </ol>
+          <p class="help-note">General guidance. Your insurer or TPA confirms requirements and authorization; cashless approval may not cover every charge. For urgent medical care, contact the hospital directly.</p>
+          <div class="help-actions">
+            <a routerLink="/ask" [queryParams]="{workspace:'general',q:'In general, what should I ask the hospital insurance desk about admission and a cashless request?'}">Ask Nessi about admission <mat-icon aria-hidden="true">arrow_forward</mat-icon></a>
+            <a routerLink="/upload" [queryParams]="{workspace:'personal'}">Add my policy or documents</a>
+          </div>
+          <a class="help-source" href="https://irdai.gov.in/health-dept" target="_blank" rel="noopener">IRDAI health-insurance information</a>
+        </div>
+      </details>
       <div class="search-entry">
         @if (!chat.panelOpen()) {
           <app-chat-bar [inline]="true" />
