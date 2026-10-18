@@ -15,8 +15,8 @@ type ClaimFilter = 'all' | 'pending_reply' | 'in_progress' | 'closed';
 
 const STATUS: Record<ClaimStatus, { label: string; icon: string; tone: string }> = {
   in_progress: { label: 'Waiting for a decision', icon: 'hourglass_top', tone: 'info' },
-  paid: { label: 'Paid in full', icon: 'task_alt', tone: 'ok' },
-  part_paid: { label: 'Paid with cuts', icon: 'content_cut', tone: 'warn' },
+  paid: { label: 'Approved', icon: 'task_alt', tone: 'ok' },
+  part_paid: { label: 'Partially approved', icon: 'content_cut', tone: 'warn' },
   refused: { label: 'Refused', icon: 'cancel', tone: 'bad' },
 };
 
@@ -72,7 +72,7 @@ const EMPTY_DRAFT: Draft = { title: '', patient: '', hospital: '', date: '', cla
               </div>
               <div class="cl-money">
                 @if (c.approvedAmount !== null) {
-                  <span><strong>{{ c.approvedAmount | inr }}</strong><span class="cl-paid muted small">{{ 'paid' | t }}</span></span>
+                  <span><strong>{{ c.approvedAmount | inr }}</strong><span class="cl-paid muted small">{{ 'approved' | t }}</span></span>
                   @if (c.claimedAmount) { <span class="muted small">{{ 'Claimed' | t }} {{ c.claimedAmount | inr }}</span> }
                 }
                 <span [class]="'pill tone-' + status(c).tone">{{ status(c).label | t }}</span>

@@ -13,8 +13,8 @@
         <span class="muted small">{{ 'Reply of' | t }} {{ r.date | date: 'd MMM y' }}@if (r.reference) { · {{ 'reference' | t }} {{ r.reference }} }</span>
       </div>
       @if (r.summary) { <p><app-gloss [text]="r.summary" /></p> }
-      @if (r.newApprovedAmount) {
-        <p class="amount-now">Revised insurer-approved amount: <strong>{{ r.newApprovedAmount | inr }}</strong>. Confirm whether payment has arrived.</p>
+      @if (r.newApprovedAmount !== undefined && r.newApprovedAmount !== null) {
+        <p class="amount-now">Approval stated in this response: <strong>{{ r.newApprovedAmount | inr }}</strong>. Confirm whether payment has arrived.</p>
       }
       @if (r.quote) {
         <div class="section-label">{{ 'Their words' | t }}</div>
@@ -39,7 +39,7 @@
   <section class="card" id="add">
     <h2>{{ (latest() ? 'Got another reply?' : 'Add their reply') | t }}</h2>
     @if (!sentBefore()) {
-      <p class="muted small">{{ "You haven't marked a letter as sent yet. That's fine – add the reply anyway." | t }}</p>
+      <p class="muted small">{{ "Submission has not been recorded here. You can add a response from an existing claim without repeating earlier steps." | t }}</p>
     }
     <label for="reply-text" class="small muted">{{ 'Their email or letter' | t }}@if (!live) { {{ '(a sample is filled in)' | t }} }</label>
     <textarea id="reply-text" name="reply" [ngModel]="text()" (ngModelChange)="text.set($event)" [disabled]="busy()" maxlength="6000"></textarea>
@@ -50,7 +50,7 @@
       <a mat-stroked-button class="btn-sky" routerLink="/upload" [queryParams]="{ type: 'Insurer reply' }"><mat-icon>upload_file</mat-icon> {{ 'Upload a PDF instead' | t }}</a>
     </div>
     @if (error()) { <p class="error" role="alert">{{ error() }}</p> }
-    <p class="muted small">{{ 'Did they send a new payment letter with a table of cuts? Upload it as “Settlement letter” instead, so we redo the breakdown of the cuts.' | t }}</p>
+    <p class="muted small">{{ 'You can upload any insurer communication here. We distinguish requests for documents from approval, settlement and rejection letters.' | t }}</p>
   </section>
 
   @if (replies().length > 1) {

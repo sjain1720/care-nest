@@ -72,6 +72,13 @@ const STATUS_META: Record<ChecklistStatus, { label: string; icon: string; tone: 
   `,
 })
 export class CaseComponent {
+  readonly responseChoice = signal<'yes'|'no'|null>(null);
+  readonly paymentAmount = signal<number|null>(null);
+  recordPayment(): void {
+    if(this.paymentAmount() === null || this.paymentAmount()! < 0 || this.saving()) return;
+    this.saving.set(true);
+    this.diary.add({kind:'payment_recorded',date:this.diaryDate(),paymentAmount:this.paymentAmount()!,note:'Total received so far, recorded by you'}).subscribe({next:()=>{this.saving.set(false);this.paymentAmount.set(null);},error:()=>this.saving.set(false)});
+  }
   private route = inject(ActivatedRoute);
   readonly dashboard = this.route.snapshot.data['dashboard'] === true;
   private params = toSignal(this.route.queryParamMap, { initialValue: this.route.snapshot.queryParamMap });
@@ -83,6 +90,7 @@ export class CaseComponent {
     const step = this.params().get('step');
     if (step === 'documents') return 'documents';
     if (step === 'outcome') return 'history';
+    if (step === 'decision') return 'insurer-response';
     const fragment = this.fragment();
     if (fragment === 'documents' || fragment === 'checklist' || fragment === 'dispute-papers') return 'documents';
     if (fragment === 'diary' || fragment === 'claims') return 'history';
@@ -153,7 +161,7 @@ export class CaseComponent {
     const router = inject(Router);
     effect(() => {
       if (this.dashboard || this.listPage() || !this.claimCase()) return;
-      if (this.section() === 'documents' || this.section() === 'history') return;
+      if (this.section() === 'documents' || this.section() === 'history' || this.section() === 'insurer-response') return;
       const next = this.section() === 'investigation' ? this.journey.steps()[5] : this.journey.current() ?? this.journey.steps()[8];
       router.navigate([next.route], {queryParams:{workspace:this.workspace.mode(),...next.query}, replaceUrl:true});
     });

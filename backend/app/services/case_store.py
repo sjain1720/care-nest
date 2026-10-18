@@ -14,6 +14,7 @@ from google.cloud import firestore
 
 from app.core.gcp import bucket, db
 from app.core.session import expiry, session_id
+from app.services.claim_financials import effective_case
 from app.services.claim_history import archived_summary, has_content, new_claim_id, summarize_case
 
 DOC_ID = re.compile(r"^(doc|img)-[0-9a-f]{16}$")
@@ -34,7 +35,7 @@ def _blob(doc_id: str):
 
 def get_case() -> dict:
     snap = _case().get()
-    return {"id": "current", **(snap.to_dict() or {})} if snap.exists else {"id": "current"}
+    return effective_case({"id": "current", **(snap.to_dict() or {})}) if snap.exists else {"id": "current"}
 
 
 def update_case(data: dict) -> None:

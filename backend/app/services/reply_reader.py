@@ -16,6 +16,8 @@ from app.services.privacy import mask_all
 
 
 class ReplyOut(BaseModel):
+    communicationType: Literal["settlement", "rejection", "query", "other"] = "other"
+    claimedAmount: float | None = None
     outcome: Literal["paid_more", "explained", "no_change", "asks_for_papers", "rejected", "unclear"]
     summary: str
     newApprovedAmount: float | None = None
@@ -25,8 +27,10 @@ class ReplyOut(BaseModel):
     quote: str = ""
 
 
-PROMPT = """An Indian family wrote to their health insurer about a hospital claim. This is the insurer's reply.
+PROMPT = """This is an insurer communication about a hospital claim, either the first response or a later follow-up.
 Fill the JSON:
+- communicationType: query for a request before deciding, settlement for an explicit final approval, rejection for a refusal, otherwise other. A document request does not imply approved=0.
+- claimedAmount: only the explicit total claimed, otherwise null.
 - outcome: paid_more (agrees to pay more money), explained (explains the cuts but pays nothing more),
   no_change (keeps its decision with little or no explanation), asks_for_papers (wants documents before deciding),
   rejected (refuses the claim, or keeps a refusal), unclear (none of these).
@@ -48,14 +52,15 @@ def _read(contents: list) -> ReplyOut:
 
 
 def _record(out: ReplyOut, source: str, doc_url: str | None = None) -> dict:
-    when = out.replyDate if out.replyDate and re.fullmatch(r"\d{4}-\d{2}-\d{2}", out.replyDate) else date.today().isoformat()
-    event = mask_all({
-        "id": new_event_id(), "kind": "reply", "date": when, "outcome": out.outcome,
-        "summary": out.summary, "newApprovedAmount": out.newApprovedAmount, "papersAsked": out.papersAsked,
-        "reference": out.referenceNumber, "quote": out.quote, "source": source, "docUrl": doc_url,
-    })
-    case_store.add_timeline_event({k: v for k, v in event.items() if v not in (None, "", [])})
-    return event
+    from app.services.doc_extract import SettlementOut
+    from app.services.insurer_response import record_response
+    kind = 'query' if out.outcome == 'asks_for_papers' else 'rejection' if out.outcome == 'rejected' else out.communicationType
+    if kind == 'other' and out.outcome == 'paid_more' and out.newApprovedAmount is not None:
+        kind = 'settlement'
+    ext = SettlementOut(letterType=kind, claimedAmount=out.claimedAmount,
+        approvedAmount=out.newApprovedAmount, summary=out.summary, papersAsked=out.papersAsked,
+        referenceNumber=out.referenceNumber, letterDate=out.replyDate, replyOutcome=out.outcome)
+    return record_response(ext, doc_url, source, quote=out.quote)
 
 
 def read_reply_text(text: str) -> dict:
@@ -66,5 +71,6 @@ def read_reply_text(text: str) -> dict:
 
 
 def read_reply_document(data: bytes, doc_url: str, mime: str = "application/pdf") -> dict:
-    out = _read([types.Part.from_bytes(data=data, mime_type=mime), PROMPT])
-    return _record(out, "pdf", doc_url)
+    from app.services.doc_extract import extract_settlement
+    from app.services.insurer_response import record_response
+    return record_response(extract_settlement(data, mime), doc_url, 'pdf')

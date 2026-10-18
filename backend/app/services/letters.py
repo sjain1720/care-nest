@@ -34,8 +34,12 @@ def letter_facts(kind: str, case: dict, policy: dict | None) -> dict:
         subject = f"Request for explanation of deductions – Claim {ref}"
         deductions = s.get("deductions", [])
         total = sum(d["amount"] for d in deductions)
-        allowed |= {int(s.get("claimedAmount", 0)), int(s.get("approvedAmount", 0)), int(total)}
-        points.append(f"Of the claimed amount of {format_inr(s.get('claimedAmount', 0))}, {format_inr(s.get('approvedAmount', 0))} was approved and {format_inr(total)} was deducted.")
+        known = {key:s.get(key) for key in ('claimedAmount','approvedAmount') if s.get(key) is not None}
+        allowed |= {int(v) for v in known.values()} | {int(total)}
+        if len(known) == 2:
+            points.append(f"The letter records {format_inr(known['claimedAmount'])} claimed and {format_inr(known['approvedAmount'])} approved. Itemized deductions total {format_inr(total)}.")
+        else:
+            points.append('Please confirm the total claimed amount, approved amount and itemized calculation; the available record does not establish every amount.')
         for d in sorted(deductions, key=lambda d: d.get("trust") != "unknown"):
             allowed.add(int(d["amount"]))
             if d.get("trust") == "unknown":

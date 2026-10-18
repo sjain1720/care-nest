@@ -334,6 +334,7 @@ export class ApiService {
   /** A saved change to the current claim can change its line in the claims list too. */
   private caseSaved(c: ClaimCase): void {
     this.claim.set(of(c));
+    this.settlement.set(this.loadOptional<Settlement>('settlement', 'settlement.json', '/api/case/settlement'));
     this.claims.set(this.loadClaims());
   }
   getLetter(kind: LetterKind = 'clarification'): Observable<LetterDraft> {

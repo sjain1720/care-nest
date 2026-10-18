@@ -15,7 +15,7 @@ from app.services.doc_extract import extract_bill, extract_settlement
 from app.services.file_types import PDF, is_image, UnreadableDocumentError
 from app.services.ocr import ocr_first_page
 from app.services.privacy import mask_all
-from app.services.reply_reader import read_reply_document
+from app.services.insurer_response import record_response, RESPONSE_VERSION
 from app.services.settlement_checks import reconcile
 
 
@@ -39,13 +39,14 @@ def process_case_document(data: bytes, filename: str, doc_type: str, mime: str =
     case = case_store.get_case()
     seen = next((d for d in case.get("documents", []) if d["id"] == doc_id), None)
     has_result = {"Hospital bill": "bill", "Settlement letter": "settlement", "Rejection letter": "rejection"}.get(seen["type"]) if seen else None
-    financial_photo = photo and doc_type in ('Hospital bill', 'Settlement letter', 'Rejection letter')
+    financial_photo = photo and doc_type in ('Hospital bill', 'Settlement letter', 'Rejection letter', 'Insurer reply')
     needs_readability = financial_photo and not (seen or {}).get('ocrReadable')
     if needs_readability:
         text = source_text if source_text is not None else ocr_first_page(data, mime)
         if not text.strip():
             raise UnreadableDocumentError('No readable text was found in this image. Upload a clearer, complete photo or PDF; no bill or decision was extracted.')
-    if seen and not needs_readability and (has_result is None or case.get(has_result)):
+    insurer_upload = doc_type in ('Settlement letter','Rejection letter','Insurer reply')
+    if seen and not needs_readability and (not insurer_upload or seen.get('responseVersion') == RESPONSE_VERSION) and (has_result is None or case.get(has_result)):
         return UploadResult(detectedType=seen["type"], pages=pages, reused=True, message="Already analysed – showing the earlier result.")
 
     bill_extraction = extract_bill(data, mime).model_dump() if doc_type == 'Hospital bill' else None
@@ -71,35 +72,17 @@ def process_case_document(data: bytes, filename: str, doc_type: str, mime: str =
         message = (f"{len(bill['items'])} charges read. " + (f"{len(issues)} thing(s) to check. " if issues else "")
                    + "Check what we read on the bill page before you rely on it.")
 
-    elif doc_type in ("Settlement letter", "Rejection letter"):
+    elif insurer_upload:
         ext = extract_settlement(data, mime)
-        if ext.letterType == "rejection" or doc_type == "Rejection letter":
-            rejection = {"reason": ext.rejectionReason or "", "page": ext.rejectionReasonPage or 1, "claimNumber": ext.claimNumber or "",
-                         "letterDate": ext.letterDate or "", "docUrl": doc_url}
-            case_store.update_case(mask_all({"rejection": rejection}))
-            doc_type = "Rejection letter"
-            message = "Rejection letter read. See the reason, then ask them to look again from the Letter page."
-        else:
-            deductions = [{"id": f"d{i}", "label": d.label, "amount": d.amount, "insurerReason": d.insurerReason,
-                           "page": d.page, "docId": doc_id, "docUrl": doc_url} for i, d in enumerate(ext.deductions, 1)]
-            bill = case_store.get_case().get("bill")
-            explained = explain_deductions(deductions, bill) if deductions else []
-            claimed = ext.claimedAmount or (bill or {}).get("total") or 0
-            approved = ext.approvedAmount or 0
-            settlement = {"claimNumber": ext.claimNumber or "", "letterDate": ext.letterDate or "", "billedAmount": (bill or {}).get("total") or claimed,
-                          "claimedAmount": claimed, "approvedAmount": approved, "deductions": explained,
-                          "reconciliation": reconcile(claimed, approved, explained), "letterType": ext.letterType}
-            case_store.update_case(mask_all({"settlement": settlement}))
-            message = f"{len(explained)} deduction(s) found and explained."
-
-    elif doc_type == "Insurer reply":
-        message = read_reply_document(data, doc_url, mime)["summary"]
+        response = record_response(ext, doc_url, 'pdf', doc_id)
+        doc_type = response['detectedType']
+        message = response['summary']
 
     else:
         message = "Saved to your claim. It now counts in your list of papers."
 
     case_store.add_document({"id": doc_id, "name": filename[:80], "type": doc_type, "pages": pages,
-                             "uploadedOn": date.today().isoformat(), "docUrl": doc_url, "ocrReadable": financial_photo})
+                             "uploadedOn": date.today().isoformat(), "docUrl": doc_url, "ocrReadable": financial_photo, "responseVersion": RESPONSE_VERSION if insurer_upload else None})
     return UploadResult(detectedType=doc_type, pages=pages, message=message)
 
 

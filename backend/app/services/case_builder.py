@@ -1,5 +1,6 @@
 """Builds the ClaimCase the frontend shows (documents, checklist, escalation) from what has been uploaded. Pure Python."""
 from datetime import date
+from app.services.claim_financials import effective_case, financials
 
 from app.services.claim_tracker import sorted_timeline, stage_from_timeline
 from app.services.policy_details import format_inr as _rupees
@@ -55,6 +56,8 @@ def build_checklist(doc_types: set[str], bill: dict | None, settlement: dict | N
 
 
 def build_case(case_doc: dict, today: date | None = None) -> dict:
+    case_doc = effective_case(case_doc)
+    amounts = financials(case_doc)
     bill, settlement, rejection = case_doc.get("bill"), case_doc.get("settlement"), case_doc.get("rejection")
     documents = case_doc.get("documents", [])
     header = case_doc.get("billHeader") or {}
@@ -66,13 +69,14 @@ def build_case(case_doc: dict, today: date | None = None) -> dict:
         stage = "Claim refused – you can ask them to look again"
     elif settlement:
         deducted = sum(d["amount"] for d in settlement["deductions"])
-        stage = f"Paid, with {_rupees(deducted)} cut" if deducted else "Paid in full"
+        stage = f"Approved, with {_rupees(deducted)} deducted" if deducted else "Insurer decision received — review the approved amount"
     elif bill:
         stage = "Bill checked – waiting for the insurer's decision"
     else:
         stage = "Add your hospital bill to start"
     return {
         "id": case_doc.get("id", "current"),
+        "financials": amounts,
         "title": header.get("title") or "Your hospital claim",
         "patient": {"name": header.get("patientName") or "Patient", "relation": header.get("relation") or "", "age": header.get("patientAge")},
         "hospital": (bill or {}).get("hospital") or "Hospital not added yet",
