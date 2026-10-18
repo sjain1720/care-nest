@@ -17,12 +17,17 @@ import { AnswerEvidenceComponent } from './answer-evidence.component';
   imports: [RouterLink, MatButtonModule, MatIconModule, VerdictBadgeComponent, CitationChipComponent, GlossComponent, TranslatePipe, InrPipe, AnswerEvidenceComponent],
   template: `
     <article class="answer">
-      <app-verdict-badge [verdict]="answer().verdict" />
+      @if (answer().verification?.scope !== 'source_only') {
+        <app-verdict-badge [verdict]="answer().verdict" />
+      }
       @if (answer().general) {
         <span class="general"><mat-icon>public</mat-icon>{{ 'General information – not from your policy' | t }}</span>
       }
       <h3 class="headline">{{ answer().headline }}</h3>
       <p><app-gloss [text]="answer().summary" /></p>
+      @if (answer().verification?.scope === 'source_only') {
+        <app-verdict-badge [verdict]="answer().verdict" />
+      }
 
       @if (answer().verification; as proof) {
         <app-answer-evidence [verification]="proof" [citations]="answer().citations" />

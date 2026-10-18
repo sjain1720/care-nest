@@ -101,6 +101,17 @@ class UploadedPolicyAnswerTests(unittest.TestCase):
         self.assertFalse(answer.citations)
         self.assertNotIn('passed', [c.status for c in answer.verification.checks])
 
+    def test_bad_model_quotations_still_show_relevant_original_wording(self):
+        invalid = output('Unlimited ambulance payment.', quote='Unlimited ambulance payment without a limit.')
+        answer, generated, checks = self.run_answer([invalid, invalid], [], original=True)
+        self.assertEqual((generated, checks), (2, 0))
+        self.assertEqual(answer.verification.scope, 'source_only')
+        self.assertIn('Emergency ambulance charges', answer.summary)
+        self.assertNotIn('Unlimited ambulance payment', answer.summary)
+        self.assertIn('could not verify', answer.toConfirm[0])
+        self.assertEqual(answer.citations[0].page, 2)
+        self.assertEqual(next(c.status for c in answer.verification.checks if c.kind == 'support'), 'not_run')
+
 
 class SupportDiagnosticTests(unittest.TestCase):
     def test_reviewer_rejection_reasons_remain_available_for_bounded_correction(self):
