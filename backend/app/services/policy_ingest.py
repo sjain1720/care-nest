@@ -80,7 +80,15 @@ def ingest_policy(pdf_bytes: bytes, filename: str, shared_demo: bool = False) ->
             pages = [{"page": n, "text": saved[n]} for n in sorted(saved)]
         else:
             store.save_policy(doc_id, {"processingStage": stage})
-            pages = ocr_pdf(pdf_bytes)
+            def checkpoint(batch, total):
+                # Save original and expected count on the first successful group;
+                # partial OCR is resumable but can never activate a policy.
+                if not saved:
+                    store.save_original(doc_id, pdf_bytes)
+                store.save_policy(doc_id, {"filename": filename, "pageCount": total})
+                store.save_pages(doc_id, batch)
+                saved.update({p['page']: p['text'] for p in batch})
+            pages = ocr_pdf(pdf_bytes, saved_pages=saved, on_pages=checkpoint)
             store.save_original(doc_id, pdf_bytes)
             store.save_policy(doc_id, {"filename": filename, "pageCount": len(pages)})
             store.save_pages(doc_id, pages)

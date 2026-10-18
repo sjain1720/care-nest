@@ -79,7 +79,16 @@ def upload_document(file: UploadFile = File(...), docType: str = Form("auto"),
                   'Google could not complete document processing')
         detail = f'{reason}' + (f' (code {code})' if code else '')
         recovery = ('Wait about a minute, then retry the same file.' if code == 429 else 'Retry the same file.')
-        raise HTTPException(502, detail + f'. {recovery} Saved policy pages and indexing batches will be reused.') from exc
+        if getattr(exc, 'page_start', None):
+            if code == 429:
+                raise HTTPException(502,
+                    f'OCR request quota is busy while reading PDF pages {exc.page_start}–{exc.page_end}. '
+                    'Wait about a minute, then retry the same file; successfully saved pages will be reused.') from exc
+            raise HTTPException(502,
+                f'Google could not read PDF pages {exc.page_start}–{exc.page_end}'
+                + (f' (code {code})' if code else '')
+                + '. Automatic recovery did not finish. Retry the same file; successfully saved page groups will be reused.') from exc
+        raise HTTPException(502, detail + f'. {recovery} Any successfully saved policy pages and indexing batches will be reused.') from exc
 
 
 def _active_policy() -> tuple[str, dict]:

@@ -67,3 +67,6 @@ Thumbs.db
 
 # Supplied hospital records: local references only
 bill sample data/
+
+# Colleague's issued policy: private debugging reference, never a public demo asset
+/My policy.pdf
