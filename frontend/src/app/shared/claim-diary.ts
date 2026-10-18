@@ -9,6 +9,7 @@ export const LETTER_LABELS: Record<LetterKind, string> = {
   reconsideration: 'Ask them to look again at a rejection',
   grievance: 'Make a complaint',
   cover_letter: 'Cover letter for your claim',
+  document_response: 'Response to requested documents',
 };
 
 export const COMPLAINT_PLACES: Record<number, string> = {
@@ -55,12 +56,14 @@ export function eventText(e: TimelineEvent): string {
     case 'query_answered': return "You answered the insurer's question";
     case 'reply': return `The insurer replied: ${OUTCOME_META[e.outcome ?? 'unclear'].label.toLowerCase()}`;
     case 'closed': return 'You closed this claim';
+    case 'outcome_recorded': return 'You recorded an outcome update';
   }
 }
 
 /** Mirrors backend claim_tracker.stage_from_timeline, for demo mode. */
 export function diaryStage(all: TimelineEvent[], hasDecision: boolean): string | null {
-  const events = hasDecision ? all.filter((e) => e.kind !== 'query_answered') : all;
+  const lifecycle = all.filter(e => e.kind !== 'outcome_recorded');
+  const events = hasDecision ? lifecycle.filter((e) => e.kind !== 'query_answered') : lifecycle;
   const latest = events[events.length - 1];
   if (!latest) return null;
   const n = daysSince(latest.date);
@@ -80,6 +83,7 @@ export function diaryStage(all: TimelineEvent[], hasDecision: boolean): string |
     case 'complaint_filed':
       if ((latest.level ?? 1) >= 2) return `Complaint filed with ${COMPLAINT_PLACES[latest.level!]} on ${shortDate(latest.date)} – waiting for their reply`;
       return n > REPLY_DAYS ? `No reply after ${n} days – you can complain to the next level` : `Waiting for the insurer's reply (sent ${shortDate(latest.date)}, ${ago})`;
+    case 'outcome_recorded': return null;
     case 'letter_sent':
       return n > REPLY_DAYS ? `No reply after ${n} days – you can complain to the next level` : `Waiting for the insurer's reply (sent ${shortDate(latest.date)}, ${ago})`;
   }
@@ -92,6 +96,7 @@ export function suggestLetter(c: ClaimCase | null | undefined, s: Settlement | n
   if (lastReply && (lastReply.outcome === 'no_change' || lastReply.outcome === 'rejected')) return 'grievance';
   const lastSent = [...events].reverse().find((e) => e.kind === 'letter_sent');
   if (lastSent && !lastReply && daysSince(lastSent.date) > REPLY_DAYS) return 'grievance';
+  if (lastReply?.outcome === 'asks_for_papers') return 'document_response';
   if (c?.rejection) return 'reconsideration';
   if (s) return 'clarification';
   return 'cover_letter';

@@ -4,25 +4,10 @@ import { DatePipe } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { MatIconModule } from '@angular/material/icon';
 import { ApiService, isLive } from '../services/api.service';
-import { ClaimSummary } from '../models/models';
-import { todayIso } from './claim-diary';
 import { InrPipe } from './inr.pipe';
 import { TranslatePipe } from './translate.pipe';
 
-/** The policy year that contains today, counted from the start date's anniversary; null without a start date. */
-function policyYear(start: string | undefined, today: string): { from: string; to: string } | null {
-  if (!start || !/^\d{4}-\d{2}-\d{2}$/.test(start)) return null;
-  const [y, m, d] = start.split('-').map(Number);
-  const thisYear = Number(today.slice(0, 4));
-  const from = Math.max(y, `${thisYear}${start.slice(4)}` <= today ? thisYear : thisYear - 1);
-  const iso = (t: number) => new Date(t).toISOString().slice(0, 10);
-  return { from: iso(Date.UTC(from, m - 1, d)), to: iso(Date.UTC(from + 1, m - 1, d - 1)) };
-}
-
-/**
- * "Estimated coverage remaining" = sum insured − what the insurer paid on the claims in this policy year.
- * Plain arithmetic in code (never from the AI), labelled as an estimate with its assumptions shown.
- */
+/** Displays the server's deterministic estimate. Browser does no balance arithmetic. */
 @Component({
   selector: 'app-coverage-estimate',
   standalone: true,
@@ -40,6 +25,16 @@ function policyYear(start: string | undefined, today: string): { from: string; t
           </span>
         </div>
       </div>
+      @if (compact() && estimate()) {
+        @if (result()?.warnings?.[0]; as warning) { <p class="muted small">{{ warning }}</p> }
+        @if ((result()?.warnings?.length ?? 0) > 1) {
+          <details class="coverage-cautions"><summary>Estimate assumptions and cautions ({{ (result()?.warnings?.length ?? 1) - 1 }})</summary>
+            @for (warning of result()?.warnings?.slice(1) ?? []; track $index) { <p class="muted small">{{ warning }}</p> }
+          </details>
+        }
+      } @else {
+        @for (warning of result()?.warnings ?? []; track $index) { <p class="muted small">{{ warning }}</p> }
+      }
       @if (estimate(); as e) {
         <div class="cov-main">
           <strong class="cov-left">{{ e.remaining | inr }}</strong>
@@ -75,12 +70,13 @@ function policyYear(start: string | undefined, today: string): { from: string; t
           </ul>
         }
       } @else if (ready()) {
-        <p class="muted small">{{ 'Add the sum insured from your policy schedule to see an estimate.' | t }}</p>
+        <p class="muted small">{{ result() ? 'Check the missing policy details above.' : 'Coverage estimate is unavailable. Select live policy and claims together, or use the mock preview.' }}</p>
         <a class="cov-more" routerLink="/policy" fragment="details">{{ 'Add it' | t }}<mat-icon>arrow_forward</mat-icon></a>
       }
     </section>
   `,
   styles: `
+    .coverage-cautions { margin-bottom:12px; }.coverage-cautions summary { cursor:pointer;min-height:32px;color:var(--cn-link);font-size:.85rem; }.coverage-cautions p { margin-top:8px; }
     .cov { background: linear-gradient(135deg, var(--cn-c1-soft), var(--cn-surface) 70%); border-color: var(--cn-c1-line); }
     .cov-head { display: flex; align-items: center; gap: 12px; margin-bottom: 10px; }
     .cov-icon { flex: none; width: 44px; height: 44px; border-radius: 50%; display: grid; place-items: center; background: var(--cn-c1-soft); color: var(--cn-c1-ink); }
@@ -116,25 +112,11 @@ export class CoverageEstimateComponent {
   /** Dashboard: short version with a link to the full one on the policy page. */
   readonly compact = input(false);
   private api = inject(ApiService);
-  private policy = toSignal(this.api.getPolicy());
-  private claims = toSignal(this.api.getClaims());
+  readonly result = toSignal(this.api.getCoverage());
   readonly demo = !isLive('policy');
-  readonly ready = computed(() => this.policy() !== undefined && this.claims() !== undefined);
-
+  readonly ready = computed(() => this.result() !== undefined);
   readonly estimate = computed(() => {
-    const p = this.policy();
-    if (!p?.sumInsured || this.claims() === undefined) return null;
-    const claims: ClaimSummary[] = this.claims() ?? [];
-    const year = policyYear(p.startDate, todayIso());
-    const inYear = (c: ClaimSummary) => !year || !c.date || (c.date >= year.from && c.date <= year.to);
-    const counted = claims.filter((c) => !!c.approvedAmount && inYear(c));
-    const used = Math.min(counted.reduce((sum, c) => sum + (c.approvedAmount ?? 0), 0), p.sumInsured);
-    const remaining = p.sumInsured - used;
-    return {
-      sumInsured: p.sumInsured, used, remaining, counted, year,
-      pct: Math.round((remaining / p.sumInsured) * 100),
-      pending: claims.some((c) => c.approvedAmount === null),
-      floater: /floater/i.test(p.policyType ?? ''),
-    };
+    const value = this.result();
+    return value?.status === 'recorded_only' ? value : null;
   });
 }

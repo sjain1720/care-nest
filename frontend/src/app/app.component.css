@@ -218,7 +218,7 @@
   /* Phones: the menu opens from the More tab in the bottom bar, so the header has no menu button. */
   .menu-btn { display: none; }
   /* Top: room for the chat bar docked under the header. Bottom: room for the tab bar. */
-  .content { padding-top: 61px; padding-bottom: calc(76px + env(safe-area-inset-bottom)); }
+  .content { padding-top: 0; padding-bottom: calc(76px + env(safe-area-inset-bottom)); }
   .bottomnav { display: flex; position: fixed; left: 0; right: 0; bottom: 0; z-index: 35; height: calc(60px + env(safe-area-inset-bottom));
                padding: 0 4px env(safe-area-inset-bottom); background: var(--cn-surface); border-top: 1px solid var(--cn-border);
                box-shadow: 0 -6px 18px rgba(4, 12, 24, .14); }
@@ -315,3 +315,33 @@
 }
 @keyframes sheet-up { from { transform: translateY(100%); } to { transform: none; } }
 @keyframes menu-drop { from { opacity: 0; transform: translate(-50%, -12px); } to { opacity: 1; transform: translateX(-50%); } }
+
+.layout.chat-page { height: calc(100dvh - var(--cn-topbar-h)); min-height: 0; overflow: hidden; }
+.chat-page .content { display: flex; flex-direction: column; height: 100%; min-height: 0; overflow: hidden; padding: 0; }
+.chat-page .content > :not(app-ask) { flex-shrink: 0; }
+.chat-page .content > router-outlet { display: none; }
+.chat-launcher { display: inline-flex; align-items: center; gap: 8px; padding: 12px 18px; min-height: 48px; border: 1px solid var(--cn-border); border-radius: 28px; font: inherit; font-size: .85rem; font-weight: 650; color: var(--cn-green-strong); background: var(--cn-surface); box-shadow: var(--cn-shadow-lg); cursor: pointer; }
+.chat-launcher:hover { background: var(--cn-green-soft); }
+.chat-launcher:focus-visible { outline: 2px solid var(--cn-green-strong); outline-offset: 3px; }
+.landing-footer { max-width: var(--cn-page-w); margin: 0 auto; padding: 20px var(--cn-gutter); color: var(--cn-muted); font-size: .75rem; display: flex; flex-wrap: wrap; gap: 8px 24px; border-top: 1px solid var(--cn-border); }
+.landing-footer a { margin-left: auto; color: var(--cn-link); }
+.landing-footer p { flex-basis: 100%; margin: 0; }
+@media (max-width: 899px) {
+  .helper { display: none; position: fixed; right: 12px; bottom: calc(74px + env(safe-area-inset-bottom)); z-index: 32; }
+  .helper.has-activity { display: flex; }
+  .chat-launcher { padding: 9px 12px; min-height: 42px; font-size: .75rem; }
+}
+
+.fictional-context { margin: 12px var(--cn-gutter); padding: 10px 14px; border-radius: 10px; background: var(--cn-green-soft); color: var(--cn-strong); font-size: .82rem; display: flex; gap: 8px 16px; flex-wrap: wrap; justify-content: space-between; }
+.workspace-opening { margin: 12px var(--cn-gutter); color: var(--cn-muted); }
+.workspace-switch{font:inherit;cursor:pointer}.fictional-context{display:flex;align-items:center;gap:10px;flex-wrap:wrap}.fictional-context>mat-icon{flex:none;font-size:20px;width:20px;height:20px}.fictional-context span{flex:1;min-width:180px}.fictional-context button{display:inline-flex;align-items:center;gap:6px;background:none;border:0;color:var(--cn-link);font:inherit;font-weight:600;cursor:pointer;min-height:40px}.personal-context{background:var(--cn-green-soft)}
+/* Compact context label; disclosure stays in flow and supports native keyboard interaction. */
+.fictional-context:has(.workspace-about){position:relative;gap:6px 10px;justify-content:flex-start;flex-wrap:wrap;padding:4px 12px}.fictional-context .workspace-name{flex:1;min-width:0;font-size:.8rem}.workspace-about{display:contents}.workspace-about summary{display:grid;place-items:center;min-width:44px;min-height:44px;color:var(--cn-link);cursor:pointer;list-style:none;border-radius:8px}.workspace-about summary::-webkit-details-marker{display:none}.workspace-about summary:focus-visible{outline:2px solid var(--cn-primary)}.workspace-about summary mat-icon{font-size:20px;width:20px;height:20px}.workspace-about[open] summary{background:var(--cn-surface)}.workspace-about p{order:4;flex-basis:100%;margin:2px 0 10px;line-height:1.6;color:var(--cn-muted)}.workspace-about:not([open]) p{display:none}.fictional-context .workspace-change{min-height:44px;padding:0 4px}.workspace-about p a{color:var(--cn-link)}
+@media(max-width:599px){.fictional-context:has(.workspace-about){margin-top:6px;margin-bottom:6px;padding:2px 10px;gap:4px}.fictional-context .workspace-name{font-size:.75rem}.fictional-context .workspace-change{font-size:.75rem}.page-banner .pb-title{display:none}}
+
+/* A visitor's display name must not widen the phone viewport. */
+@media (max-width:899px) {
+  .workspace-switch { flex: 0 1 auto; min-width: 0; }
+  .workspace-switch span { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+  .workspace-switch mat-icon { flex: none; }
+}

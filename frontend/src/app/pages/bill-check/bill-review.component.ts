@@ -1,4 +1,6 @@
 import { Component, inject, input, signal } from '@angular/core';
+import { RouterLink } from '@angular/router';
+import { JourneyService } from '../../services/journey.service';
 import { DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { MatButtonModule } from '@angular/material/button';
@@ -25,7 +27,7 @@ interface Row { description: string; category: BillCategory; amount: number | nu
 @Component({
   selector: 'app-bill-review',
   standalone: true,
-  imports: [DatePipe, FormsModule, MatButtonModule, MatIconModule, InrPipe, TranslatePipe],
+  imports: [RouterLink, DatePipe, FormsModule, MatButtonModule, MatIconModule, InrPipe, TranslatePipe],
   template: `
     <section class="card review" id="review" [class.todo]="!bill().reviewed" aria-labelledby="review-title">
       @if (!editing()) {
@@ -107,9 +109,14 @@ interface Row { description: string; category: BillCategory; amount: number | nu
           </div>
         </form>
       }
+      @if (bill().reviewed && !editing()) {
+        <div class="saved-next" role="status"><strong>Bill review saved</strong><p>{{journey.decided() ? 'Bill checked. Ready to examine the insurer’s decision.' : 'Your changes are saved. Next, review the supporting documents.'}}</p>
+        <a mat-flat-button [routerLink]="journey.decided() ? '/case/settlement' : '/case/detail'" [queryParams]="{workspace:api.workspace.mode(),step:journey.decided() ? 'response' : 'documents'}">{{journey.decided() ? 'Review insurer deductions' : 'Continue to documents'}} →</a></div>
+      }
     </section>
   `,
   styles: `
+    .saved-next{margin-top:16px;padding:16px;border-radius:10px;background:var(--cn-primary-soft)}.saved-next p{margin:4px 0 12px;font-size:.9rem}
     .review.todo { border-color: var(--cn-c3-line); background: linear-gradient(135deg, var(--cn-c3-soft), var(--cn-surface) 70%); }
     .rv-head { display: flex; gap: 12px; align-items: flex-start; }
     .rv-icon { flex: none; width: 42px; height: 42px; border-radius: 50%; display: grid; place-items: center; background: var(--cn-c1-soft); color: var(--cn-c1-ink); }
@@ -141,7 +148,8 @@ interface Row { description: string; category: BillCategory; amount: number | nu
   `,
 })
 export class BillReviewComponent {
-  private api = inject(ApiService);
+  readonly api = inject(ApiService);
+  readonly journey = inject(JourneyService);
   readonly bill = input.required<Bill>();
   readonly claim = input<ClaimCase | null | undefined>(null);
 

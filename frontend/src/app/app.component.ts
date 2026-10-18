@@ -1,19 +1,25 @@
-import { Component, DestroyRef, HostListener, computed, inject, signal } from '@angular/core';
+import { ClaimFlowComponent } from './shared/claim-flow.component';
+import { VisitorWelcomeComponent } from './shared/visitor-welcome.component';
+import { VisitorProfileService } from './services/visitor-profile.service';
+import { Component, DestroyRef, HostListener, computed, effect, inject, signal } from '@angular/core';
 import { NgTemplateOutlet, ViewportScroller } from '@angular/common';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { NavigationEnd, Router, RouterLink, RouterLinkActive, RouterOutlet } from '@angular/router';
 import { MatIconModule } from '@angular/material/icon';
-import { filter, map } from 'rxjs';
+import { catchError, filter, map, of } from 'rxjs';
 import { CitationDrawerComponent } from './shared/citation-drawer.component';
 import { ChatBarComponent } from './shared/chat-bar.component';
 import { CLAIM_TOOLS } from './shared/claim-tools';
 import { scrollToSection } from './shared/scroll';
 import { TranslatePipe } from './shared/translate.pipe';
-import { FEATURES, isFullyLive, isLive } from './services/api.service';
+import { ApiService, FEATURES, isFullyLive, isLive } from './services/api.service';
 import { ChatService } from './services/chat.service';
 import { JourneyService } from './services/journey.service';
 import { SettingsService } from './services/settings.service';
 import { ThemeService } from './services/theme.service';
+import { WorkspaceChooserComponent } from './shared/workspace-chooser.component';
+import { WorkspaceService } from './services/workspace.service';
+import { CitationViewerService } from './services/citation-viewer.service';
 
 interface NavItem {
   path: string;
@@ -29,58 +35,51 @@ interface NavItem {
 const SIZE_LABELS = { sm: '94%', md: '100%', lg: '113%', xl: '125%' } as const;
 /** Scroll distance after which the header swaps its text links for the full icon row. */
 const SCROLL_REVEAL_PX = 120;
-const HINT_KEY = 'carenest.helperHidden';
-
-function sessionHint(): boolean {
-  try {
-    return !sessionStorage.getItem(HINT_KEY);
-  } catch {
-    return true;
-  }
-}
 
 @Component({
   selector: 'app-root',
   standalone: true,
-  imports: [RouterOutlet, RouterLink, RouterLinkActive, NgTemplateOutlet, MatIconModule, CitationDrawerComponent, ChatBarComponent, TranslatePipe],
+  imports: [ClaimFlowComponent, VisitorWelcomeComponent, WorkspaceChooserComponent, RouterOutlet, RouterLink, RouterLinkActive, NgTemplateOutlet, MatIconModule, CitationDrawerComponent, ChatBarComponent, TranslatePipe],
   templateUrl: './app.component.html',
   styleUrl: './app.component.css',
 })
 export class AppComponent {
+  readonly profile = inject(VisitorProfileService);
   readonly theme = inject(ThemeService);
   readonly settings = inject(SettingsService);
   readonly journey = inject(JourneyService);
   readonly chat = inject(ChatService);
+  readonly workspace = inject(WorkspaceService);
   private translate = new TranslatePipe();
   readonly live = isFullyLive();
+  readonly sessionInfo = toSignal(inject(ApiService).getSessionInfo().pipe(catchError(() => of(null))));
+  readonly liveDemo = computed(() => this.live && this.sessionInfo()?.mode === 'live_demo');
   readonly partlyLive = !this.live && FEATURES.some((f) => isLive(f.id));
   readonly menuOpen = signal(false);
   readonly scrolled = signal(false);
 
-  private path = toSignal(
+  readonly path = toSignal(
     inject(Router).events.pipe(filter((e): e is NavigationEnd => e instanceof NavigationEnd), map((e) => e.urlAfterRedirects.split(/[?#]/)[0])),
     { initialValue: '/' },
   );
-  readonly onClaimSubpage = computed(() => CLAIM_TOOLS.some((n) => n.path === this.path()));
+  readonly onClaimSubpage = computed(() => this.path() === '/case/detail' || CLAIM_TOOLS.some((n) => n.path === this.path()));
   readonly onAskPage = computed(() => this.path() === '/ask');
   readonly onHome = computed(() => this.path() === '/');
-  /** Claim progress shows on the dashboard and the claim pages only, not on Ask, Add documents, My policy or settings. */
-  readonly showProgress = computed(() => this.onHome() || this.path() === '/case' || (this.onClaimSubpage() && this.path() !== '/upload'));
+  /** Claim progress belongs to the claim workspace, never the public landing page. */
+  readonly showProgress = computed(() => !!this.journey.claimCase()?.documents.length && (this.path() === '/case' || (this.onClaimSubpage() && this.path() !== '/upload')));
   /** Home › Section › Page, for the slim banner on inner pages. */
   readonly crumbs = computed<{ label: string; path: string; icon: string }[]>(() => {
     const p = this.path();
-    const home = { label: 'Dashboard', path: '/', icon: 'dashboard' };
+    if (p === '/dashboard' || (p === '/ask' && this.workspace.mode() === 'general')) return [];
+    const home = { label: 'Dashboard', path: '/dashboard', icon: 'dashboard' };
     const main = this.mainNav.find((n) => n.path === p && p !== '/');
     if (main) return [home, { label: main.label, path: p, icon: main.icon }];
+    if (p === '/case/detail') return [home, { label: 'My claims', path: '/case', icon: 'folder_shared' }, { label: 'Claim details', path: p, icon: 'folder_open' }];
     const sub = CLAIM_TOOLS.find((n) => n.path === p);
     if (sub) return [home, { label: 'My claim', path: '/case', icon: 'folder_shared' }, { label: sub.label, path: p, icon: sub.icon }];
     if (p === '/status') return [home, { label: 'Demo and live settings', path: p, icon: 'tune' }];
     return [];
   });
-  /** The corner helper's greeting shows until hidden for this visit. */
-  readonly helperHint = signal(sessionHint());
-  /** Nessi's bubble alternates "Hey, I am Nessi" and "Ask me anything". */
-  readonly nessiLine = signal(0);
   readonly sizeLabel = computed(() => SIZE_LABELS[this.settings.textSize()]);
   readonly journeyLabel = computed(() => {
     this.settings.lang();
@@ -98,6 +97,8 @@ export class AppComponent {
   });
 
   constructor() {
+    const citations = inject(CitationViewerService);
+    effect(() => { this.workspace.mode(); citations.close(); });
     // Router jumps to #section must clear the sticky header (and on phones the chat bar docked under it).
     inject(ViewportScroller).setOffset(() => {
       const header = document.querySelector('.topbar')?.getBoundingClientRect().bottom ?? 64;
@@ -111,8 +112,6 @@ export class AppComponent {
         const fragment = e.urlAfterRedirects.split('#')[1];
         if (fragment) scrollToSection(decodeURIComponent(fragment));
       });
-    const lines = setInterval(() => this.nessiLine.set(1 - this.nessiLine()), 3000);
-    inject(DestroyRef).onDestroy(() => clearInterval(lines));
   }
 
   @HostListener('document:keydown.escape')
@@ -126,15 +125,7 @@ export class AppComponent {
     if (past !== this.scrolled()) this.scrolled.set(past);
   }
 
-  openHelper(): void {
-    this.hideHint();
-    this.chat.openPanel();
-  }
-
-  hideHint(): void {
-    this.helperHint.set(false);
-    try { sessionStorage.setItem(HINT_KEY, '1'); } catch { /* private mode */ }
-  }
+  openHelper(): void { this.chat.openPanel(); }
 
   /** Centre tab on phones: opens or closes the chat (the Ask page already shows it). */
   toggleAsk(): void {
@@ -145,14 +136,15 @@ export class AppComponent {
   }
 
   readonly mainNav: NavItem[] = [
-    { path: '/', label: 'Dashboard', short: 'Home', icon: 'dashboard', exact: true, desc: 'Your claim at a glance' },
+    { path: '/', label: 'Welcome', short: 'Welcome', icon: 'home', exact: true, desc: 'General insurance guidance from Nessi' },
+    { path: '/dashboard', label: 'Dashboard', short: 'Home', icon: 'dashboard', exact: true, desc: "Your fictional example workspace" },
     { path: '/policy', label: 'My policy', short: 'Policy', icon: 'policy', exact: true, desc: 'Cover, limits, waiting times' },
-    { path: '/case', label: 'My claim', short: 'Claim', icon: 'folder_shared', exact: false, desc: 'Papers, diary, your files' },
-    { path: '/ask', label: 'Ask', icon: 'forum', exact: true, desc: 'Answers from your own papers' },
+    { path: '/case', label: 'My claims', short: 'Claims', icon: 'folder_shared', exact: false, desc: 'Papers, diary, your files' },
+    { path: '/ask', label: 'Chat', icon: 'forum', exact: true, desc: 'Answers from your own papers' },
   ];
   /** Phone tab bar: Home, Policy | centre Ask | Claim, More. */
-  readonly tabsLeft = this.mainNav.slice(0, 2);
-  readonly tabsRight = this.mainNav.slice(2, 3);
+  readonly tabsLeft = this.mainNav.filter((n) => ['/dashboard', '/policy'].includes(n.path));
+  readonly tabsRight = this.mainNav.filter((n) => n.path === '/case');
   /** The menu only lists pages that aren't already in the header or the phone tab bar. */
   readonly menuPages = CLAIM_TOOLS;
 }

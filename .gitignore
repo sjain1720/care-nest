@@ -1,6 +1,10 @@
 # Secrets / local config
 .env
+.env.*
 **/.env
+**/.env.*
+!.env.example
+!**/.env.example
 *.key
 *-key.json
 service-account*.json
@@ -46,6 +50,7 @@ policies-data-set/
 training/*
 !training/README.md
 eval/results/
+ui-page-review-*/
 tmp/
 
 # Supplied planning documents and cloud setup records (keep local)
@@ -56,3 +61,12 @@ googleCloudStepsForThisPhase.md
 Thumbs.db
 .vscode/*
 !.vscode/extensions.json
+
+# Local package manager cache
+.pnpm-store/
+
+# Supplied hospital records: local references only
+bill sample data/
+
+# Colleague's issued policy: private debugging reference, never a public demo asset
+/My policy.pdf

@@ -1,3 +1,4 @@
+import asyncio
 import contextvars
 import logging
 import queue
@@ -10,6 +11,7 @@ from google.genai import errors as genai_errors
 
 from app.schemas import AskRequest, AskResponse
 from app.services.copilot import answer
+from app.services.conversation import prepare, remember, clear_threads
 from app.services.sse import sse_event
 
 router = APIRouter(tags=["copilot"])
@@ -18,13 +20,42 @@ log = logging.getLogger(__name__)
 _GOOGLE_ERRORS = (GoogleAPIError, genai_errors.APIError)
 
 
+def _prepare(body):
+    if body.generalOnly:
+        return prepare(body.question.strip(), body.conversationId, general_only=True)
+    return prepare(body.question.strip(), body.conversationId)
+
+
+def _answer(body, question, on_step=None):
+    kwargs = {'language': body.language, 'original_question': body.question}
+    if on_step is not None:
+        kwargs['on_step'] = on_step
+    if body.generalOnly:
+        kwargs['general_only'] = True
+    result = answer(question, **kwargs)
+    from app.services.greetings import is_greeting
+    if is_greeting(body.question):
+        from app.services.session_profile import get_display_name
+        name = get_display_name()
+        if name and body.language == 'en':
+            result.answer.headline = f"Hi {name}! I'm Nessi."
+    return result
+
+
 @router.post("/copilot/ask", response_model=AskResponse)
 def ask(body: AskRequest):
     """Claim Copilot: routes to the policy, bill/settlement or claim specialist; every quote is verified."""
     try:
-        return answer(body.question.strip(), language=body.language)
+        question, context = _prepare(body)
+        result = _answer(body, question)
+        remember(context, result.answer)
+        return result
     except _GOOGLE_ERRORS as exc:
-        raise HTTPException(502, f"A Google service failed while answering: {exc.__class__.__name__}") from exc
+        code = getattr(exc, 'code', None)
+        code = code if isinstance(code, int) else None
+        log.warning('Copilot service failed error=%s code=%s', type(exc).__name__, code)
+        detail = 'Google AI is busy; wait about a minute and retry the question.' if code == 429 else 'A Google service could not complete the answer. Retry the question.'
+        raise HTTPException(502, detail) from exc
 
 
 @router.post("/copilot/ask/stream")
@@ -34,7 +65,9 @@ def ask_stream(body: AskRequest):
 
     def work() -> None:
         try:
-            result = answer(body.question.strip(), on_step=lambda s: events.put({"type": "step", "step": s.model_dump()}), language=body.language)
+            question, context = _prepare(body)
+            result = _answer(body, question, on_step=lambda s: events.put({"type": "step", "step": s.model_dump()}))
+            remember(context, result.answer)
             events.put({"type": "answer", "answer": result.answer.model_dump()})
         except Exception as exc:  # report any failure to the browser instead of leaving the stream hanging
             log.exception("Streaming answer failed")
@@ -56,10 +89,24 @@ def ask_stream(body: AskRequest):
 
 @router.post("/copilot/agent")
 async def ask_agent(body: AskRequest):
-    """Experimental: the same question answered by the Google ADK agent team (free text, not verified like /ask)."""
-    from app.adk_copilot import run_copilot_agent  # imported lazily so the API starts even if ADK has a problem
-
+    """Legacy URL normalized through the same verified hybrid chat boundary."""
+    def work():
+        question, context = _prepare(body)
+        result = _answer(body, question)
+        remember(context, result.answer)
+        return {'steps': [step.model_dump() for step in result.steps],
+                'text': result.answer.summary, 'answer': result.answer.model_dump()}
     try:
-        return await run_copilot_agent(body.question.strip())
+        return await asyncio.to_thread(work)
     except _GOOGLE_ERRORS as exc:
-        raise HTTPException(502, f"A Google service failed in the agent: {exc.__class__.__name__}") from exc
+        code = getattr(exc, 'code', None)
+        code = code if isinstance(code, int) else None
+        log.warning('Copilot service failed error=%s code=%s', type(exc).__name__, code)
+        detail = 'Google AI is busy; wait about a minute and retry the question.' if code == 429 else 'A Google service could not complete the answer. Retry the question.'
+        raise HTTPException(502, detail) from exc
+
+
+
+@router.delete('/copilot/conversation', status_code=204)
+def reset_conversation():
+    clear_threads()

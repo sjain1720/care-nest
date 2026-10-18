@@ -1,5 +1,10 @@
 [
   {
+    "name": "keep-cleanup-runtime",
+    "action": {"type": "Keep"},
+    "condition": {"tagState": "TAGGED", "tagPrefixes": ["runtime-cleanup"]}
+  },
+  {
     "name": "keep-latest-2",
     "action": {"type": "Keep"},
     "mostRecentVersions": {"keepCount": 2}

@@ -4,7 +4,7 @@ from fastapi import FastAPI, HTTPException
 from fastapi.responses import FileResponse
 
 from app.core.session_middleware import GuestSessionMiddleware
-from app.routers import case, claims, copilot, demo, health, policy, session
+from app.routers import case, claims, copilot, coverage, demo, health, policy, session
 
 app = FastAPI(title="CareNest API", version="0.7.0")
 app.add_middleware(GuestSessionMiddleware)
@@ -13,6 +13,7 @@ app.include_router(health.router, prefix="/api")
 app.include_router(policy.router, prefix="/api")
 app.include_router(case.router, prefix="/api")
 app.include_router(claims.router, prefix="/api")
+app.include_router(coverage.router, prefix="/api")
 app.include_router(copilot.router, prefix="/api")
 app.include_router(demo.router, prefix="/api")
 app.include_router(session.router, prefix="/api")

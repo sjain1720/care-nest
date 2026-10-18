@@ -1,13 +1,36 @@
 from fastapi import APIRouter, Response
+from hashlib import sha256
 
-from app.services import case_store, policy_store
+from app.core.session import COOKIE, expiry, root_session_id, session_id
+from app.schemas import DisplayNameInput, VisitorProfile
+from app.services import policy_store
+from app.services.data_lifecycle import delete_guest
 
 router = APIRouter(tags=["session"])
 
 
+@router.get("/session")
+def get_session():
+    state = policy_store.get_active_policy()
+    return {"workspaceKey": sha256(session_id().encode()).hexdigest()[:16], "expiresAt": expiry().isoformat(), "mode": "live_demo" if state and state[1].get("isDemoTemplate") else "guest"}
+
+
 @router.delete("/session", status_code=204)
 def delete_my_data():
-    """Deletes this guest's claim, uploaded claim files, active policy choice and typed-in policy details."""
-    case_store.delete_case()
-    policy_store.delete_session_state()
-    return Response(status_code=204)
+    """Revokes the identity and deletes owned files, policy subcollections and claims."""
+    delete_guest(root_session_id())
+    response = Response(status_code=204)
+    response.delete_cookie(COOKIE, path="/", httponly=True, samesite="lax")
+    return response
+
+
+@router.get('/session/profile', response_model=VisitorProfile)
+def get_profile():
+    from app.services.session_profile import get_display_name
+    return {'displayName': get_display_name(), 'expiresAt': expiry().isoformat()}
+
+
+@router.put('/session/profile', response_model=VisitorProfile)
+def set_profile(body: DisplayNameInput):
+    from app.services.session_profile import save_display_name
+    return {'displayName': save_display_name(body.displayName), 'expiresAt': expiry().isoformat()}

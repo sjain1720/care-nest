@@ -1,4 +1,34 @@
 <div class="page">
+  @if (decisionOnly()) {
+    <header class="page-head"><h2>Add insurer decision</h2><p>Review the approval, deduction or rejection letter. The recorded amounts come from this document.</p></header>
+    @if(original();as doc){<app-document-preview [url]="doc.docUrl" [title]="doc.name" />}
+    @else {<section class="card"><p>No original decision document is linked yet.</p><a mat-stroked-button routerLink="/upload" [queryParams]="{type:'Settlement letter',step:'decision'}">Upload decision</a></section>}
+  } @else {
+  <header class="page-head"><h2>Review decision & prepare response</h2><p>Check the amounts, inspect the evidence and prepare your response.</p></header>
+  <app-dispute-review />
+  @if (preparation(); as inputs) {
+    <section class="card" aria-labelledby="dispute-preparation">
+      <h2 id="dispute-preparation">Before reviewing the decision</h2>
+      <p class="small muted">We check the documents and amounts first. This does not confirm whether a deduction is justified.</p>
+      @if (inputs.missingInputs.length) {
+        <ul class="plain">
+          @for (issue of inputs.missingInputs; track issue.code) {
+            <li>{{ issue.message }} <a [routerLink]="issue.route">Open</a></li>
+          }
+        </ul>
+      } @else {
+        <p>The source inputs are ready for an evidence review.</p>
+      }
+      @if (inputs.reconciliation; as amounts) {
+        <p>Claimed minus approved: <strong>{{ amounts.decisionDifference | inr }}</strong>.
+          Itemized deductions: <strong>{{ amounts.itemizedDeductions | inr }}</strong>.</p>
+        @if (!amounts.arithmeticOk) {
+          <p class="pill tone-warn">Unreconciled difference: {{ amounts.unexplainedGap | inr }}. Confirm the figures and breakdown with the insurer.</p>
+        }
+      }
+      @for (warning of inputs.warnings; track warning) { <p class="small muted">{{ warning }}</p> }
+    </section>
+  }
   @if (journey.lastReply(); as r) {
     <a class="card reply-banner" routerLink="/case/reply">
       <mat-icon>mark_email_read</mat-icon>
@@ -8,7 +38,7 @@
   }
   @if (settlement(); as s) {
     <div class="page-head">
-      <h1>@if (totalDeducted()) { {{ 'Why' | t }} {{ totalDeducted() | inr }} {{ 'was cut from your claim' | t }} } @else { {{ 'The insurer paid your claim in full' | t }} }</h1>
+      <h2>@if (totalDeducted()) { {{ 'Why' | t }} {{ totalDeducted() | inr }} {{ 'was cut from your claim' | t }} } @else { {{ 'The insurer approved the claimed amount' | t }} }</h2>
       <p>{{ "From the insurer's letter of" | t }} {{ s.letterDate | date: 'd MMM y' }} · {{ 'Claim' | t }} {{ s.claimNumber }}</p>
     </div>
 
@@ -17,7 +47,7 @@
     <section class="card">
       <div class="totals">
         <div class="stat"><div class="label">{{ 'You claimed' | t }}</div><div class="value amount">{{ s.claimedAmount | inr }}</div></div>
-        <div class="stat"><div class="label">{{ 'Insurer paid' | t }}</div><div class="value amount">{{ s.approvedAmount | inr }}</div></div>
+        <div class="stat"><div class="label">{{ 'Insurer approved' | t }}</div><div class="value amount">{{ s.approvedAmount | inr }}</div></div>
         <div class="stat deducted"><div class="label">{{ 'Cut' | t }}</div><div class="value amount">{{ totalDeducted() | inr }}</div></div>
       </div>
       <div class="math row small">
@@ -33,12 +63,12 @@
                      [selected]="open()" (select)="select($event)" />
       <p class="small muted" style="margin:0 0 8px">{{ 'Tap a cut to see why it happened.' | t }}</p>
       <p class="small" style="margin-bottom:0">
-        <strong>{{ explained() | inr }}</strong> {{ 'of the cut matches your policy rules.' | t }}
+        <strong>{{ explained() | inr }}</strong> {{ 'of the cut has an explanation to check; this does not prove policy applicability.' | t }}
         @if (totalDeducted() - explained() > 0) { <strong>{{ totalDeducted() - explained() | inr }}</strong> {{ 'has no clear reason.' | t }} }
       </p>
     </section>
 
-    <app-next-steps [steps]="nextSteps()" />
+
     </div>
 
     <div class="right">
@@ -98,7 +128,7 @@
     </div>
   } @else if (rejection()) {
     <div class="page-head">
-      <h1>{{ 'The insurer refused your claim' | t }}</h1>
+      <h2>{{ 'The insurer refused your claim' | t }}</h2>
       <p>@if (rejection()!.letterDate) { From their letter of {{ rejection()!.letterDate | date: 'd MMM y' }}. }You can ask them to look again.</p>
     </div>
     <section class="card">
@@ -110,11 +140,12 @@
         </a>
       }
     </section>
-    <app-next-steps [steps]="refusalSteps()" />
+
   } @else if (settlement() === null) {
     <app-empty-state icon="mark_email_unread" title="No letter from the insurer yet" action="Add the insurer's letter"
       text="When the insurer decides, it sends a letter: what it paid and what it cut, or why it refused. Upload that letter. We explain it in plain words." />
   } @else {
     <app-skeleton label="Loading the insurer's letter…" [count]="3" />
+  }
   }
 </div>

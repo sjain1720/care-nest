@@ -37,6 +37,22 @@ interface DiagResponse {
 })
 export class StatusComponent {
   private http = inject(HttpClient);
+  actionError = signal<string | null>(null);
+  deleting = signal(false);
+  deleteGuestData(): void {
+    this.deleting.set(true);
+    this.actionError.set(null);
+    this.http.delete('/api/session').subscribe({
+      next: () => {
+        for (const key of Object.keys(localStorage)) {
+          if (key.startsWith('carenest.letter.') || ['carenest.timeline', 'carenest.checklist', 'carenest.claims', 'carenest.billReview'].includes(key)) localStorage.removeItem(key);
+        }
+        sessionStorage.removeItem('carenest.workspace.choice');
+        setAllLive(true); location.assign('/');
+      },
+      error: () => { this.deleting.set(false); this.actionError.set('Deletion failed. Please retry.'); },
+    });
+  }
 
   readonly features = FEATURES;
   live = signal<Set<Feature>>(new Set(FEATURES.filter((f) => isLive(f.id)).map((f) => f.id)));

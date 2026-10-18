@@ -5,6 +5,18 @@
       <p>{{ p.insurer }} · Policy {{ p.policyNumber }} · {{ p.pageCount }} pages read@if (p.isGroupPolicy) { · Group policy }</p>
     </div>
 
+    <nav class="section-tabs" aria-label="Policy sections"><a routerLink="/policy" fragment="details">Overview</a><a routerLink="/policy" fragment="limits">Benefits & limits</a><a routerLink="/policy" fragment="waiting-periods">Waiting periods</a><a routerLink="/policy" fragment="traps">Watch-outs</a><a routerLink="/policy" fragment="source-document">Document</a></nav>
+    @if (p.demoAssumptions?.length) {
+      <section class="card notice" role="note"><mat-icon>science</mat-icon><div>
+        <strong>Original policy wording · fictional family selections</strong>
+        <p>The Kotak PDF is unchanged. Family membership, enrolment, ₹10 lakh cover and selected benefits are demonstration inputs.</p>
+        <details><summary>View the demo assumptions</summary><ul>@for (note of p.demoAssumptions; track note) { <li>{{ note }}</li> }</ul></details>
+        <a href="/demo/coverage_assumptions.pdf" target="_blank" rel="noopener">Open fictional coverage assumptions ↗</a>
+      </div></section>
+    }
+    <div class="policy-document-layout">
+      <aside class="policy-source" id="source-document"><app-document-preview [url]="sourceUrl()" title="Policy document" /></aside>
+      <div class="policy-analysis">
     @if (p.productNote) {
       <section class="card notice" role="note">
         <mat-icon>info</mat-icon>
@@ -78,14 +90,16 @@
     </section>
 
     <section class="card" id="room-rent">
-      <h2>{{ 'Before a hospital stay: check the room cost' | t }}</h2>
-      <p class="muted small">{{ 'If your room costs more than your limit, the insurer cuts more than just the room rent. Pick a room type to see what you may pay.' | t }}</p>
+      <h2>{{ 'Before a hospital stay' | t }}</h2>
+      <details><summary>Explore a room-cost scenario</summary>
+      <p class="muted small">{{ 'A room above the recorded limit may affect other charges, depending on the selected policy benefit and hospital tariffs. These are conditional estimates, not a claim decision.' | t }}</p>
       @if (p.roomRent.amount) {
         <app-room-rent-simulator [limit]="p.roomRent.amount" [citations]="roomRentCitations()" />
       } @else {
         <p>{{ 'We need your room-rent limit per day to run this check.' | t }}
           <button mat-button type="button" (click)="editing.set(true)">{{ 'Add it from your schedule' | t }}</button></p>
       }
+      </details>
     </section>
 
     <h2 id="traps">{{ 'Watch out for these' | t }}</h2>
@@ -145,9 +159,12 @@
         }
       </section>
     }
+      <details class="card"><summary>Plan an admission: dates, limits and questions</summary><app-treatment-planning /></details>
+      </div>
+    </div>
   } @else if (policy() === null) {
-    <app-empty-state icon="policy" title="No policy yet" action="Add your policy"
-      text="Upload your policy PDF. We read every page and show your limits, waiting times and the exact rule, in plain words." />
+    <app-empty-state icon="policy" [title]="legacySamplePolicy() ? 'Upload your own policy' : 'No policy yet'" action="Upload your policy"
+      [text]="legacySamplePolicy() ? 'The policy previously saved here was sample data. It is not your uploaded policy and will not be used to check your cover. Upload your policy PDF to continue.' : 'Upload your policy PDF. We read every page and show your limits, waiting times and the exact rule, in plain words.'" />
   } @else {
     <app-skeleton label="Loading your policy…" [count]="3" />
   }

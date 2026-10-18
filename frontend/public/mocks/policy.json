@@ -13,7 +13,7 @@
   "isGroupPolicy": false,
   "userProvided": ["startDate", "members"],
   "members": [
-    { "name": "Ravi Sharma", "relation": "Self", "age": 32 },
+    { "name": "Shubham Sharma", "relation": "Self", "age": 32 },
     { "name": "Mohan Sharma", "relation": "Father", "age": 62 },
     { "name": "Kamala Sharma", "relation": "Mother", "age": 58 }
   ],

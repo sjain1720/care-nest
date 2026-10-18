@@ -1,0 +1,77 @@
+// Owned synthetic visitor; one actual reply-reading call. PDF is a storage fixture,
+// not evidence that a document satisfies an insurer requirement.
+const {chromium}=require('playwright'),fs=require('fs'),path=require('path');
+const base=process.env.CARENEST_BASE_URL||'http://127.0.0.1:8088';
+const out=path.join(__dirname,'results/guided-claim-flow/local');fs.mkdirSync(out,{recursive:true});
+const report={base,checks:[],note:'One actual synthetic reply-reading call; blank PDF tests storage/linkage only. User review and document suitability are not inferred.'};
+function check(name,passed){report.checks.push({name,passed:!!passed});if(!passed)throw Error(name);}
+(async()=>{const browser=await chromium.launch({headless:true,executablePath:'/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'});
+const c=await browser.newContext({viewport:{width:1280,height:700}});const p=await c.newPage();const errors=[];p.on('pageerror',e=>errors.push(e.message));
+const tasks=async()=>{const r=await c.request.get(base+'/api/case/document-tasks?workspace=example');if(r.status()!==200)throw Error('tasks '+r.status()+' '+await r.text());return r.json();};
+try{
+ await c.request.get(base+'/api/session/profile?workspace=general');await c.request.put(base+'/api/session/profile?workspace=general',{data:{displayName:'Guided flow tester'}});
+ check('Prepared isolated example ready',(await c.request.post(base+'/api/demo/ensure?workspace=example',{data:{},timeout:60000})).status()===200);
+ await p.goto(base+'/case?workspace=example&section=documents',{waitUntil:'networkidle'});
+ check('Four navigation stages visible',await p.locator('nav[aria-label="Claim workflow"] a').count()===4);
+ const row=p.locator('app-document-tasks .task').first();await row.waitFor();
+ await row.getByRole('link',{name:'Upload for this item',exact:true}).click();
+ await p.waitForURL(/\/upload/);check('Inline upload retains example workspace',new URL(p.url()).searchParams.get('workspace')==='example');
+ await p.locator('label.drop input').waitFor();await p.waitForFunction(()=>!document.querySelector('label.drop input').disabled);
+ check('Example upload disclosure visible',await p.getByText('Adding to your isolated example claim',{exact:true}).isVisible());
+ await p.locator('label.drop input').setInputFiles('/tmp/carenest-support-storage-fixture.pdf');
+ await p.getByText('Saved in your example claim',{exact:true}).waitFor({timeout:60000});
+ let state=await tasks();const linked=state.tasks.find(t=>t.documents.some(d=>d.name==='carenest-support-storage-fixture.pdf'));
+ check('Upload linked without review',linked&&!linked.reviewed);
+ await p.getByRole('link',{name:'Review this item and continue →',exact:true}).click();
+ await p.waitForURL(/section=documents/);const first=p.locator('app-document-tasks .task').first();await first.getByRole('button',{name:'I checked the linked document',exact:true}).click();
+ await first.getByText(/Document linked · checked by you/).waitFor();
+ check('Review recorded only after explicit action',(await tasks()).tasks.find(t=>t.id===linked.id).reviewed);
+ await first.screenshot({path:out+'/checklist-inline-upload.png'});
+ check('Personal policy remains empty',(await c.request.get(base+'/api/policy?workspace=personal')).status()===404);
+ const requestText='Dear member, with reference to claim DEMO-2026-1002, please provide these two documents before we can review your request:\n1. Discharge summary.\n2. Final hospital payment receipt.\nPlease quote reference DOC-REQUEST-2026-17 when responding. This request does not confirm claim approval. Reply dated 2026-10-17.';
+ const start=Date.now();const replyResponse=await c.request.post(base+'/api/case/reply?workspace=example',{data:{text:requestText},timeout:90000});
+ report.actualReplySeconds=(Date.now()-start)/1000;
+ check('Actual synthetic insurer reply read',replyResponse.status()===200);
+ const replyCase=await replyResponse.json();const reply=replyCase.timeline.filter(e=>e.kind==='reply').at(-1);
+ check('Actual reply recognized as requesting papers',reply?.outcome==='asks_for_papers');
+ await p.goto(base+'/case/reply?workspace=example',{waitUntil:'networkidle'});
+ const requestRows=p.locator('app-document-tasks .task');await requestRows.first().waitFor();
+ state=await tasks();const requested=state.tasks.filter(t=>t.kind==='reply');check('Reply-specific document tasks present',requested.length>=2&&requested.every(t=>t.replyId===reply.id));
+ await requestRows.first().getByRole('link',{name:'Upload for this item',exact:true}).click();
+ await p.waitForURL(/\/upload/);await p.waitForFunction(()=>!document.querySelector('label.drop input').disabled);
+ await p.locator('label.drop input').setInputFiles('/tmp/carenest-support-storage-fixture.pdf');
+ await p.getByText('Saved in your example claim',{exact:true}).waitFor({timeout:60000});
+ await p.getByRole('link',{name:'Review this item and continue →',exact:true}).click();
+ await p.waitForURL(/\/case\/reply/);check('Requested-item upload returns directly to insurer reply',new URL(p.url()).pathname==='/case/reply');
+ await requestRows.first().getByText(/Uploaded · review still needed/).waitFor();
+ await requestRows.first().getByRole('button',{name:'I checked the linked document',exact:true}).click();
+ await requestRows.first().getByText(/Document linked · checked by you/).waitFor();
+ await p.getByRole('link',{name:'Prepare response with current documents →',exact:true}).click();
+ await p.locator('#letter-body').waitFor();
+ const partial=await (await c.request.get(base+'/api/case/letter?workspace=example&kind=document_response')).json();
+ check('Partial response draft allowed',partial.warnings.some(w=>w.includes('pending'))&&partial.body.includes('carenest-support-storage-fixture.pdf'));
+ check('Draft does not claim sending or automatic attachment',!partial.body.includes('are attached')&&partial.body.includes('I will attach'));
+ await p.locator('#letter-body').fill(partial.body+'\nMy saved edit for this browser.');
+ state=await tasks();const pending=state.tasks.find(t=>t.kind==='reply'&&!t.reviewed);
+ check('Update another request with explicit reason',(await c.request.put(base+'/api/case/document-tasks/'+pending.id+'?workspace=example',{data:{claimKey:state.claimKey,expectedFingerprint:state.fingerprint,documentIds:[],reviewed:false,notApplicable:true,note:'Please confirm an alternative; no receipt was issued.'}})).status()===200);
+ const stale=await c.request.post(base+'/api/case/timeline?workspace=example',{data:{kind:'letter_sent',date:'2026-10-17',letterKind:'document_response',replyId:partial.replyId,claimKey:partial.claimKey,inputFingerprint:partial.inputFingerprint}});
+ check('Changed inputs block stale sent record',stale.status()===409);
+ await p.reload({waitUntil:'networkidle'});await p.locator('#letter-body').waitFor();
+ check('Earlier edit is retained separately',await p.getByText(/Earlier edits kept on this browser/).count()===1&&!(await p.locator('#letter-body').inputValue()).includes('My saved edit'));
+ await p.screenshot({path:out+'/letter-laptop.png',fullPage:true});
+ await p.setViewportSize({width:390,height:844});
+ check('Phone has no horizontal overflow',await p.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));
+ check('Phone retains next action',await p.locator('aside[aria-label="Next claim action"] a').first().count()===1);
+ await p.locator('aside[aria-label="Next claim action"]').scrollIntoViewIfNeeded();await p.screenshot({path:out+'/next-action-phone.png'});
+ await p.getByRole('button',{name:"I've sent it",exact:true}).click();
+ await p.getByText(/Sent on/).first().waitFor();
+ let updated=await (await c.request.get(base+'/api/case?workspace=example')).json();
+ check('Explicit sending linked to current reply',updated.timeline.some(e=>e.kind==='letter_sent'&&e.letterKind==='document_response'&&e.replyId===reply.id));
+ check('Navigation and drafting did not close claim',!updated.timeline.some(e=>e.kind==='closed'));
+ const old=await tasks();check('Start new claim explicit',(await c.request.post(base+'/api/claims/new?workspace=example',{data:{}})).status()===200);
+ const wrong=await c.request.put(base+'/api/case/document-tasks/'+linked.id+'?workspace=example',{data:{claimKey:old.claimKey,documentIds:[],reviewed:false}});
+ check('Old claim task context rejected',wrong.status()===409);
+ check('No JavaScript errors',errors.length===0);report.passed=true;
+}catch(e){report.passed=false;report.error=e.message;await p.screenshot({path:out+'/failure.png',fullPage:true}).catch(()=>{});}
+finally{try{report.cleanupStatus=(await c.request.delete(base+'/api/session?workspace=general',{timeout:60000})).status();}catch{report.cleanupStatus='failed';}await browser.close();fs.writeFileSync(out+'/report.json',JSON.stringify(report,null,2));console.log(JSON.stringify(report));if(!report.passed||report.cleanupStatus!==204)process.exitCode=1;}
+})();

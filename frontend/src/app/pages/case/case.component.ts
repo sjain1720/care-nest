@@ -1,7 +1,9 @@
-import { Component, computed, inject, signal } from '@angular/core';
+import { DocumentTasksComponent } from '../../shared/document-tasks.component';
+import { Component, computed, effect, inject, signal } from '@angular/core';
+import { DisputeReviewComponent } from '../../shared/dispute-review.component';
 import { toSignal } from '@angular/core/rxjs-interop';
-import { DatePipe, NgTemplateOutlet } from '@angular/common';
-import { RouterLink } from '@angular/router';
+import { DatePipe } from '@angular/common';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { TranslatePipe } from '../../shared/translate.pipe';
 import { MatIconModule } from '@angular/material/icon';
@@ -16,6 +18,9 @@ import { NextStep, NextStepsComponent } from '../../shared/next-steps.component'
 import { EmptyStateComponent, SkeletonComponent } from '../../shared/page-states.component';
 import { eventText, todayIso } from '../../shared/claim-diary';
 import { ClaimsListComponent } from './claims-list.component';
+import { DocumentPreviewComponent } from '../../shared/document-preview.component';
+import { CoverageEstimateComponent } from '../../shared/coverage-estimate.component';
+import { InrPipe } from '../../shared/inr.pipe';
 
 const STATUS_META: Record<ChecklistStatus, { label: string; icon: string; tone: string }> = {
   collected: { label: 'Have it', icon: 'check_circle', tone: 'ok' },
@@ -26,8 +31,9 @@ const STATUS_META: Record<ChecklistStatus, { label: string; icon: string; tone: 
 @Component({
   selector: 'app-case',
   standalone: true,
-  imports: [DatePipe, NgTemplateOutlet, FormsModule, RouterLink, MatButtonModule, MatIconModule, MatProgressBarModule, NextStepsComponent, SkeletonComponent, EmptyStateComponent, ClaimsListComponent, TranslatePipe],
+  imports: [DocumentTasksComponent, CoverageEstimateComponent, DatePipe, FormsModule, RouterLink, MatButtonModule, MatIconModule, SkeletonComponent, ClaimsListComponent, InrPipe],
   templateUrl: './case.component.html',
+  styleUrl: './case-overview.css',
   styles: `
     .head-row { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 12px 16px; }
     .head-text { min-width: 0; }
@@ -54,6 +60,7 @@ const STATUS_META: Record<ChecklistStatus, { label: string; icon: string; tone: 
     .diary .d-text { flex: 1; min-width: 0; }
     .mark { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px 12px; margin-top: 12px; }
     .mark label { display: flex; flex-direction: column; gap: 4px; font-size: .85rem; color: var(--cn-muted); }
+    .outcome-note {display:grid;gap:8px;font-size:.9rem}.outcome-note textarea{width:100%;box-sizing:border-box;padding:12px;font:inherit;background:var(--cn-field);color:var(--cn-ink);border:1px solid var(--cn-border);border-radius:8px;resize:vertical}
     .mark input { min-height: 44px; padding: 0 10px; font: inherit; color: var(--cn-ink); border: 1px solid var(--cn-border); border-radius: 10px; background: var(--cn-field); }
     .wait { border-radius: 10px; padding: 8px 12px; margin-top: 12px; font-size: .9rem; }
     .start-card { display: flex; gap: 16px; align-items: flex-start; border-color: var(--cn-c1-line);
@@ -65,7 +72,28 @@ const STATUS_META: Record<ChecklistStatus, { label: string; icon: string; tone: 
   `,
 })
 export class CaseComponent {
+  private route = inject(ActivatedRoute);
+  readonly dashboard = this.route.snapshot.data['dashboard'] === true;
+  private params = toSignal(this.route.queryParamMap, { initialValue: this.route.snapshot.queryParamMap });
+  private fragment = toSignal(this.route.fragment, { initialValue: this.route.snapshot.fragment });
+  readonly listPage = computed(() => !this.dashboard && this.route.snapshot.routeConfig?.path === 'case'
+    && !['overview', 'investigation', 'documents', 'history'].includes(this.params().get('section') ?? '')
+    && !['documents', 'checklist', 'dispute-papers', 'diary', 'overview', 'next-steps'].includes(this.fragment() ?? ''));
+  readonly section = computed(() => {
+    const step = this.params().get('step');
+    if (step === 'documents') return 'documents';
+    if (step === 'outcome') return 'history';
+    const fragment = this.fragment();
+    if (fragment === 'documents' || fragment === 'checklist' || fragment === 'dispute-papers') return 'documents';
+    if (fragment === 'diary' || fragment === 'claims') return 'history';
+    if (fragment === 'overview' || fragment === 'next-steps') return 'overview';
+    const selected = this.params().get('section');
+    return ['overview', 'investigation', 'documents', 'history'].includes(selected ?? '') ? selected : 'overview';
+  });
   private api = inject(ApiService);
+  readonly workspace = this.api.workspace;
+  readonly claims = toSignal(this.api.getClaims());
+  readonly policy = toSignal(this.api.getPolicy());
   private diary = inject(DiaryActionsService);
   readonly journey = inject(JourneyService);
 
@@ -73,11 +101,24 @@ export class CaseComponent {
   checklist = signal<ChecklistItem[]>([]);
   claimCase = toSignal(this.api.getCase().pipe(tap((c) => this.checklist.set((c?.checklist ?? []).map((i) => ({ ...i }))))));
 
+  readonly decisionDocument = computed(() => this.claimCase()?.documents.find(d => d.type === 'Settlement letter' || d.type === 'Rejection letter'));
+
   claimItems = computed(() => this.checklist().filter((i) => i.group === 'claim'));
   disputeItems = computed(() => this.checklist().filter((i) => i.group === 'dispute'));
   collected = computed(() => this.claimItems().filter((i) => i.status === 'collected').length);
   progressPct = computed(() => (this.claimItems().length ? (this.collected() / this.claimItems().length) * 100 : 0));
-  private bill = toSignal(this.api.getBill());
+  readonly bill = toSignal(this.api.getBill());
+  readonly settlement = toSignal(this.api.getSettlement());
+  readonly tools = [
+    { label: 'Check my bill', icon: 'receipt_long', route: '/case/bill', fragment: undefined },
+    { label: 'Why money was cut', icon: 'stacked_bar_chart', route: '/case/settlement', fragment: undefined },
+    { label: 'Write to the insurer', icon: 'edit_note', route: '/case/letter', fragment: undefined },
+    { label: "Insurer's reply", icon: 'mark_email_read', route: '/case/reply', fragment: undefined },
+    { label: "Insurer's question", icon: 'quiz', route: '/case/query', fragment: undefined },
+    { label: 'Papers checklist', icon: 'checklist', route: '/case', fragment: 'checklist' },
+    { label: 'Claim diary', icon: 'history_edu', route: '/case', fragment: 'diary' },
+    { label: 'Add documents', icon: 'upload_file', route: '/upload', fragment: undefined },
+  ];
   /** Nothing uploaded, ticked off in the diary or read from a bill yet: show how to start instead of empty sections. */
   readonly isEmpty = computed(() => {
     const c = this.claimCase();
@@ -86,6 +127,8 @@ export class CaseComponent {
 
   readonly timeline = this.journey.timeline;
   readonly sentClaim = computed(() => this.timeline().some((e) => e.kind === 'claim_sent'));
+  readonly outcomeSaved = signal(false);
+  readonly outcomeNote = signal('');
   readonly diaryDate = signal(todayIso());
   readonly today = todayIso();
   readonly saving = signal(false);
@@ -105,6 +148,16 @@ export class CaseComponent {
     if (!this.bill()) steps.push({ text: 'Add your final hospital bill so we can check it.', action: 'Add the hospital bill', route: '/upload', query: { type: 'Hospital bill' } });
     return steps;
   });
+
+  constructor() {
+    const router = inject(Router);
+    effect(() => {
+      if (this.dashboard || this.listPage() || !this.claimCase()) return;
+      if (this.section() === 'documents' || this.section() === 'history') return;
+      const next = this.section() === 'investigation' ? this.journey.steps()[5] : this.journey.current() ?? this.journey.steps()[8];
+      router.navigate([next.route], {queryParams:{workspace:this.workspace.mode(),...next.query}, replaceUrl:true});
+    });
+  }
 
   status(s: ChecklistStatus) {
     return STATUS_META[s];
@@ -131,10 +184,10 @@ export class CaseComponent {
     });
   }
 
-  add(kind: 'claim_sent' | 'closed'): void {
+  add(kind: 'claim_sent' | 'closed' | 'outcome_recorded'): void {
     if (!this.diaryDate()) return;
     this.saving.set(true);
-    this.diary.add({ kind, date: this.diaryDate() }).subscribe({ next: () => this.saving.set(false), error: () => this.saving.set(false) });
+    this.diary.add({ kind, date: this.diaryDate(), ...((kind === 'closed' || kind === 'outcome_recorded') && this.outcomeNote().trim() ? {note:this.outcomeNote().trim()} : {}) }).subscribe({ next: () => {this.saving.set(false);if(kind === 'outcome_recorded')this.outcomeSaved.set(true);}, error: () => this.saving.set(false) });
   }
 
   remove(id: string): void {

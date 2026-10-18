@@ -1,11 +1,18 @@
 """Gives every /api request a guest session from the cn_session cookie (a new one if missing), and refreshes the cookie."""
 from http.cookies import SimpleCookie
+import asyncio
+from datetime import datetime, timezone
+import logging
+from urllib.parse import parse_qs
 
-from app.core.session import COOKIE, TTL, is_valid, new_session_id, reset_session, set_session
+from app.core.session import COOKIE, TTL, reset_session, set_session, set_deadline, reset_deadline, set_root_session, reset_root_session
+from app.services.session_registry import resolve_session, resolve_example_session
+
+log = logging.getLogger(__name__)
 
 
-def _cookie_header(session_id: str, secure: bool) -> bytes:
-    parts = [f"{COOKIE}={session_id}", "Path=/", f"Max-Age={int(TTL.total_seconds())}", "HttpOnly", "SameSite=Lax"]
+def _cookie_header(session_id: str, secure: bool, max_age: int = int(TTL.total_seconds())) -> bytes:
+    parts = [f"{COOKIE}={session_id}", "Path=/", f"Max-Age={max(0, max_age)}", "HttpOnly", "SameSite=Lax"]
     if secure:
         parts.append("Secure")
     return "; ".join(parts).encode()
@@ -29,18 +36,39 @@ class GuestSessionMiddleware:
         except Exception:  # a malformed cookie header just means no session yet
             jar = SimpleCookie()
         session_id = jar[COOKIE].value if COOKIE in jar else None
-        if not is_valid(session_id):
-            session_id = new_session_id()
+        workspace = parse_qs(scope.get('query_string', b'').decode('latin-1')).get('workspace', ['general'])[0]
+        if workspace not in ('general', 'personal', 'example'):
+            await send({'type': 'http.response.start', 'status': 400, 'headers': [(b'content-type', b'application/json')]})
+            await send({'type': 'http.response.body', 'body': b'{"detail":"Unknown workspace."}'})
+            return
+        try:
+            session_id, deadline = await asyncio.to_thread(resolve_session, session_id)
+            owner_id = await asyncio.to_thread(resolve_example_session, session_id, deadline) if workspace == 'example' else session_id
+        except Exception:
+            log.exception("Guest session registry unavailable")
+            await send({"type": "http.response.start", "status": 503,
+                        "headers": [(b"content-type", b"application/json"), (b"retry-after", b"5")]})
+            await send({"type": "http.response.body", "body": b'{"detail":"Guest session service is temporarily unavailable. Please retry."}'})
+            return
         # Cloud Run terminates TLS, so the original scheme arrives in X-Forwarded-Proto.
         secure = scope.get("scheme") == "https" or headers.get(b"x-forwarded-proto", b"").startswith(b"https")
 
         async def send_with_cookie(message):
             if message["type"] == "http.response.start":
-                message = {**message, "headers": [*message.get("headers", []), (b"set-cookie", _cookie_header(session_id, secure))]}
+                # Deletion may expire the cookie explicitly; never restore it.
+                response_headers = message.get("headers", [])
+                if not any(k.lower() == b"set-cookie" and v.startswith((COOKIE + "=").encode()) for k, v in response_headers):
+                    max_age = int((deadline - datetime.now(timezone.utc)).total_seconds())
+                    response_headers = [*response_headers, (b"set-cookie", _cookie_header(session_id, secure, max_age))]
+                message = {**message, "headers": response_headers}
             await send(message)
 
-        token = set_session(session_id)
+        token = set_session(owner_id)
+        root_token = set_root_session(session_id)
+        deadline_token = set_deadline(deadline)
         try:
             await self.app(scope, receive, send_with_cookie)
         finally:
+            reset_deadline(deadline_token)
+            reset_root_session(root_token)
             reset_session(token)

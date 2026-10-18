@@ -25,6 +25,28 @@ def claim_status(claimed: float | None, approved: float | None) -> str:
     return "paid"
 
 
+def workflow_state(case_doc: dict) -> dict:
+    """Lifecycle is separate from payment outcome and which claim is being viewed."""
+    events = [e for e in sorted_timeline(case_doc.get("timeline")) if e.get("kind") != "outcome_recorded"]
+    latest = events[-1] if events else {}
+    closed = latest.get("kind") == "closed"
+    decision = case_doc.get("settlement") or case_doc.get("rejection") or {}
+    decision_date = decision.get("letterDate") or ""
+    awaiting = latest.get("kind") in ("letter_sent", "query_answered", "complaint_filed")
+    # A later recorded decision supersedes an earlier outgoing request.
+    if decision_date and (latest.get("date") or "") < decision_date:
+        awaiting = False
+    return {"closed": closed, "awaitingReply": bool(awaiting and not closed)}
+
+
+def archived_summary(record: dict) -> dict:
+    """Refresh lifecycle flags for older saved snapshots without rewriting history."""
+    summary = record["summary"]
+    if "case" in record:
+        return {**summary, **workflow_state(record["case"])}
+    return {**summary, "awaitingReply": False}
+
+
 def summarize_case(case_doc: dict, claim_id: str) -> dict:
     header = case_doc.get("billHeader") or {}
     bill, settlement, rejection = (case_doc.get(k) or {} for k in ("bill", "settlement", "rejection"))
@@ -39,6 +61,7 @@ def summarize_case(case_doc: dict, claim_id: str) -> dict:
     return {
         "id": claim_id,
         "source": "carenest",
+        "policyId": case_doc.get("policyId"),
         "title": header.get("title") or header.get("diagnosis") or "Hospital claim",
         "patient": header.get("patientName") or "",
         "hospital": bill.get("hospital") or "",
@@ -48,7 +71,7 @@ def summarize_case(case_doc: dict, claim_id: str) -> dict:
         "claimedAmount": claimed,
         "approvedAmount": approved,
         "status": claim_status(claimed, approved),
-        "closed": bool(timeline) and timeline[-1].get("kind") == "closed",
+        **workflow_state(case_doc),
     }
 
 
@@ -58,6 +81,7 @@ def manual_claim(entry: dict, claim_id: str) -> dict:
     return {
         "id": claim_id,
         "source": "manual",
+        "policyId": entry.get("policyId"),
         "title": entry.get("title") or "Hospital claim",
         "patient": entry.get("patient") or "",
         "hospital": entry.get("hospital") or "",
@@ -67,6 +91,7 @@ def manual_claim(entry: dict, claim_id: str) -> dict:
         "approvedAmount": approved,
         "status": claim_status(claimed, approved),
         "closed": True,
+        "awaitingReply": False,
     }
 
 

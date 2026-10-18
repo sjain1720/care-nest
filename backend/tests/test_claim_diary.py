@@ -45,6 +45,26 @@ class StageTests(unittest.TestCase):
         self.assertIn("Ombudsman", stage_from_timeline([ev("complaint_filed", "2026-10-10", level=3)], True, TODAY))
         self.assertTrue(stage_from_timeline([ev("closed", "2026-10-11")], True, TODAY).startswith("Closed"))
 
+    def test_outcome_note_preserves_waiting_and_closed_state(self):
+        from app.services.claim_history import workflow_state
+        note = ev("outcome_recorded", "2026-10-12", note="Payment not received")
+        sent = ev("letter_sent", "2026-10-10")
+        self.assertIn("Waiting for the insurer", stage_from_timeline([sent, note], True, TODAY))
+        self.assertTrue(workflow_state({"timeline": [sent, note]})["awaitingReply"])
+        closed = ev("closed", "2026-10-11")
+        self.assertTrue(workflow_state({"timeline": [closed, note]})["closed"])
+        self.assertTrue(stage_from_timeline([closed, note], True, TODAY).startswith("Closed"))
+        self.assertIsNone(stage_from_timeline([note], True, TODAY))
+
+    def test_outcome_note_does_not_change_financial_amounts(self):
+        from app.schemas import TimelineEventIn
+        from app.services.claim_history import summarize_case
+        entry = TimelineEventIn(kind="outcome_recorded", date="2026-10-12", note="Payment received, awaiting clarification")
+        case = {"settlement": {"claimedAmount": 100, "approvedAmount": 80}, "timeline": [entry.model_dump()]}
+        summary = summarize_case(case, "review-test")
+        self.assertFalse(summary["closed"])
+        self.assertEqual(summary["approvedAmount"], 80)
+
     def test_sorted_by_date_stable(self):
         events = [ev("reply", "2026-10-10"), ev("letter_sent", "2026-10-01"), ev("closed", "2026-10-10")]
         self.assertEqual([e["kind"] for e in sorted_timeline(events)], ["letter_sent", "reply", "closed"])

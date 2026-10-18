@@ -1,3 +1,5 @@
+import { TimelineEvent } from '../../models/models';
+import { DocumentTasksComponent } from '../../shared/document-tasks.component';
 import { Component, DestroyRef, computed, inject, signal } from '@angular/core';
 import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
 import { DatePipe } from '@angular/common';
@@ -19,7 +21,7 @@ import { OUTCOME_META, REPLY_DAYS, todayIso } from '../../shared/claim-diary';
 @Component({
   selector: 'app-reply',
   standalone: true,
-  imports: [DatePipe, FormsModule, RouterLink, MatButtonModule, MatIconModule, InrPipe, GlossComponent, NextStepsComponent, TranslatePipe],
+  imports: [DatePipe, FormsModule, RouterLink, MatButtonModule, MatIconModule, InrPipe, GlossComponent, TranslatePipe],
   templateUrl: './reply.component.html',
   styles: `
     textarea { width: 100%; min-height: 180px; padding: 12px; font: inherit; color: var(--cn-ink); background: var(--cn-field);
@@ -52,7 +54,7 @@ export class ReplyComponent {
   readonly error = signal<string | null>(null);
 
   readonly replies = computed(() => this.journey.timeline().filter((e) => e.kind === 'reply').reverse());
-  readonly latest = computed(() => this.replies()[0] ?? null);
+  readonly latest = computed<TimelineEvent | null>(() => this.replies()[0] ?? null);
   readonly sentBefore = computed(() => this.journey.timeline().some((e) => e.kind !== 'reply' && e.kind !== 'closed'));
   readonly complained = computed(() => this.journey.timeline().some((e) => e.kind === 'complaint_filed'));
   readonly papersSent = computed(() => {

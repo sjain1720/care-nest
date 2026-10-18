@@ -1,4 +1,4 @@
-import { Component, inject, signal } from '@angular/core';
+import { Component, computed, inject, signal } from '@angular/core';
 import { formatDate } from '@angular/common';
 import { RouterLink } from '@angular/router';
 import { FormsModule } from '@angular/forms';
@@ -10,6 +10,8 @@ import { ClaimStatus, ClaimSummary, PastClaimInput } from '../../models/models';
 import { todayIso } from '../../shared/claim-diary';
 import { InrPipe } from '../../shared/inr.pipe';
 import { TranslatePipe } from '../../shared/translate.pipe';
+
+type ClaimFilter = 'all' | 'pending_reply' | 'in_progress' | 'closed';
 
 const STATUS: Record<ClaimStatus, { label: string; icon: string; tone: string }> = {
   in_progress: { label: 'Waiting for a decision', icon: 'hourglass_top', tone: 'info' },
@@ -43,14 +45,25 @@ const EMPTY_DRAFT: Draft = { title: '', patient: '', hospital: '', date: '', cla
         @if (list.length && !switcher.canStartNew()) {
           <p class="cl-new"><mat-icon>fiber_new</mat-icon><span>{{ 'A new claim is open. Add the hospital bill to start it.' | t }} <a routerLink="/upload" [queryParams]="{ type: 'Hospital bill' }">{{ 'Add the hospital bill' | t }}</a></span></p>
         }
+        <div class="cl-filters" role="group" aria-label="Filter claims">
+          @for (tab of filters; track tab.key) {
+            <button type="button" class="cl-filter" [class.selected]="filter() === tab.key"
+              [attr.aria-pressed]="filter() === tab.key" (click)="filter.set(tab.key)">
+              {{ tab.label | t }} <span class="cl-count">{{ count(tab.key) }}</span>
+            </button>
+          }
+        </div>
+        <p class="cl-result muted small" role="status">{{ visibleClaims().length }} {{ 'of' | t }} {{ list.length }} {{ 'claims' | t }}</p>
         <ul class="cl-list">
-          @for (c of list; track c.id) {
+          @for (c of visibleClaims(); track c.id) {
             <li class="cl-row" [class.current]="c.current">
               <span [class]="'cl-icon tone-' + status(c).tone"><mat-icon>{{ status(c).icon }}</mat-icon></span>
               <div class="cl-main">
                 <div class="cl-title">
-                  <strong>{{ c.title }}</strong>
-                  @if (c.current) { <span class="pill tone-info">{{ 'Open now' | t }}</span> }
+                  @if (c.current || switcher.canOpen(c)) {
+                    <button class="cl-open-title" type="button" (click)="switcher.open(c)" [disabled]="switcher.busy()" [attr.aria-label]="'View claim: ' + c.title">{{ c.title }}</button>
+                  } @else { <strong>{{ c.title }}</strong> }
+                  @if (c.current) { <span class="pill tone-info">{{ 'Selected claim' | t }}</span> }
                   @if (c.source === 'manual') { <span class="pill cl-manual">{{ 'Added by you' | t }}</span> }
                 </div>
                 <div class="cl-meta muted small">
@@ -64,19 +77,17 @@ const EMPTY_DRAFT: Draft = { title: '', patient: '', hospital: '', date: '', cla
                 }
                 <span [class]="'pill tone-' + status(c).tone">{{ status(c).label | t }}</span>
               </div>
-              @if (!c.current) {
-                <div class="cl-actions">
-                  @if (switcher.canOpen(c)) {
+              <div class="cl-actions">
+                  @if (c.current || switcher.canOpen(c)) {
                     <button mat-button type="button" (click)="switcher.open(c)" [disabled]="switcher.busy()" [attr.aria-label]="('Open' | t) + ': ' + c.title">{{ 'Open' | t }}</button>
                   }
                   @if (switcher.canDelete(c)) {
                     <button mat-icon-button type="button" (click)="switcher.remove(c)" [disabled]="switcher.busy()" [attr.aria-label]="('Delete claim' | t) + ': ' + c.title"><mat-icon>delete</mat-icon></button>
                   }
                 </div>
-              }
             </li>
           } @empty {
-            <li class="cl-empty small">{{ 'No claims yet. Upload a hospital bill to start one, or add a claim you made before.' | t }}</li>
+            <li class="cl-empty small">{{ (list.length ? 'No claims in this section.' : 'No claims yet. Upload a hospital bill to start one, or add a claim you made before.') | t }}</li>
           }
         </ul>
       } @else if (claims() === null) {
@@ -130,6 +141,12 @@ const EMPTY_DRAFT: Draft = { title: '', patient: '', hospital: '', date: '', cla
     .cl-head { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 8px 16px; }
     .cl-head h2 { margin: 0; }
     .cl-head p { margin: 4px 0 0; }
+    .cl-filters { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 16px; padding-bottom: 8px; border-bottom: 1px solid var(--cn-border); }
+    .cl-filter { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; padding: 8px 14px; border: 1px solid transparent; border-radius: 10px; background: transparent; color: var(--cn-muted); font: inherit; cursor: pointer; }
+    .cl-filter.selected { color: var(--cn-strong); background: var(--cn-c1-soft); border-color: var(--cn-border); font-weight: 700; }
+    .cl-filter:focus-visible { outline: 2px solid var(--cn-strong); outline-offset: 2px; }
+    .cl-count { font-size: .8em; min-width: 1.2em; text-align: center; }
+    .cl-result { margin: 8px 0 0; }
     .cl-list { list-style: none; margin: 12px 0 8px; padding: 0; display: grid; gap: 8px; }
     .cl-row { display: grid; grid-template-columns: auto minmax(0, 1fr) auto auto; align-items: center; gap: 8px 14px; padding: 12px 14px;
               border: 1px solid var(--cn-border); border-radius: var(--cn-radius); background: var(--cn-surface); }
@@ -137,6 +154,9 @@ const EMPTY_DRAFT: Draft = { title: '', patient: '', hospital: '', date: '', cla
     .cl-icon { width: 40px; height: 40px; border-radius: 12px; display: grid; place-items: center; }
     .cl-main { min-width: 0; }
     .cl-title { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 8px; }
+    .cl-open-title { color: var(--cn-strong); font: inherit; font-weight: 700; border: 0; background: none; text-align: left; padding: 0; min-height: 44px; cursor: pointer; }
+    .cl-open-title:hover { text-decoration: underline; }
+    .cl-open-title:focus-visible { outline: 2px solid var(--cn-strong); outline-offset: 2px; }
     .cl-title strong { color: var(--cn-strong); }
     .cl-manual { background: var(--cn-c5-soft); color: var(--cn-c5-ink); }
     .cl-meta span:not(:last-child)::after { content: '·'; margin: 0 .4em; }
@@ -173,6 +193,19 @@ export class ClaimsListComponent {
   readonly live = isLive('case');
   readonly today = todayIso();
   readonly claims = this.switcher.claims;
+  readonly filter = signal<ClaimFilter>('all');
+  readonly filters: {key: ClaimFilter; label: string}[] = [
+    {key: 'all', label: 'All claims'}, {key: 'pending_reply', label: 'Pending reply'},
+    {key: 'in_progress', label: 'In progress'}, {key: 'closed', label: 'Closed'},
+  ];
+  readonly visibleClaims = computed(() => (this.claims() ?? []).filter(c => this.matches(c, this.filter())));
+  count(filter: ClaimFilter): number { return (this.claims() ?? []).filter(c => this.matches(c, filter)).length; }
+  private matches(c: ClaimSummary, filter: ClaimFilter): boolean {
+    if (filter === 'all') return true;
+    if (filter === 'closed') return c.closed;
+    if (filter === 'pending_reply') return !c.closed && !!c.awaitingReply;
+    return !c.closed && !c.awaitingReply;
+  }
   readonly adding = signal(false);
   readonly error = signal<string | null>(null);
   draft: Draft = { ...EMPTY_DRAFT };

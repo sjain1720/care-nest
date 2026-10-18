@@ -1,6 +1,6 @@
 import { Injectable, inject, signal } from '@angular/core';
 import { Router } from '@angular/router';
-import { combineLatest } from 'rxjs';
+import { combineLatest, take } from 'rxjs';
 import { ApiService } from './api.service';
 import { ChatService } from './chat.service';
 import { Bill, ClaimCase, PolicyFacts, Settlement } from '../models/models';
@@ -25,7 +25,7 @@ const INR = new Intl.NumberFormat('en-IN', { style: 'currency', currency: 'INR',
 const DATE = new Intl.DateTimeFormat('en-IN', { day: 'numeric', month: 'short', year: 'numeric' });
 
 const PAGES: SearchItem[] = [
-  { group: 'Go to', icon: 'dashboard', label: 'Dashboard', route: '/', keywords: 'home overview summary start' },
+  { group: 'Go to', icon: 'dashboard', label: "Dashboard", route: '/dashboard', keywords: 'home dashboard overview summary start example' },
   { group: 'Go to', icon: 'policy', label: 'My policy', route: '/policy', keywords: 'cover coverage plan insurance sum insured' },
   { group: 'Go to', icon: 'badge', label: 'Policy details and people covered', route: '/policy', fragment: 'details', keywords: 'start date renewal family members deductible edit correct schedule' },
   { group: 'Go to', icon: 'rule', label: 'Limits on what the insurer pays', route: '/policy', fragment: 'limits', keywords: 'copay co-pay sub-limit cap maximum limits' },
@@ -74,7 +74,8 @@ export class SearchService {
 
   /** Re-reads the cached policy and case data (call when the search box gets focus). */
   refresh(): void {
-    combineLatest([this.api.getPolicy(), this.api.getCase(), this.api.getSettlement(), this.api.getBill()]).subscribe(
+    if (this.api.workspace.mode() === 'general') { this.dataItems.set([]); return; }
+    combineLatest([this.api.getPolicy(), this.api.getCase(), this.api.getSettlement(), this.api.getBill()]).pipe(take(1)).subscribe(
       ([p, c, s, b]) => this.dataItems.set([...policyItems(p), ...caseItems(c, s, b)]),
     );
   }
@@ -88,7 +89,10 @@ export class SearchService {
     }
 
     const tokens = q.split(/\s+/);
-    const scored = [...PAGES, ...this.dataItems(), ...QUESTIONS]
+    const general = this.api.workspace.mode() === 'general';
+    const questions = general ? ['What is a waiting period?', 'How do I question a deduction?', 'What documents help prepare a claim?']
+      .map<SearchItem>((q) => ({ group: 'Ask CareNest', icon: 'auto_awesome', label: q, ask: q })) : QUESTIONS;
+    const scored = [...PAGES, ...(general ? [] : this.dataItems()), ...questions]
       .map((item) => ({ item, score: score(item, q, tokens) }))
       .filter((r) => r.score > 0)
       .sort((a, b) => b.score - a.score)
@@ -103,7 +107,8 @@ export class SearchService {
       this.chat.ask(item.ask);
       return;
     }
-    this.router.navigate([item.route ?? '/'], { fragment: item.fragment }).then(() => {
+    this.router.navigate([item.route ?? '/'], { fragment: item.fragment,
+      queryParams: item.route === '/ask' ? { workspace: this.api.workspace.mode() } : undefined }).then(() => {
       if (item.fragment) scrollToSection(item.fragment);
       else scrollTo({ top: 0 });
     });

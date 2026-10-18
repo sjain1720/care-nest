@@ -1,16 +1,22 @@
 <div class="page">
   <div class="page-head">
-    <h1>{{ 'Demo and live settings' | t }}</h1>
+    <h1>Workspace and data controls</h1>
     <p>{{ 'Try CareNest on a sample claim, or use your own documents with the live service.' | t }}</p>
   </div>
 
   <section class="card">
-    <h2>{{ 'Which parts use your own documents' | t }}</h2>
+    <h2>Two separate spaces</h2>
+    <p>Choose the fictional example or My documents using the workspace switch in the header. The same dashboard, policy and claim pages show the selected space. Returning to Welcome or switching spaces does not delete your work. Add documents always opens My documents.</p>
+    @if (actionError()) { <p role="alert" class="error">{{ actionError() }}</p> }
+  </section>
+
+  <details class="card"><summary>Developer preview controls</summary>
+    <h2>Live and mock feature switches</h2>
     <div class="row quick">
-      <button mat-stroked-button class="btn-teal" type="button" (click)="useAll(true)">{{ 'Use my own documents everywhere' | t }}</button>
-      <button mat-stroked-button class="btn-sky" type="button" (click)="useAll(false)">{{ 'Use the sample claim everywhere' | t }}</button>
+      <button mat-stroked-button class="btn-teal" type="button" (click)="useAll(true)">Use live services</button>
+      <button mat-stroked-button class="btn-sky" type="button" (click)="useAll(false)">{{ 'Use the mock preview everywhere' | t }}</button>
     </div>
-    <p class="muted small">{{ 'Or choose part by part. Ticked parts use your own documents on the live service; the rest show the sample claim. Saved in this browser only.' | t }}</p>
+    <p class="muted small">These switches are for testing the fictional example. My documents always uses live services; mock data is never substituted for your uploads.</p>
     @for (f of features; track f.id) {
       <label class="feature" [class.disabled]="!f.backendReady">
         <input type="checkbox" [checked]="live().has(f.id)" [disabled]="!f.backendReady"
@@ -20,7 +26,7 @@
       </label>
     }
     <button mat-flat-button type="button" (click)="applyLive()" style="margin-top:12px">{{ 'Save and reload' | t }}</button>
-  </section>
+  </details>
 
   <section class="card">
     <h2>{{ 'Live service' | t }}</h2>
@@ -54,3 +60,9 @@
     }
   </section>
 </div>
+
+<section class="page card">
+  <h2>Guest data</h2>
+  <p>Access expires seven days after the session starts. Expired data is removed by a daily cleanup job; completion may take up to an additional day. This browser cookie is needed to recover your session. Deleting removes this guest’s policies, claim files and extracted records; shared fictional templates remain.</p>
+  <button mat-stroked-button type="button" (click)="deleteGuestData()" [disabled]="deleting()">{{ deleting() ? 'Deleting…' : 'Delete my guest documents and start again' }}</button>
+</section>

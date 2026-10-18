@@ -5,7 +5,8 @@ import { RouterLink } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { TranslatePipe } from '../../shared/translate.pipe';
 import { MatIconModule } from '@angular/material/icon';
-import { ApiService } from '../../services/api.service';
+import { DocumentPreviewComponent } from '../../shared/document-preview.component';
+import { ApiService, isLive } from '../../services/api.service';
 import { Citation, PolicyFacts, WaitingPeriod } from '../../models/models';
 import { InrPipe, formatInr } from '../../shared/inr.pipe';
 import { NextStep, NextStepsComponent } from '../../shared/next-steps.component';
@@ -15,6 +16,7 @@ import { CitationChipComponent } from '../../shared/citation-chip.component';
 import { TrustPillComponent } from '../../shared/trust-pill.component';
 import { RoomRentSimulatorComponent } from '../../shared/room-rent-simulator.component';
 import { PolicyDetailsFormComponent } from './policy-details-form.component';
+import { TreatmentPlanningComponent } from '../../shared/treatment-planning.component';
 import { CoverageEstimateComponent } from '../../shared/coverage-estimate.component';
 
 interface TimelineRow extends WaitingPeriod {
@@ -28,9 +30,9 @@ const FLAG_ICONS: Record<string, string> = { missing_pages: 'find_in_page', outd
 @Component({
   selector: 'app-policy',
   standalone: true,
-  imports: [DatePipe, RouterLink, MatButtonModule, MatIconModule, InrPipe, CitationChipComponent, TrustPillComponent, TranslatePipe,
+  imports: [DocumentPreviewComponent, DatePipe, RouterLink, MatButtonModule, MatIconModule, InrPipe, CitationChipComponent, TrustPillComponent, TranslatePipe,
             RoomRentSimulatorComponent, PolicyDetailsFormComponent, NextStepsComponent, SkeletonComponent, EmptyStateComponent, GlossComponent,
-            CoverageEstimateComponent],
+            CoverageEstimateComponent, TreatmentPlanningComponent],
   templateUrl: './policy.component.html',
   styles: `
     .members { display: flex; flex-wrap: wrap; gap: 8px; }
@@ -58,6 +60,9 @@ const FLAG_ICONS: Record<string, string> = { missing_pages: 'find_in_page', outd
 })
 export class PolicyComponent {
   private api = inject(ApiService);
+  readonly legacySamplePolicy = this.api.legacySamplePolicy;
+  readonly sourceUrl = computed(() => isLive('policy') || this.api.workspace.mode() === 'personal'
+    ? this.api.workspace.url('/api/policy/document?version=' + encodeURIComponent(this.policy()?.policyId ?? '')) : '/demo/sample_policy.pdf');
   /** undefined = loading, null = no policy uploaded yet. */
   policy = signal<PolicyFacts | null | undefined>(undefined);
   editing = signal(false);

@@ -23,13 +23,14 @@ import { TranslatePipe } from './translate.pipe';
         } @else {
           <div class="bubble-ai" [class.compact]="compact()">
             @if (m.steps?.length) {
-              <app-agent-progress [steps]="m.steps ?? []" [running]="!m.answer && !m.text" />
+              @if (m.answer || m.text) { <details class="completed-steps"><summary>View {{ m.steps?.length }} processing steps</summary><app-agent-progress [steps]="m.steps ?? []" [running]="false" /></details> }
+              @else { <app-agent-progress [steps]="m.steps ?? []" [running]="true" /> }
             } @else if (!m.answer && !m.text) {
               <div class="typing" aria-label="Thinking"><span></span><span></span><span></span></div>
             }
             @if (m.answer; as a) {
               <hr>
-              <app-answer-card [answer]="a" />
+              <app-answer-card [answer]="a" (actionSelected)="chat.closePanel()" />
             }
             @if (m.text) { <p class="error">{{ m.text }}</p> }
           </div>
@@ -46,7 +47,7 @@ import { TranslatePipe } from './translate.pipe';
         <div class="empty">
           <div class="spark"><mat-icon>auto_awesome</mat-icon></div>
           <h2>{{ 'What would you like to know?' | t }}</h2>
-          @if (compact()) { <p class="muted small">{{ "Answers come from your own policy, bill and insurer's letter, with the page number." | t }}</p> }
+          @if (compact()) { <p class="muted small">{{ chat.contextLabel() }}</p> }
           <div class="prompts">
             @for (p of prompts(); track p) {
               <button type="button" class="prompt" (click)="pick.emit(p)">{{ p }}</button>

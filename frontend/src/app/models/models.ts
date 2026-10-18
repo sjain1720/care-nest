@@ -3,6 +3,13 @@
 
 export type Verdict = 'covered' | 'partial' | 'not_covered' | 'needs_checking' | 'cant_confirm' | 'info';
 
+export interface AskRequest {
+  question: string;
+  language: 'en' | 'hi';
+  conversationId?: string;
+  generalOnly?: boolean;
+}
+
 /** How strongly the user's own documents support a statement. */
 export type Trust = 'supported' | 'check' | 'unknown';
 
@@ -87,6 +94,7 @@ export interface PolicyFacts {
   productType: ProductType;
   productNote?: string | null;
   isGroupPolicy?: boolean;
+  demoAssumptions?: string[];
   /** Fields the user entered from their schedule, e.g. ['startDate', 'members']. */
   userProvided?: string[];
 }
@@ -94,6 +102,19 @@ export interface PolicyFacts {
 export interface AgentStep {
   agent: string;
   label: string;
+}
+
+export interface AnswerVerification {
+  policyId: string;
+  policyName: string;
+  scope?: 'explanation' | 'timing_only' | 'source_only';
+  checks: { kind: 'source' | 'quote' | 'support' | 'dates' | 'treatment'; status: 'passed' | 'not_confirmed' | 'not_run'; label: string; detail: string }[];
+  dates: { periodId: string; label: string; duration: string; startDate: string; startDateOrigin: string;
+    comparisonDate: string; endDate: string; periodEnded: boolean; daysRemaining: number; citation: Citation }[];
+  treatment?: { periodId: string; treatment: string; ruleCitation: Citation; listCitation: Citation;
+    conditionCitation?: Citation | null } | null;
+  missingInputs: string[];
+  qualification: string;
 }
 
 export interface AnswerCard {
@@ -106,6 +127,8 @@ export interface AnswerCard {
   secondaryAction?: { label: string; route: string } | null;
   /** From general insurance knowledge, not from the user's own documents. */
   general?: boolean;
+  investigation?: DisputeReview | null;
+  verification?: AnswerVerification | null;
 }
 
 /** Streamed by /api/copilot/ask: progress steps first, then one answer. */
@@ -148,6 +171,7 @@ export interface BillEstimate {
 }
 
 export interface Bill {
+  policyAnalysis?: BillPolicyAnalysis;
   hospital: string;
   billNumber: string;
   billDate: string;
@@ -272,6 +296,7 @@ export type ClaimStatus = 'in_progress' | 'paid' | 'part_paid' | 'refused';
 
 /** One line in the list of claims (GET /api/claims), newest first after the current claim. */
 export interface ClaimSummary {
+  policyId?: string | null;
   id: string;
   /** 'carenest' = kept here with its files and can be opened again; 'manual' = typed in from a past payment letter. */
   source: 'carenest' | 'manual';
@@ -286,6 +311,8 @@ export interface ClaimSummary {
   approvedAmount: number | null;
   status: ClaimStatus;
   closed: boolean;
+  /** A recorded outgoing follow-up is awaiting a newer reply or decision. */
+  awaitingReply?: boolean;
   /** The claim shown on the My claim page. */
   current: boolean;
 }
@@ -301,7 +328,7 @@ export interface PastClaimInput {
   claimNumber?: string;
 }
 
-export type TimelineKind = 'claim_sent' | 'letter_sent' | 'query_answered' | 'complaint_filed' | 'reply' | 'closed';
+export type TimelineKind = 'claim_sent' | 'letter_sent' | 'query_answered' | 'complaint_filed' | 'reply' | 'closed' | 'outcome_recorded';
 
 /** What the insurer's reply means for the family. */
 export type ReplyOutcome = 'paid_more' | 'explained' | 'no_change' | 'asks_for_papers' | 'rejected' | 'unclear';
@@ -312,6 +339,9 @@ export interface TimelineEvent {
   /** YYYY-MM-DD */
   date: string;
   letterKind?: LetterKind;
+  replyId?: string;
+  claimKey?: string;
+  inputFingerprint?: string;
   /** Complaint level: 1 insurer, 2 Bima Bharosa, 3 Ombudsman. */
   level?: number;
   reference?: string;
@@ -326,11 +356,22 @@ export interface TimelineEvent {
   docUrl?: string;
 }
 
-export type TimelineEventInput = Pick<TimelineEvent, 'kind' | 'date' | 'letterKind' | 'level' | 'reference' | 'note'>;
+export type TimelineEventInput = Pick<TimelineEvent, 'kind' | 'date' | 'letterKind' | 'level' | 'reference' | 'note' | 'replyId' | 'claimKey' | 'inputFingerprint'>;
 
-export type LetterKind = 'clarification' | 'reconsideration' | 'grievance' | 'cover_letter';
+export type LetterKind = 'clarification' | 'reconsideration' | 'grievance' | 'cover_letter' | 'document_response';
+
+export interface DocumentTask {
+  id: string; label: string; kind: 'checklist' | 'reply'; checklistId?: string | null; replyId?: string | null;
+  basis: string; source: string; why: string; checklistStatus?: ChecklistStatus | null; documents: CaseDocument[]; reviewed: boolean; notApplicable: boolean; note: string;
+}
+export interface ClaimDocuments { claimKey: string; fingerprint: string; replyId?: string | null; tasks: DocumentTask[]; }
+export interface DocumentTaskUpdate { expectedFingerprint?: string; claimKey: string; documentIds: string[]; reviewed: boolean; notApplicable: boolean; note: string; }
+export interface UploadContext { claimKey: string; taskId?: string; replaceExisting?: boolean; }
 
 export interface LetterDraft {
+  claimKey?: string;
+  inputFingerprint?: string;
+  replyId?: string;
   kind: LetterKind;
   to: string;
   subject: string;
@@ -340,7 +381,7 @@ export interface LetterDraft {
   warnings?: string[];
 }
 
-export type UploadEvent = { type: 'step'; label: string } | { type: 'done'; detectedType: string; pages: number; message?: string };
+export type UploadEvent = { type: 'step'; label: string } | { type: 'done'; detectedType: string; pages: number; message?: string; documentId?: string };
 
 /** Plain-language help for an insurer/TPA query raised during a cashless admission. */
 export interface QueryHelp {
@@ -368,3 +409,81 @@ export interface MockQa {
   steps: AgentStep[];
   answer: AnswerCard;
 }
+
+export interface CoverageEstimate {
+  status: 'missing_policy' | 'missing_sum_insured' | 'missing_start_date' | 'not_started' | 'unsupported_product' | 'recorded_only';
+  policyId: string | null;
+  asOf: string;
+  year: { from: string; to: string } | null;
+  sumInsured: number | null; used: number | null; remaining: number | null; pct: number | null;
+  counted: { id: string; title: string; date: string; approvedAmount: number | null }[];
+  excluded: { id: string; reason: string }[];
+  pending: boolean; floater: boolean; demo: boolean; historyComplete: boolean; warnings: string[];
+}
+
+export interface BillPolicyRow {
+  id: string; description: string; billPage: number; amount: number; assessment: 'related_clause' | 'needs_checking';
+  explanation: string; citations: Citation[]; missingInformation: string[];
+  evidence?: { version: string; inputFingerprint: string; status: 'needs_inputs' | 'reconciles' | 'mismatch';
+    billRows: {id: string; description: string; amount: number; page: number}[];
+    sources: {docId: string; docName: string; docHash: string; page: number; docUrl: string; quote: string}[];
+    calculation: {formula: string; rateOrigin: string; net: string; result: string; difference: string} | null;
+    missing: string[]; qualification: string } | null;
+}
+export interface BillPolicyAnalysis {
+  policyId: string; fingerprint: string; rows: BillPolicyRow[]; omittedRows: number; limitations: string[];
+}
+
+
+/** Source readiness for dispute review; readiness is not a coverage decision. */
+export interface DisputePreparation {
+  status: 'needs_inputs' | 'ready_for_review';
+  decision: 'none' | 'settlement' | 'rejection' | 'conflicting';
+  availableDocuments: string[];
+  missingInputs: { code: string; message: string; route: string }[];
+  warnings: string[];
+  reconciliation: {
+    claimedAmount: number; approvedAmount: number; decisionDifference: number;
+    itemizedDeductions: number; unexplainedGap: number; arithmeticOk: boolean;
+  } | null;
+  deductionsWithoutReason: string[];
+}
+
+
+export interface DisputeReviewRow {
+  id: string; label: string; amount: number | null; insurerReason: string;
+  assessment: 'related_wording' | 'needs_information' | 'no_stated_reason' | 'unverified';
+  explanation: string; citations: Citation[]; missingInformation: string[];
+  evidence?: { version: string; inputFingerprint: string; status: 'needs_inputs' | 'reconciles' | 'mismatch';
+    billRows: {id: string; description: string; amount: number; page: number}[];
+    sources: {docId: string; docName: string; docHash: string; page: number; docUrl: string; quote: string}[];
+    calculation: {formula: string; rateOrigin: string; net: string; result: string; difference: string} | null;
+    missing: string[]; qualification: string } | null;
+}
+export interface DisputeReview {
+  status: 'needs_inputs' | 'reviewed' | 'unavailable' | 'stale';
+  engine: 'adk_investigation'; preparation: DisputePreparation;
+  metrics: Record<string, string | number | boolean | null>;
+  actions: { rowId: string; question: string; source: string; why: string; status: string; basis: string }[];
+  rows: DisputeReviewRow[]; steps: AgentStep[]; warnings: string[];
+}
+export type DisputeReviewEvent = {type: 'step'; step: AgentStep} | {type: 'review'; review: DisputeReview};
+
+
+export interface TreatmentPlanInput {
+  procedure: string; plannedAdmission?: string; normalRoomRatePerDay?: number;
+}
+export interface TreatmentPlanPreparation {
+  status: 'needs_policy' | 'prepared'; engine: 'backend_calculations';
+  procedure: string; plannedAdmission: string | null;
+  waitingPeriods: { label: string; appliesTo: string; endDate: string | null;
+    dateStatus: 'ends_by_planned_date' | 'running_on_planned_date' | 'end_date_unknown' | 'planned_date_missing';
+    daysRemainingAtAdmission: number | null; citation: Citation | null; }[];
+  roomRisk: { status: 'above_recorded_limit' | 'within_recorded_limit'; recordedLimitPerDay: number;
+    proposedRatePerDay: number; dailyExcess: number; citation: Citation | null; } | null;
+  coPay: LimitFact | null; deductible: LimitFact | null;
+  questionsToConfirm: string[]; warnings: string[];
+}
+
+export interface VisitorProfile { displayName: string | null; expiresAt: string; }
+export interface DisplayNameInput { displayName: string; }

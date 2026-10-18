@@ -1,0 +1,76 @@
+// Disposable owned example; letter fixture tests UI transitions, not live letter quality.
+const {chromium}=require('playwright'),fs=require('fs'),path=require('path');
+const base=process.env.CARENEST_BASE_URL||'http://127.0.0.1:8089',out=path.join(__dirname,'results/claim-journey/local');fs.mkdirSync(out,{recursive:true});
+const report={checks:[],note:'Prepared owned example + controlled draft/reply fixtures. No new model calls; not evidence of live answer quality.'};
+function check(name,ok){report.checks.push({name,passed:!!ok});if(!ok)throw Error(name);}
+(async()=>{const browser=await chromium.launch({headless:true,executablePath:'/Applications/Google Chrome.app/Contents/MacOS/Google Chrome'}),context=await browser.newContext({viewport:{width:1280,height:700}}),p=await context.newPage(),errors=[];p.on('pageerror',e=>errors.push(e.message));p.setDefaultTimeout(18000);
+const api=async(url,method='get',data)=>{const r=await context.request[method](base+url,{data,timeout:60000});if(!r.ok())throw Error(url+' '+r.status());return r.status()===204?null:r.json();};
+const getCase=()=>api('/api/case?workspace=example');
+try{
+ await api('/api/session/profile?workspace=general');await api('/api/session/profile?workspace=general','put',{displayName:'Journey reviewer'});await api('/api/demo/ensure?workspace=example','post',{});
+ await p.route('**/api/case/letter?*',async route=>{await route.fulfill({json:{kind:'clarification',to:'Insurer claims team',subject:'UI review fixture',body:'Dear claims team,\nPlease explain the recorded deductions.\nYours faithfully,\n[Your name]',evidenceIndex:['Hospital bill: sample bill','Settlement letter: sample letter'],warnings:[]}});});
+ await p.goto(base+'/case?workspace=example',{waitUntil:'networkidle'});
+ const list=p.locator('app-claims-list');await list.locator('.cl-row').first().waitFor();check('List retains four filters',await list.locator('.cl-filter').count()===4);check('List has no claim journey',await p.locator('.journey').count()===0);
+ await list.getByRole('button',{name:/View claim: Mother/}).click();
+ await p.waitForURL(/\/case\/bill/);await p.locator('app-bill-review').waitFor();
+ check('Existing decided claim starts at unreviewed bill',await p.locator('.journey summary').innerText().then(t=>t.includes('Step 2 of 9')));
+ check('Only one all-claims back link',await p.getByRole('link',{name:'← All claims',exact:true}).count()===1);
+ check('Only one claim title',await p.getByRole('heading',{name:"Mother's fracture-repair claim",exact:true}).count()===1);
+ check('Competing navigation removed',await p.locator('nav[aria-label="Claim sections"],nav[aria-label="Claim workflow"],.overview-steps').count()===0);
+ await p.locator('.journey summary').click();check('Nine steps shown on expansion',await p.locator('nav[aria-label="Claim journey"] a').count()===9);
+ const before=await getCase();
+ await p.getByRole('button',{name:'Yes, these are right',exact:true}).click();await p.locator('.saved-next').waitFor();
+ check('Bill save stays on bill page',new URL(p.url()).pathname==='/case/bill');
+ const after=await getCase();check('Bill review preserves external history',JSON.stringify(before.timeline)===JSON.stringify(after.timeline));
+ await p.locator('.saved-next').getByRole('link',{name:'Review insurer deductions →',exact:true}).click();await p.waitForURL(/\/case\/settlement/);
+ await p.getByRole('heading',{name:'Review decision & prepare response',exact:true}).waitFor();
+ check('Reviewed bill leads directly to response work',await p.locator('.journey summary').innerText().then(t=>t.includes('Step 6 of 9')));
+ await p.evaluate(()=>scrollTo(0,0));await p.waitForTimeout(700);await p.screenshot({path:out+'/journey-laptop.png'});
+ if(await p.locator('.journey').getAttribute('open')===null)await p.locator('.journey summary').click();await p.locator('nav[aria-label="Claim journey"] a').filter({hasText:'Prepare documents'}).click();await p.getByRole('heading',{name:'Prepare documents',exact:true}).waitFor();
+ await p.locator('app-document-tasks').getByRole('link',{name:'Upload for this item',exact:true}).first().waitFor();
+ check('Inline item upload remains available',await p.locator('app-document-tasks').getByRole('link',{name:'Upload for this item',exact:true}).count()>0);
+ check('Missing documents are visible',await p.getByText('Some documents are still missing.',{exact:false}).isVisible());
+ await p.locator('app-document-tasks').getByRole('link',{name:'Upload for this item',exact:true}).first().click();await p.waitForURL(/\/upload/);
+ check('Task upload keeps isolated example',new URL(p.url()).searchParams.get('workspace')==='example');
+ await p.waitForFunction(()=>{const f=document.querySelector('label.drop input');return f && !f.disabled;});
+ await p.locator('label.drop input').setInputFiles('/tmp/carenest-support-storage-fixture.pdf');
+ await p.getByText('Saved in your example claim',{exact:true}).waitFor({timeout:60000});
+ await p.getByRole('link',{name:'Review this item and continue →',exact:true}).click();await p.waitForURL(/\/case\/detail/);
+ const task=p.locator('app-document-tasks .task').first();await task.getByText(/Uploaded · review still needed/).waitFor();
+ check('Upload returns to documents without marking reviewed',true);
+ await task.getByRole('button',{name:'I checked the linked document',exact:true}).click();await task.getByText(/Document linked · checked by you/).waitFor();
+ check('Document review requires explicit confirmation',true);
+
+ await p.locator('app-claim-flow').first().getByRole('link',{name:'Prepare response with current documents →',exact:true}).click();await p.locator('#letter-body').waitFor();
+ check('Draft can be prepared with missing generic papers',await p.locator('#letter-body').isVisible());
+ check('Step 6 does not present a sending form',await p.locator('#sent').count()===0);
+ const timelineBeforeDownload=(await getCase()).timeline;
+ await p.getByRole('button',{name:'Download .txt',exact:true}).click();check('Download does not record sending',JSON.stringify((await getCase()).timeline)===JSON.stringify(timelineBeforeDownload));
+ await p.locator('app-claim-flow').first().getByRole('button',{name:'I reviewed the draft · Continue →',exact:true}).click();await p.waitForURL(/step=send/);await p.locator('#sent').waitFor();
+ check('Draft review opens explicit sending step',await p.locator('.journey summary').innerText().then(t=>t.includes('Step 7 of 9')));
+ check('Reviewing draft still does not send',JSON.stringify((await getCase()).timeline)===JSON.stringify(timelineBeforeDownload));
+ await p.getByRole('button',{name:"I've sent it",exact:true}).click();await p.getByText('Sent on',{exact:false}).first().waitFor();
+ check('Explicit external sending recorded',(await getCase()).timeline.some(e=>e.kind==='letter_sent'));
+ await p.locator('app-claim-flow').first().getByRole('link',{name:'Continue to insurer reply →',exact:true}).click();await p.waitForURL(/\/case\/reply/);
+ check('Sending continues to reply',await p.locator('.journey summary').innerText().then(t=>t.includes('Step 8 of 9')));
+ const caseWithRequest=await getCase();caseWithRequest.timeline.push({id:'fixture-reply',kind:'reply',date:'2099-01-01',outcome:'asks_for_papers',summary:'Please provide the final receipt.',papersAsked:['Final receipt']});
+ await p.route('**/api/case?*',r=>r.fulfill({json:caseWithRequest}));await p.reload({waitUntil:'networkidle'});
+ await p.locator('app-claim-flow').first().getByRole('link',{name:'Review requested documents →',exact:true}).waitFor();check('Insurer request returns to document step',true);
+ await p.unroute('**/api/case?*');
+ await p.goto(base+'/case/detail?workspace=example&step=outcome',{waitUntil:'networkidle'});await p.getByRole('heading',{name:'Record outcome',exact:true}).waitFor();
+ check('Outcome visit does not close claim',!(await getCase()).timeline.some(e=>e.kind==='closed'));
+ await p.locator('.outcome-note textarea').fill('UI review: payment receipt confirmed by visitor.');
+ await p.getByRole('button',{name:'Save update · keep claim open',exact:true}).click();await p.getByText('Update saved. Your claim remains open.',{exact:true}).waitFor();
+ check('Outcome update saved without closing',(await getCase()).timeline.some(e=>e.kind==='outcome_recorded')&&!(await getCase()).timeline.some(e=>e.kind==='closed'));
+ await p.getByRole('button',{name:'Save outcome and close claim',exact:true}).click();await p.getByText('You marked this claim closed.',{exact:false}).waitFor();
+ check('Closure requires explicit action and retains note',(await getCase()).timeline.some(e=>e.kind==='closed'&&e.note?.includes('UI review:')));
+ await p.setViewportSize({width:390,height:844});await p.evaluate(()=>scrollTo(0,0));
+ check('Phone journey collapsed by default',await p.locator('.journey').getAttribute('open')===null);
+ await p.waitForTimeout(700);check('Phone has no horizontal overflow',await p.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));await p.screenshot({path:out+'/journey-phone.png'});
+ await p.locator('.journey summary').click();check('Nine steps remain accessible on phone',await p.locator('nav[aria-label="Claim journey"] a').count()===9);
+ check('Expanded phone has no horizontal overflow',await p.evaluate(()=>document.documentElement.scrollWidth<=innerWidth+1));
+ await p.getByRole('link',{name:'← All claims',exact:true}).click();await list.locator('.cl-row').first().waitFor();check('Back returns to filtered claim list',await list.locator('.cl-filter').count()===4);
+ check('No browser JavaScript errors',errors.length===0);report.passed=true;
+}catch(e){report.passed=false;report.error=e.message;report.errors=errors;await p.screenshot({path:out+'/failure.png',fullPage:true}).catch(()=>{});}
+finally{try{report.cleanupStatus=(await context.request.delete(base+'/api/session?workspace=general',{timeout:60000})).status();}catch{report.cleanupStatus='failed';}await browser.close();fs.writeFileSync(out+'/report.json',JSON.stringify(report,null,2));console.log(JSON.stringify(report));if(!report.passed||report.cleanupStatus!==204)process.exitCode=1;}
+})();

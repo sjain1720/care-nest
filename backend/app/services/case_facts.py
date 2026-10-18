@@ -6,6 +6,12 @@ _TAG_LABEL = {"possibly_non_payable": "possibly not payable", "needs_clarificati
 
 
 def _src(doc_id: str, doc_name: str, page: int | None, clause: str, doc_url: str | None) -> dict:
+    if doc_id == 'settlement':
+        doc_name, clause = 'Extracted settlement record', 'Extracted decision fields'
+    elif doc_id == 'rejection':
+        doc_name, clause = 'Extracted rejection record', 'Extracted decision fields'
+    elif doc_id == 'bill':
+        doc_name = 'Extracted bill record' if clause in ('Bill', 'Bill item') else 'Backend bill check / estimate'
     return {"docId": doc_id, "docName": doc_name, "page": page or 1, "clause": clause, "docUrl": doc_url}
 
 
@@ -36,14 +42,8 @@ def build_case_facts(case_doc: dict) -> list[dict]:
                       f"deducted {format_inr(deducted)}.", _src("settlement", "Settlement letter", 1, "Summary", None)))
         for d in s.get("deductions", []):
             first = next((c for c in d.get("citations", []) if c.get("docId") != "policy"), None)
-            src = _src("settlement", "Settlement letter", (first or {}).get("page"), "Deductions", (first or {}).get("docUrl"))
-            facts.append((f"Deduction \"{d['label']}\" of {format_inr(d['amount'])}. Insurer's reason: {d['insurerReason']} "
-                          f"Our reading: {d['ourReading']}", src))
-            facts += [(f"Calculation for \"{d['label']}\": {line}", src) for line in d.get("calculation", [])]
-            for c in d.get("citations", []):
-                if c.get("docId") == "policy":
-                    facts.append((f"{c['clause']} (policy page {c['page']}): {c['quote']}",
-                                  _src("policy", "Policy wording", c["page"], c["clause"], c.get("docUrl"))))
+            src = _src("settlement", "Settlement letter", (first or {}).get("page") or d.get("page"), "Deductions", (first or {}).get("docUrl") or d.get("docUrl"))
+            facts.append((f"Deduction \"{d['label']}\" of {format_inr(d['amount'])}. Insurer's reason: {d['insurerReason']}", src))
 
     r = case_doc.get("rejection")
     if r:

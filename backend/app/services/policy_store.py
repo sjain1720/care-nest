@@ -5,15 +5,18 @@ policies/{policyId}/pages/{NNN}     page, text
 policies/{policyId}/clauses/{id}    page, label, title, text, embedding (768-dim vector)
 sessions/{sessionId}                activePolicyId, policyDetails (schedule details this guest typed in), expireAt
 
-A policy document is shared by content hash (same file = same wording), but each guest's choice of policy and their
-personal schedule details live only in their own session.
+Private policy documents are scoped by guest and hash. Only synthetic demo wordings are shared.
+Personal schedule details live only in the guest session.
 """
+import hashlib
+
 from google.cloud import firestore
 from google.cloud.firestore_v1.base_vector_query import DistanceMeasure
 from google.cloud.firestore_v1.vector import Vector
 
 from app.core.gcp import bucket, db
-from app.core.session import expiry, session_id
+from app.core.config import get_settings
+from app.core.session import expiry, session_id, is_root_workspace
 from app.services.clauses import Clause
 from app.services.policy_details import apply_user_details
 
@@ -58,17 +61,36 @@ def save_pages(policy_id: str, pages: list[dict]) -> None:
     _write_in_batches([(col.document(f"{p['page']:03d}"), {"page": p["page"], "text": p["text"]}) for p in pages])
 
 
+def load_page(policy_id: str, page: int) -> str | None:
+    value = _policy(policy_id).collection('pages').document(f'{page:03d}').get().to_dict() or {}
+    return value.get('text')
+
+
 def load_pages(policy_id: str) -> dict[int, str]:
     return {d.get("page"): d.get("text") for d in _policy(policy_id).collection("pages").stream()}
 
 
 def save_clauses(policy_id: str, clauses: list[Clause], vectors: list[list[float]]) -> None:
+    if len(clauses) != len(vectors):
+        raise ValueError('Cannot save an incomplete embedding batch')
     col = _policy(policy_id).collection("clauses")
     _write_in_batches([
         (col.document(c.clause_id),
-         {"page": c.page, "label": c.label, "title": c.title, "text": c.text, "embedding": Vector(v)})
+         {"page": c.page, "label": c.label, "title": c.title, "text": c.text, "embedding": Vector(v), **clause_index_stamp(c)})
         for c, v in zip(clauses, vectors)
     ])
+
+
+def clause_index_stamp(clause: Clause) -> dict:
+    text = f'{clause.label} {clause.title}\n{clause.text}'
+    return {'embeddingModel': get_settings().embedding_model,
+            'embeddingTextHash': hashlib.sha256(text.encode()).hexdigest()}
+
+
+def load_clause_index(policy_id: str) -> dict:
+    """Resume only atomically saved batches with matching text and encoder."""
+    rows = _policy(policy_id).collection('clauses').select(['embeddingModel', 'embeddingTextHash']).stream()
+    return {row.id: row.to_dict() for row in rows}
 
 
 def search_clauses(policy_id: str, query_vector: list[float], k: int = 6) -> list[dict]:
@@ -82,6 +104,8 @@ def search_clauses(policy_id: str, query_vector: list[float], k: int = 6) -> lis
     for snap in results:
         d = snap.to_dict()
         d.pop("embedding", None)
+        d.pop('embeddingModel', None)
+        d.pop('embeddingTextHash', None)
         hits.append({"id": snap.id, **d})
     return hits
 
@@ -109,7 +133,16 @@ def set_active_policy(policy_id: str) -> None:
 
 
 def get_active_policy_id() -> str | None:
-    return _session_state().get("activePolicyId")
+    policy_id = _session_state().get("activePolicyId")
+    return None if is_root_workspace() and policy_id and policy_id.startswith('demo-') else policy_id
+
+
+def has_legacy_sample_policy() -> bool:
+    """Old sample selections are preserved, but never count as a personal upload."""
+    if not is_root_workspace():
+        return False
+    policy_id = _session_state().get('activePolicyId')
+    return bool(policy_id and policy_id.startswith('demo-'))
 
 
 def save_session_details(details: dict) -> None:
@@ -120,12 +153,29 @@ def get_active_policy() -> tuple[str, dict] | None:
     """This guest's ready policy; its "facts" are the document's facts plus the details this guest typed in."""
     state = _session_state()
     policy_id = state.get("activePolicyId")
+    if is_root_workspace() and policy_id and policy_id.startswith('demo-'):
+        return None
     doc = get_policy(policy_id) if policy_id else None
     if not doc or doc.get("status") != "ready":
         return None
     base = doc.get("baseFacts") or doc["facts"]
     details = state.get("policyDetails")
-    return policy_id, {**doc, "facts": apply_user_details(base, details) if details else base}
+    # Old visitor copies of our fictional schedule keep the current demo name.
+    # Never rename people in a visitor's uploaded private policy.
+    if doc.get("isDemoTemplate") and details and isinstance(details.get("members"), list):
+        details = {**details, "members": [
+            {**member, "name": "Shubham Sharma"} if member.get("name") == "Ravi Sharma" else member
+            for member in details["members"]
+        ]}
+    facts = apply_user_details(base, details) if details else base
+    if doc.get('isDemoTemplate') and state.get('demoAssumptions'):
+        from app.services.demo_profile import apply_demo_selections
+        facts = apply_demo_selections(facts, state['demoAssumptions'])
+        from app.services.session_profile import get_display_name
+        name = get_display_name()
+        if name:
+            facts = {**facts, 'members': [{**m, 'name': name} if m.get('relation') == 'Self' else m for m in facts.get('members', [])]}
+    return policy_id, {**doc, "facts": facts}
 
 
 def delete_session_state() -> None:

@@ -5,18 +5,20 @@
       <p>{{ b.hospital }}@if (b.billNumber) { · {{ 'Bill' | t }} {{ b.billNumber }} } · {{ b.items.length }} {{ 'charges' | t }}@if (b.pagesRead) { · {{ b.pagesRead }} {{ (b.pagesRead === 1 ? 'page read' : 'pages read') | t }} }</p>
     </div>
 
+    <nav class="section-tabs" aria-label="Bill sections"><a routerLink="/case/bill" fragment="checks">Checks</a><a routerLink="/case/bill" fragment="estimate">Estimate</a><a routerLink="/case/bill" fragment="charges">Every charge</a><a routerLink="/case/bill" fragment="review">Correct details</a></nav>
+    @if (b.docUrl) { <details class="card source-disclosure"><summary>Inspect original hospital bill</summary><app-document-preview [url]="b.docUrl" title="Hospital bill" /></details> }
     <app-bill-review [bill]="b" [claim]="claimCase()" />
 
     <section class="card">
       <div class="totals">
         <div class="stat"><div class="label">{{ 'Bill total' | t }}</div><div class="value amount">{{ b.total | inr }}</div></div>
-        <div class="stat"><div class="label">{{ 'Likely paid by insurer' | t }}</div><div class="value amount">{{ sums().payable | inr }}</div></div>
+        <div class="stat"><div class="label">{{ 'Charges without heuristic flags' | t }}</div><div class="value amount">{{ sums().payable | inr }}</div></div>
         <div class="stat"><div class="label">{{ 'Not clear yet' | t }}</div><div class="value amount">{{ sums().unclear | inr }}</div></div>
         <div class="stat"><div class="label">{{ 'May not be paid' | t }}</div><div class="value amount">{{ sums().notPayable | inr }}</div></div>
       </div>
     </section>
 
-    <app-next-steps [steps]="nextSteps()" />
+
 
     <section class="card" id="checks">
       <h2>{{ 'What we checked' | t }}</h2>
@@ -55,11 +57,44 @@
       </section>
     }
 
+    <section class="card" id="policy-evidence">
+      <h2>Policy references for your bill</h2>
+      <p>Find wording that may relate to each charge. Your selected benefits and policy conditions determine how it applies.</p>
+      <button mat-flat-button type="button" (click)="comparePolicy()" [disabled]="!b.reviewed || evidenceLoading()">{{ evidenceLoading() ? 'Comparing…' : 'Compare reviewed bill with policy' }}</button>
+      @if (evidenceError()) { <p role="alert">{{ evidenceError() }}</p> }
+      @if (b.policyAnalysis; as analysis) {
+        <p>{{ matchedPolicyRows().length }} charges have related policy wording. {{ pendingPolicyRows().length }} need further clarification.</p>
+        @for (row of matchedPolicyRows(); track row.id) {
+          <div class="card" style="margin-top:12px">
+            <strong>{{ row.description }} ({{ row.id }}) · Bill page {{ row.billPage }} · {{ row.amount | inr }}</strong>
+            <p>{{ row.explanation }}</p>
+            <button mat-button type="button" (click)="openPage(row.billPage)">See bill page {{ row.billPage }}</button>
+            @for (citation of row.citations; track $index) { <app-citation-chip [citation]="citation" /> }
+            @for (missing of row.missingInformation; track $index) { <p class="muted small">Check: {{ missing }}</p> }
+          </div>
+        }
+        @if (pendingPolicyRows().length) {
+          <details style="margin-top:12px"><summary>Charges needing clarification ({{ pendingPolicyRows().length }})</summary>
+            <p class="muted small">A bill charge alone may not establish the applicable benefit. These items need the schedule, item details or an insurer explanation; this does not mean they are excluded.</p>
+            @for (row of pendingPolicyRows(); track row.id) {
+              <div style="padding:12px 0;border-top:1px solid var(--cn-border)">
+                <strong>{{ row.description }} · {{ row.amount | inr }}</strong>
+                <p>Confirm the benefit or clause used for this charge.</p>
+                <button mat-button type="button" (click)="openPage(row.billPage)">See bill page {{ row.billPage }}</button>
+                @for (missing of row.missingInformation; track $index) { <p class="muted small">{{ missing }}</p> }
+              </div>
+            }
+          </details>
+        }
+        @if (analysis.omittedRows) { <p>{{ analysis.omittedRows }} additional rows need separate review.</p> }
+      }
+    </section>
+
     <section class="card" id="charges">
       <h2>{{ 'Every charge on the bill' | t }}</h2>
       <div class="table-wrap">
         <table class="data">
-          <thead><tr><th>{{ 'Item' | t }}</th><th>{{ 'Will the insurer pay?' | t }}</th><th class="num">{{ 'Amount' | t }}</th></tr></thead>
+          <thead><tr><th>{{ 'Item' | t }}</th><th>{{ 'Provisional bill check' | t }}</th><th class="num">{{ 'Amount' | t }}</th></tr></thead>
           <tbody>
             @for (item of b.items; track item.id) {
               <tr>

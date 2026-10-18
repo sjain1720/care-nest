@@ -1,6 +1,8 @@
 """Guest sessions: id format, and the cookie middleware (no Google services needed)."""
 import asyncio
 import unittest
+from unittest.mock import patch
+from datetime import datetime, timezone
 
 from app.core import session
 from app.core.session_middleware import GuestSessionMiddleware
@@ -29,7 +31,11 @@ def _run(path: str, cookie: str | None = None, forwarded_proto: str | None = Non
         return {"type": "http.request", "body": b""}
 
     scope = {"type": "http", "path": path, "scheme": "http", "headers": headers}
-    asyncio.run(GuestSessionMiddleware(app)(scope, receive, send))
+    def resolve(candidate):
+        sid = candidate if session.is_valid(candidate) else session.new_session_id()
+        return sid, datetime.now(timezone.utc) + session.TTL
+    with patch("app.core.session_middleware.resolve_session", side_effect=resolve):
+        asyncio.run(GuestSessionMiddleware(app)(scope, receive, send))
     set_cookie = next((v.decode() for k, v in sent[0]["headers"] if k == b"set-cookie"), None)
     return seen.get("sid"), set_cookie
 

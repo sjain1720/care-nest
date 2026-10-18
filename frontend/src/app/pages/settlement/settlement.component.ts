@@ -1,3 +1,4 @@
+import { DocumentPreviewComponent } from '../../shared/document-preview.component';
 import { Component, computed, inject, signal } from '@angular/core';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { DatePipe } from '@angular/common';
@@ -15,6 +16,7 @@ import { GlossComponent } from '../../shared/gloss.component';
 import { CitationChipComponent } from '../../shared/citation-chip.component';
 import { TrustPillComponent } from '../../shared/trust-pill.component';
 import { WaterfallComponent, WaterfallStep } from '../../shared/waterfall.component';
+import { DisputeReviewComponent } from '../../shared/dispute-review.component';
 import { plainCutName } from '../../shared/plain-words';
 
 const SEGMENT_COLORS = ['var(--cn-seg-1)', 'var(--cn-seg-2)', 'var(--cn-seg-3)', 'var(--cn-seg-4)', 'var(--cn-seg-5)'];
@@ -22,8 +24,8 @@ const SEGMENT_COLORS = ['var(--cn-seg-1)', 'var(--cn-seg-2)', 'var(--cn-seg-3)',
 @Component({
   selector: 'app-settlement',
   standalone: true,
-  imports: [DatePipe, RouterLink, MatButtonModule, MatIconModule, InrPipe, CitationChipComponent, TrustPillComponent, WaterfallComponent, NextStepsComponent, TranslatePipe,
-            SkeletonComponent, EmptyStateComponent, GlossComponent],
+  imports: [DocumentPreviewComponent, DatePipe, RouterLink, MatButtonModule, MatIconModule, InrPipe, CitationChipComponent, TrustPillComponent, WaterfallComponent, TranslatePipe,
+            SkeletonComponent, EmptyStateComponent, GlossComponent, DisputeReviewComponent],
   templateUrl: './settlement.component.html',
   styles: `
     .totals { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; }
@@ -53,8 +55,13 @@ const SEGMENT_COLORS = ['var(--cn-seg-1)', 'var(--cn-seg-2)', 'var(--cn-seg-3)',
 })
 export class SettlementComponent {
   private api = inject(ApiService);
+  private params = toSignal(inject(ActivatedRoute).queryParamMap);
+  readonly decisionOnly = computed(() => this.params()?.get('step') === 'decision');
+  readonly claimCase = toSignal(this.api.getCase());
+  readonly original = computed(() => this.claimCase()?.documents.find(d => d.type === 'Settlement letter' || d.type === 'Rejection letter'));
   readonly journey = inject(JourneyService);
   readonly rejection = this.journey.rejection;
+  preparation = toSignal(this.api.getDisputePreparation());
   settlement = toSignal(this.api.getSettlement());
   bill = toSignal(this.api.getBill());
   /** undefined = nothing chosen yet, so the deduction in the link (#d3) or the first unexplained one is opened. */

@@ -1,5 +1,5 @@
 import { Component, DestroyRef, computed, inject, signal } from '@angular/core';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
@@ -15,6 +15,7 @@ import { SkeletonComponent } from '../../shared/page-states.component';
 import { LETTER_LABELS, suggestLetter, todayIso } from '../../shared/claim-diary';
 
 const KINDS: { id: LetterKind; label: string; when: string }[] = [
+  { id: 'document_response', label: LETTER_LABELS.document_response, when: 'The insurer requested more documents' },
   { id: 'cover_letter', label: LETTER_LABELS.cover_letter, when: 'You are sending your claim papers' },
   { id: 'clarification', label: LETTER_LABELS.clarification, when: 'The insurer paid less than you claimed' },
   { id: 'reconsideration', label: LETTER_LABELS.reconsideration, when: 'The insurer said no to your claim' },
@@ -72,17 +73,26 @@ export class LetterComponent {
   private router = inject(Router);
   private diary = inject(DiaryActionsService);
   readonly journey = inject(JourneyService);
+  private routeParams = toSignal(inject(ActivatedRoute).queryParamMap);
+  private routeFragment = toSignal(inject(ActivatedRoute).fragment);
+  readonly sending = computed(() => this.routeParams()?.get('step') === 'send' || this.routeFragment() === 'sent');
 
   letter = signal<LetterDraft | null>(null);
   readonly claimCase = this.journey.claimCase;
   readonly body = signal('');
   readonly edited = signal(false);
   readonly blanks = computed(() => [...new Set(this.body().match(BLANK) ?? [])]);
+  readonly supportingDocuments = computed(() => (this.letter()?.evidenceIndex ?? []).filter(e => !e.startsWith('Policy wording')));
+  readonly policyEvidence = computed(() => (this.letter()?.evidenceIndex ?? []).filter(e => e.startsWith('Policy wording')));
   copied = signal(false);
   kind = signal<LetterKind>('clarification');
   loading = signal(false);
   error = signal<string | null>(null);
   readonly kinds = KINDS;
+  readonly previousDrafts = signal<string[]>([]);
+  private draftScope = '';
+  private loadVersion = 0;
+  private loadedWorkspace = '';
   readonly today = todayIso();
 
   // "I've sent it" and "I've filed here" forms.
@@ -99,6 +109,10 @@ export class LetterComponent {
   constructor() {
     const route = inject(ActivatedRoute);
     route.queryParamMap.pipe(takeUntilDestroyed()).subscribe((q) => {
+      if (this.loadedWorkspace !== this.api.workspaceKey()) {
+        this.loadedWorkspace = this.api.workspaceKey();
+        this.letter.set(null);
+      }
       const wanted = q.get('kind');
       if (wanted && KIND_IDS.has(wanted)) {
         if (wanted !== this.kind() || !this.letter()) this.load(wanted as LetterKind);
@@ -112,22 +126,33 @@ export class LetterComponent {
   }
 
   choose(kind: LetterKind): void {
-    this.router.navigate([], { queryParams: { kind }, replaceUrl: true });
+    this.journey.clearResponseReview();
+    this.router.navigate([], { queryParams: { kind }, queryParamsHandling:'merge', replaceUrl: true });
   }
 
   load(kind: LetterKind): void {
+    const version = ++this.loadVersion;
+    const workspaceKey = this.api.workspaceKey();
+    this.letter.set(null);
+    this.journey.draftReady.set(false);
     this.kind.set(kind);
     this.loading.set(true);
     this.error.set(null);
     this.api.getLetter(kind).pipe(takeUntilDestroyed(this.destroyRef)).subscribe({
       next: (l) => {
+        if (version !== this.loadVersion || workspaceKey !== this.api.workspaceKey()) return;
         this.letter.set(l);
-        const saved = readDraft(kind);
+        this.journey.draftReady.set(true);
+        this.draftScope = l.inputFingerprint ?? l.claimKey ?? '';
+        const saved = readDraft(kind, this.api.workspaceKey(), this.draftScope);
+        const prefix = DRAFT_KEY + this.api.workspaceKey() + '.' + kind;
+        try { this.previousDrafts.set(Object.keys(localStorage).filter(k => k.startsWith(prefix) && k !== prefix + (this.draftScope ? '.' + this.draftScope : '')).map(k => localStorage.getItem(k) ?? '').filter(Boolean)); } catch { this.previousDrafts.set([]); }
         this.body.set(saved ?? l.body);
         this.edited.set(saved !== null && saved !== l.body);
         this.loading.set(false);
       },
       error: (e) => {
+        if (version !== this.loadVersion || workspaceKey !== this.api.workspaceKey()) return;
         this.error.set(e?.error?.detail ?? 'Could not draft the letter. Please try again.');
         this.loading.set(false);
       },
@@ -135,13 +160,15 @@ export class LetterComponent {
   }
 
   onEdit(text: string): void {
+    this.journey.clearResponseReview();
     this.body.set(text);
     this.edited.set(true);
-    try { localStorage.setItem(DRAFT_KEY + this.kind(), text); } catch { /* private mode */ }
+    try { if (this.api.workspaceKey()) localStorage.setItem(DRAFT_KEY + this.api.workspaceKey() + '.' + this.kind() + (this.draftScope ? '.' + this.draftScope : ''), text); } catch { /* private mode */ }
   }
 
   freshDraft(): void {
-    try { localStorage.removeItem(DRAFT_KEY + this.kind()); } catch { /* private mode */ }
+    this.journey.clearResponseReview();
+    try { localStorage.removeItem(DRAFT_KEY + this.api.workspaceKey() + '.' + this.kind() + (this.draftScope ? '.' + this.draftScope : '')); } catch { /* private mode */ }
     this.body.set(this.letter()?.body ?? '');
     this.edited.set(false);
   }
@@ -151,7 +178,7 @@ export class LetterComponent {
     const input: TimelineEventInput = kind === 'cover_letter' ? { kind: 'claim_sent', date: this.sentDate() }
       : kind === 'grievance' ? { kind: 'complaint_filed', level: 1, date: this.sentDate() }
       : { kind: 'letter_sent', letterKind: kind, date: this.sentDate() };
-    this.save({ ...input, reference: this.sentRef().trim() || undefined }, () => this.sentRef.set(''));
+    this.save({ ...input, ...(kind === 'document_response' ? {claimKey:this.letter()?.claimKey,inputFingerprint:this.letter()?.inputFingerprint,replyId:this.letter()?.replyId} : {}), reference: this.sentRef().trim() || undefined }, () => this.sentRef.set(''));
   }
 
   filedAt(level: number): TimelineEvent | null {
@@ -180,14 +207,14 @@ export class LetterComponent {
         this.saving.set(false);
         done();
       },
-      error: () => this.saving.set(false),
+      error: (e) => { this.saving.set(false); this.error.set(e?.error?.detail ?? 'Could not save this diary entry.'); },
     });
   }
 
   private matches(e: TimelineEvent, kind: LetterKind): boolean {
     if (kind === 'cover_letter') return e.kind === 'claim_sent';
     if (kind === 'grievance') return e.kind === 'complaint_filed' && (e.level ?? 1) === 1;
-    return e.kind === 'letter_sent' && e.letterKind === kind;
+    return e.kind === 'letter_sent' && e.letterKind === kind && (kind !== 'document_response' || e.replyId === this.letter()?.replyId);
   }
 
   async copy(): Promise<void> {
@@ -207,6 +234,10 @@ export class LetterComponent {
   }
 
   print(): void {
+    const editor = document.getElementById('letter-body')?.closest('details');
+    const wasOpen = editor?.open;
+    if (editor) editor.open = true;
+    window.addEventListener('afterprint', () => { if (editor) editor.open = !!wasOpen; }, {once:true});
     window.print();
   }
 
@@ -219,9 +250,9 @@ export class LetterComponent {
 }
 
 /** The user's edited letter, kept only in this browser. */
-function readDraft(kind: LetterKind): string | null {
+function readDraft(kind: LetterKind, workspaceKey: string, scope = ''): string | null {
   try {
-    return localStorage.getItem(DRAFT_KEY + kind);
+    return workspaceKey ? localStorage.getItem(DRAFT_KEY + workspaceKey + '.' + kind + (scope ? '.' + scope : '')) : null;
   } catch {
     return null;
   }
