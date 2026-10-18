@@ -16,7 +16,7 @@ from google.cloud.firestore_v1.vector import Vector
 
 from app.core.gcp import bucket, db
 from app.core.config import get_settings
-from app.core.session import expiry, session_id
+from app.core.session import expiry, session_id, is_root_workspace
 from app.services.clauses import Clause
 from app.services.policy_details import apply_user_details
 
@@ -133,7 +133,16 @@ def set_active_policy(policy_id: str) -> None:
 
 
 def get_active_policy_id() -> str | None:
-    return _session_state().get("activePolicyId")
+    policy_id = _session_state().get("activePolicyId")
+    return None if is_root_workspace() and policy_id and policy_id.startswith('demo-') else policy_id
+
+
+def has_legacy_sample_policy() -> bool:
+    """Old sample selections are preserved, but never count as a personal upload."""
+    if not is_root_workspace():
+        return False
+    policy_id = _session_state().get('activePolicyId')
+    return bool(policy_id and policy_id.startswith('demo-'))
 
 
 def save_session_details(details: dict) -> None:
@@ -144,6 +153,8 @@ def get_active_policy() -> tuple[str, dict] | None:
     """This guest's ready policy; its "facts" are the document's facts plus the details this guest typed in."""
     state = _session_state()
     policy_id = state.get("activePolicyId")
+    if is_root_workspace() and policy_id and policy_id.startswith('demo-'):
+        return None
     doc = get_policy(policy_id) if policy_id else None
     if not doc or doc.get("status") != "ready":
         return None

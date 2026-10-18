@@ -1,5 +1,4 @@
 <div class="page">
-  <a class="back-link" routerLink="/bills">← Hospital bills</a>
   @if (bill(); as b) {
     <div class="page-head">
       <h1>{{ 'Your hospital bill, checked' | t }}</h1>
@@ -19,7 +18,7 @@
       </div>
     </section>
 
-    <app-next-steps [steps]="nextSteps()" />
+
 
     <section class="card" id="checks">
       <h2>{{ 'What we checked' | t }}</h2>

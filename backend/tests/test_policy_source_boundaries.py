@@ -1,6 +1,6 @@
 import unittest
 from unittest.mock import patch
-from app.services.policy_sources import page_sources
+from app.services.policy_sources import page_sources, named_benefit_sources
 from app.services.grounding import quote_in_text
 from app.services.case_facts import build_case_facts
 from app.services import policy_store
@@ -8,6 +8,51 @@ from tests.test_copilot_and_letters import demo_case_doc
 
 
 class PolicySourceBoundaryTests(unittest.TestCase):
+    def test_distinctive_benefit_name_supplements_unrelated_vector_results(self):
+        # Synthetic benefit text, not a description of any real insurer product.
+        text = 'Example-Bright benefit: diagnostic expenses up to the limit in the schedule.'
+        old = [{'page': 9, 'text': 'Unrelated restoration provision.', 'originalPage': True}]
+        with patch.object(policy_store, 'load_pages', return_value={2: text, 3: 'Other page'}) as load:
+            sources = named_benefit_sources('What is the meaning of Example-Bright benefit?', 'private-policy', old)
+        load.assert_called_once_with('private-policy')
+        self.assertEqual([h['page'] for h in sources], [2, 9])
+        self.assertEqual(sources[0]['text'], text)
+        self.assertTrue(sources[0]['originalPage'])
+
+    def test_named_benefit_lookup_handles_printed_hyphens_and_stays_bounded(self):
+        for name in ('Example Bright', 'Example\u2011Bright', 'ExampleBright'):
+            with patch.object(policy_store, 'load_pages', return_value={n: name + ' benefit original text' for n in range(1, 10)}):
+                sources = named_benefit_sources('Explain Example-Bright benefit.', 'private-policy', [])
+            self.assertEqual(len(sources), 4)
+
+    def test_definition_after_many_summary_mentions_and_its_continuation_are_retained(self):
+        pages = {n: 'Schedule reference: Example-Bright benefit.' for n in (2, 4, 8, 12, 15)}
+        pages.update({31: '4.1.10. Example-Bright\nThis is the original benefit definition.',
+                      32: 'This benefit has conditions continued from the previous page.'})
+        with patch.object(policy_store, 'load_pages', return_value=pages):
+            sources = named_benefit_sources('What is Example-Bright benefit?', 'private-policy', [])
+        self.assertEqual([h['page'] for h in sources[:2]], [31, 32])
+        self.assertEqual(len(sources), 4)
+        self.assertTrue(all(s['originalPage'] for s in sources))
+
+    def test_common_terms_do_not_scan_all_pages_or_match_similar_named_benefits(self):
+        with patch.object(policy_store, 'load_pages') as load:
+            self.assertEqual(named_benefit_sources('What is the co-pay benefit?', 'p', []), [])
+            self.assertEqual(named_benefit_sources('What is a waiting period?', 'p', []), [])
+        load.assert_not_called()
+        with patch.object(policy_store, 'load_pages', return_value={2: 'Example-Brighter benefit, a different name.'}):
+            self.assertEqual(named_benefit_sources('Explain Example-Bright benefit.', 'p', []), [])
+
+    def test_long_original_page_keeps_ranked_clause_beyond_page_prefix(self):
+        clause = 'Emergency ambulance charges are payable up to the limit in the policy schedule.'
+        text = 'Unrelated original wording. ' * 500 + clause + '\nRelevant conditions follow.'
+        with patch.object(policy_store, 'load_page', return_value=text):
+            source = page_sources('uploaded-policy', [{'page': 2, 'label': 'Ambulance', 'text': clause}])[0]
+        self.assertIn(clause, source['text'])
+        self.assertLessEqual(len(source['text']), 10000)
+        self.assertIn(source['text'], text)  # One original contiguous window; no stitched quotations.
+        self.assertTrue(source['originalPage'])
+
     def test_adjacent_chunks_use_one_original_page_and_no_inherited_heading(self):
         text='If the room rent exceeds the limit\nthen only a rateable proportion applies, except to medical implants.'
         hits=[{'page':17,'label':'Annexure II','text':text[:35]}, {'page':17,'label':'Annexure II','text':text[35:]}]

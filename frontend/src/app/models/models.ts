@@ -107,7 +107,7 @@ export interface AgentStep {
 export interface AnswerVerification {
   policyId: string;
   policyName: string;
-  scope?: 'explanation' | 'timing_only';
+  scope?: 'explanation' | 'timing_only' | 'source_only';
   checks: { kind: 'source' | 'quote' | 'support' | 'dates' | 'treatment'; status: 'passed' | 'not_confirmed' | 'not_run'; label: string; detail: string }[];
   dates: { periodId: string; label: string; duration: string; startDate: string; startDateOrigin: string;
     comparisonDate: string; endDate: string; periodEnded: boolean; daysRemaining: number; citation: Citation }[];
@@ -328,7 +328,7 @@ export interface PastClaimInput {
   claimNumber?: string;
 }
 
-export type TimelineKind = 'claim_sent' | 'letter_sent' | 'query_answered' | 'complaint_filed' | 'reply' | 'closed';
+export type TimelineKind = 'claim_sent' | 'letter_sent' | 'query_answered' | 'complaint_filed' | 'reply' | 'closed' | 'outcome_recorded';
 
 /** What the insurer's reply means for the family. */
 export type ReplyOutcome = 'paid_more' | 'explained' | 'no_change' | 'asks_for_papers' | 'rejected' | 'unclear';

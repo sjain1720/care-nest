@@ -27,7 +27,7 @@ def claim_status(claimed: float | None, approved: float | None) -> str:
 
 def workflow_state(case_doc: dict) -> dict:
     """Lifecycle is separate from payment outcome and which claim is being viewed."""
-    events = sorted_timeline(case_doc.get("timeline"))
+    events = [e for e in sorted_timeline(case_doc.get("timeline")) if e.get("kind") != "outcome_recorded"]
     latest = events[-1] if events else {}
     closed = latest.get("kind") == "closed"
     decision = case_doc.get("settlement") or case_doc.get("rejection") or {}

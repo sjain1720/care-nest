@@ -1,6 +1,10 @@
 <div class="page">
-  <a class="back-link" routerLink="/case" [queryParams]="{section: 'investigation'}">← My claim · Investigation</a>
-  <header class="page-head"><p class="eyebrow">YOUR CLAIM INVESTIGATION</p><h1>Understand the decision. Prepare your next step.</h1><p>Follow the amounts, inspect the policy evidence and ask the insurer for the missing explanation.</p></header>
+  @if (decisionOnly()) {
+    <header class="page-head"><h2>Add insurer decision</h2><p>Review the approval, deduction or rejection letter. The recorded amounts come from this document.</p></header>
+    @if(original();as doc){<app-document-preview [url]="doc.docUrl" [title]="doc.name" />}
+    @else {<section class="card"><p>No original decision document is linked yet.</p><a mat-stroked-button routerLink="/upload" [queryParams]="{type:'Settlement letter',step:'decision'}">Upload decision</a></section>}
+  } @else {
+  <header class="page-head"><h2>Review decision & prepare response</h2><p>Check the amounts, inspect the evidence and prepare your response.</p></header>
   <app-dispute-review />
   @if (preparation(); as inputs) {
     <section class="card" aria-labelledby="dispute-preparation">
@@ -64,7 +68,7 @@
       </p>
     </section>
 
-    <app-next-steps [steps]="nextSteps()" />
+
     </div>
 
     <div class="right">
@@ -136,11 +140,12 @@
         </a>
       }
     </section>
-    <app-next-steps [steps]="refusalSteps()" />
+
   } @else if (settlement() === null) {
     <app-empty-state icon="mark_email_unread" title="No letter from the insurer yet" action="Add the insurer's letter"
       text="When the insurer decides, it sends a letter: what it paid and what it cut, or why it refused. Upload that letter. We explain it in plain words." />
   } @else {
     <app-skeleton label="Loading the insurer's letter…" [count]="3" />
+  }
   }
 </div>

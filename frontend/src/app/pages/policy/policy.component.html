@@ -163,8 +163,8 @@
       </div>
     </div>
   } @else if (policy() === null) {
-    <app-empty-state icon="policy" title="No policy yet" action="Add your policy"
-      text="Upload your policy PDF. We read every page and show your limits, waiting times and the exact rule, in plain words." />
+    <app-empty-state icon="policy" [title]="legacySamplePolicy() ? 'Upload your own policy' : 'No policy yet'" action="Upload your policy"
+      [text]="legacySamplePolicy() ? 'The policy previously saved here was sample data. It is not your uploaded policy and will not be used to check your cover. Upload your policy PDF to continue.' : 'Upload your policy PDF. We read every page and show your limits, waiting times and the exact rule, in plain words.'" />
   } @else {
     <app-skeleton label="Loading your policy…" [count]="3" />
   }

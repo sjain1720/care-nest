@@ -16,6 +16,9 @@ class MergeIntegrationTests(unittest.TestCase):
         patcher = patch("app.core.session_middleware.resolve_session", side_effect=lambda _: (new_session_id(), expiry()))
         patcher.start()
         self.addCleanup(patcher.stop)
+        sample = patch.object(copilot.policy_store, 'has_legacy_sample_policy', return_value=False)
+        sample.start()
+        self.addCleanup(sample.stop)
 
     def test_json_and_streaming_routes_accept_language(self):
         with TestClient(app) as client:

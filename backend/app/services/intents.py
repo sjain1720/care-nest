@@ -14,6 +14,14 @@ _KEYWORDS = (
 # Words that tie a question to the asker's own policy, bill or claim (English and Hindi).
 _MINE = re.compile(r"\b(my|mine|me|am i|i am|i'm|do i|can i|will i|should i|have i|our|we|us)\b|मेरा|मेरी|मेरे|मुझे|हमारा|हमारी", re.I)
 
+_EXPLICIT_GENERAL = re.compile(r'\bin general\b|\bgenerally\b|\b(?:insurance|policies|insurers) usually\b|'
+                               r'\b(?:not|without using) (?:my|the uploaded) policy\b|सामान्य तौर|आम तौर', re.I)
+
+
+def policy_about(question: str, proposed: str, has_policy: bool) -> str:
+    """A selected policy owns benefit definitions too, unless the visitor opts out."""
+    return 'mine' if has_policy and not _EXPLICIT_GENERAL.search(question) else proposed
+
 
 def keyword_intent(question: str) -> str:
     q = question.lower()

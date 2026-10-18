@@ -33,6 +33,11 @@ def root_session_id() -> str:
     return _root.get() or session_id()
 
 
+def is_root_workspace() -> bool:
+    """Personal/general HTTP workspace, excluding example children and offline preparation."""
+    return _root.get() is not None and _root.get() == _current.get()
+
+
 def set_root_session(sid: str):
     return _root.set(sid)
 

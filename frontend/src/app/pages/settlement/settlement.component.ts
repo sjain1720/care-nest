@@ -1,3 +1,4 @@
+import { DocumentPreviewComponent } from '../../shared/document-preview.component';
 import { Component, computed, inject, signal } from '@angular/core';
 import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { DatePipe } from '@angular/common';
@@ -23,7 +24,7 @@ const SEGMENT_COLORS = ['var(--cn-seg-1)', 'var(--cn-seg-2)', 'var(--cn-seg-3)',
 @Component({
   selector: 'app-settlement',
   standalone: true,
-  imports: [DatePipe, RouterLink, MatButtonModule, MatIconModule, InrPipe, CitationChipComponent, TrustPillComponent, WaterfallComponent, NextStepsComponent, TranslatePipe,
+  imports: [DocumentPreviewComponent, DatePipe, RouterLink, MatButtonModule, MatIconModule, InrPipe, CitationChipComponent, TrustPillComponent, WaterfallComponent, TranslatePipe,
             SkeletonComponent, EmptyStateComponent, GlossComponent, DisputeReviewComponent],
   templateUrl: './settlement.component.html',
   styles: `
@@ -54,6 +55,10 @@ const SEGMENT_COLORS = ['var(--cn-seg-1)', 'var(--cn-seg-2)', 'var(--cn-seg-3)',
 })
 export class SettlementComponent {
   private api = inject(ApiService);
+  private params = toSignal(inject(ActivatedRoute).queryParamMap);
+  readonly decisionOnly = computed(() => this.params()?.get('step') === 'decision');
+  readonly claimCase = toSignal(this.api.getCase());
+  readonly original = computed(() => this.claimCase()?.documents.find(d => d.type === 'Settlement letter' || d.type === 'Rejection letter'));
   readonly journey = inject(JourneyService);
   readonly rejection = this.journey.rejection;
   preparation = toSignal(this.api.getDisputePreparation());

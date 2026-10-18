@@ -144,7 +144,7 @@ class WaitingTreatmentEvidence(BaseModel):
 class AnswerVerification(BaseModel):
     policyId: str
     policyName: str
-    scope: Literal['explanation', 'timing_only'] = 'explanation'
+    scope: Literal['explanation', 'timing_only', 'source_only'] = 'explanation'
     checks: list[AnswerCheck]
     dates: list[WaitingDateEvidence] = Field(default_factory=list)
     treatment: WaitingTreatmentEvidence | None = None
@@ -216,7 +216,7 @@ class QueryHelpRequest(BaseModel):
 
 class TimelineEventIn(BaseModel):
     """Something the family did: sent the claim or a letter, answered a query, filed a complaint, or closed the claim."""
-    kind: Literal["claim_sent", "letter_sent", "query_answered", "complaint_filed", "closed"]
+    kind: Literal["claim_sent", "letter_sent", "query_answered", "complaint_filed", "closed", "outcome_recorded"]
     date: str = Field(pattern=r"^\d{4}-\d{2}-\d{2}$")
     letterKind: Literal["clarification", "reconsideration", "grievance", "cover_letter", "document_response"] | None = None
     replyId: str | None = Field(default=None, max_length=80)

@@ -85,6 +85,9 @@ def upload_document(file: UploadFile = File(...), docType: str = Form("auto"),
 def _active_policy() -> tuple[str, dict]:
     active = store.get_active_policy()
     if not active:
+        if store.has_legacy_sample_policy():
+            raise HTTPException(404, {'code': 'sample_policy_requires_upload',
+                                     'message': 'The saved policy is an earlier sample, not your uploaded policy. Upload your own policy PDF.'})
         raise HTTPException(404, "No policy has been uploaded yet.")
     return active
 

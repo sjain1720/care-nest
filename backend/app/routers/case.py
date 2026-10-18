@@ -127,6 +127,8 @@ def update_checklist_item(item_id: str, body: ChecklistUpdate):
 
 @router.post("/case/timeline")
 def add_timeline_event(body: TimelineEventIn):
+    if body.kind == "outcome_recorded" and not (body.note or "").strip():
+        raise HTTPException(422, "Write an outcome update before saving it.")
     if body.letterKind == 'document_response':
         from app.services.claim_flow import response_draft, FlowConflict
         try:

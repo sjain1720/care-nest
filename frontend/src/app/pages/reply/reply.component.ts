@@ -21,7 +21,7 @@ import { OUTCOME_META, REPLY_DAYS, todayIso } from '../../shared/claim-diary';
 @Component({
   selector: 'app-reply',
   standalone: true,
-  imports: [DocumentTasksComponent,DatePipe, FormsModule, RouterLink, MatButtonModule, MatIconModule, InrPipe, GlossComponent, NextStepsComponent, TranslatePipe],
+  imports: [DatePipe, FormsModule, RouterLink, MatButtonModule, MatIconModule, InrPipe, GlossComponent, TranslatePipe],
   templateUrl: './reply.component.html',
   styles: `
     textarea { width: 100%; min-height: 180px; padding: 12px; font: inherit; color: var(--cn-ink); background: var(--cn-field);

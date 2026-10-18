@@ -23,12 +23,12 @@ function check(name,passed){report.checks.push({name,passed:!!passed});if(!passe
   };
   await section.getByRole('button',{name:'All claims 2',exact:true}).waitFor();
   check('All claims shows two actual claims',await rows.count()===2);
-  check('List page has no selected-claim diary or workflow',await p.locator('#diary').count()===0&&await p.locator('nav[aria-label="Claim workflow"]').count()===0);
+  check('List page has no selected-claim diary or workflow',await p.locator('#diary').count()===0&&await p.locator('nav[aria-label="Claim journey"]').count()===0);
   await section.getByRole('button',{name:/View claim: Mother/}).click();
-  await p.waitForURL(/\/case\/detail/);
+  await p.waitForURL(/\/case\/(detail|bill|settlement|reply|letter)/);
   await p.getByRole('heading',{name:"Mother's fracture-repair claim",exact:true}).waitFor();
-  check('Clicking current claim opens its separate detail page',await section.count()===0&&await p.locator('nav[aria-label="Claim workflow"]').count()===1);
-  await p.getByRole('link',{name:'Back to all claims',exact:true}).click();
+  check('Clicking current claim opens its separate detail page',await section.count()===0&&await p.locator('nav[aria-label="Claim journey"]').count()===1);
+  await p.getByRole('link',{name:'← All claims',exact:true}).click();
   await p.waitForURL(/\/case\?/);await section.getByRole('button',{name:'All claims 2',exact:true}).waitFor();
   check('Back to claims defaults to the full list',await rows.count()===2);
   await select('In progress');check('In progress shows mother claim only',await rows.count()===1&&(await rows.innerText()).includes('fracture'));
@@ -47,10 +47,10 @@ function check(name,passed){report.checks.push({name,passed:!!passed});if(!passe
   await select('Pending reply');check('Recorded follow-up enters Pending reply',await rows.count()===1&&(await rows.innerText()).includes('fracture'));
   await select('In progress');check('Pending reply and In progress do not double count',await rows.count()===0);
   await select('Closed');await section.getByRole('button',{name:'View claim: Previous short hospital stay',exact:true}).click();
-  await p.waitForURL(/\/case\/detail/);
+  await p.waitForURL(/\/case\/(detail|bill|settlement|reply|letter)/);
   await p.getByRole('heading',{name:'Previous short hospital stay',exact:true}).waitFor();
   check('Opening earlier claim shows the correct separate detail',await section.count()===0);
-  await p.getByRole('link',{name:'Back to all claims',exact:true}).click();await p.waitForURL(/\/case\?/);
+  await p.getByRole('link',{name:'← All claims',exact:true}).click();await p.waitForURL(/\/case\?/);
   await section.getByRole('button',{name:'All claims 2',exact:true}).waitFor();
   await select('Closed');
   check('Opening completed claim keeps it Closed',await rows.count()===1&&(await rows.innerText()).includes('Previous short hospital stay'));
@@ -59,7 +59,7 @@ function check(name,passed){report.checks.push({name,passed:!!passed});if(!passe
   await section.getByRole('button',{name:'All claims 2',exact:true}).waitFor();
   check('Dashboard claims also exposes the same filters',await rows.count()===2);
   await p.goto(base+'/case?workspace=example&section=documents',{waitUntil:'networkidle'});
-  check('Existing document deep links still open claim detail',await p.getByRole('heading',{name:'Papers checklist',exact:true}).count()===1&&await section.count()===0);
+  check('Existing document deep links still open claim detail',await p.getByRole('heading',{name:'Prepare documents',exact:true}).count()===1&&await section.count()===0);
   check('No JavaScript errors',errors.length===0);report.passed=true;
  }catch(e){report.passed=false;report.error=e.message;await p.screenshot({path:out+'/failure.png',fullPage:true}).catch(()=>{});}
  finally{

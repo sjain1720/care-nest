@@ -1,5 +1,5 @@
 import { Component, DestroyRef, computed, inject, signal } from '@angular/core';
-import { takeUntilDestroyed } from '@angular/core/rxjs-interop';
+import { takeUntilDestroyed, toSignal } from '@angular/core/rxjs-interop';
 import { DatePipe } from '@angular/common';
 import { FormsModule } from '@angular/forms';
 import { ActivatedRoute, Router, RouterLink } from '@angular/router';
@@ -73,6 +73,9 @@ export class LetterComponent {
   private router = inject(Router);
   private diary = inject(DiaryActionsService);
   readonly journey = inject(JourneyService);
+  private routeParams = toSignal(inject(ActivatedRoute).queryParamMap);
+  private routeFragment = toSignal(inject(ActivatedRoute).fragment);
+  readonly sending = computed(() => this.routeParams()?.get('step') === 'send' || this.routeFragment() === 'sent');
 
   letter = signal<LetterDraft | null>(null);
   readonly claimCase = this.journey.claimCase;
@@ -123,6 +126,7 @@ export class LetterComponent {
   }
 
   choose(kind: LetterKind): void {
+    this.journey.clearResponseReview();
     this.router.navigate([], { queryParams: { kind }, queryParamsHandling:'merge', replaceUrl: true });
   }
 
@@ -130,6 +134,7 @@ export class LetterComponent {
     const version = ++this.loadVersion;
     const workspaceKey = this.api.workspaceKey();
     this.letter.set(null);
+    this.journey.draftReady.set(false);
     this.kind.set(kind);
     this.loading.set(true);
     this.error.set(null);
@@ -137,6 +142,7 @@ export class LetterComponent {
       next: (l) => {
         if (version !== this.loadVersion || workspaceKey !== this.api.workspaceKey()) return;
         this.letter.set(l);
+        this.journey.draftReady.set(true);
         this.draftScope = l.inputFingerprint ?? l.claimKey ?? '';
         const saved = readDraft(kind, this.api.workspaceKey(), this.draftScope);
         const prefix = DRAFT_KEY + this.api.workspaceKey() + '.' + kind;
@@ -154,12 +160,14 @@ export class LetterComponent {
   }
 
   onEdit(text: string): void {
+    this.journey.clearResponseReview();
     this.body.set(text);
     this.edited.set(true);
     try { if (this.api.workspaceKey()) localStorage.setItem(DRAFT_KEY + this.api.workspaceKey() + '.' + this.kind() + (this.draftScope ? '.' + this.draftScope : ''), text); } catch { /* private mode */ }
   }
 
   freshDraft(): void {
+    this.journey.clearResponseReview();
     try { localStorage.removeItem(DRAFT_KEY + this.api.workspaceKey() + '.' + this.kind() + (this.draftScope ? '.' + this.draftScope : '')); } catch { /* private mode */ }
     this.body.set(this.letter()?.body ?? '');
     this.edited.set(false);
@@ -206,7 +214,7 @@ export class LetterComponent {
   private matches(e: TimelineEvent, kind: LetterKind): boolean {
     if (kind === 'cover_letter') return e.kind === 'claim_sent';
     if (kind === 'grievance') return e.kind === 'complaint_filed' && (e.level ?? 1) === 1;
-    return e.kind === 'letter_sent' && e.letterKind === kind;
+    return e.kind === 'letter_sent' && e.letterKind === kind && (kind !== 'document_response' || e.replyId === this.letter()?.replyId);
   }
 
   async copy(): Promise<void> {
@@ -226,6 +234,10 @@ export class LetterComponent {
   }
 
   print(): void {
+    const editor = document.getElementById('letter-body')?.closest('details');
+    const wasOpen = editor?.open;
+    if (editor) editor.open = true;
+    window.addEventListener('afterprint', () => { if (editor) editor.open = !!wasOpen; }, {once:true});
     window.print();
   }
 

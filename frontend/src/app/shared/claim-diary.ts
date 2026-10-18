@@ -56,12 +56,14 @@ export function eventText(e: TimelineEvent): string {
     case 'query_answered': return "You answered the insurer's question";
     case 'reply': return `The insurer replied: ${OUTCOME_META[e.outcome ?? 'unclear'].label.toLowerCase()}`;
     case 'closed': return 'You closed this claim';
+    case 'outcome_recorded': return 'You recorded an outcome update';
   }
 }
 
 /** Mirrors backend claim_tracker.stage_from_timeline, for demo mode. */
 export function diaryStage(all: TimelineEvent[], hasDecision: boolean): string | null {
-  const events = hasDecision ? all.filter((e) => e.kind !== 'query_answered') : all;
+  const lifecycle = all.filter(e => e.kind !== 'outcome_recorded');
+  const events = hasDecision ? lifecycle.filter((e) => e.kind !== 'query_answered') : lifecycle;
   const latest = events[events.length - 1];
   if (!latest) return null;
   const n = daysSince(latest.date);
@@ -81,6 +83,7 @@ export function diaryStage(all: TimelineEvent[], hasDecision: boolean): string |
     case 'complaint_filed':
       if ((latest.level ?? 1) >= 2) return `Complaint filed with ${COMPLAINT_PLACES[latest.level!]} on ${shortDate(latest.date)} – waiting for their reply`;
       return n > REPLY_DAYS ? `No reply after ${n} days – you can complain to the next level` : `Waiting for the insurer's reply (sent ${shortDate(latest.date)}, ${ago})`;
+    case 'outcome_recorded': return null;
     case 'letter_sent':
       return n > REPLY_DAYS ? `No reply after ${n} days – you can complain to the next level` : `Waiting for the insurer's reply (sent ${shortDate(latest.date)}, ${ago})`;
   }

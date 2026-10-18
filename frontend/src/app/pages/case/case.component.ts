@@ -1,9 +1,9 @@
 import { DocumentTasksComponent } from '../../shared/document-tasks.component';
-import { Component, computed, inject, signal } from '@angular/core';
+import { Component, computed, effect, inject, signal } from '@angular/core';
 import { DisputeReviewComponent } from '../../shared/dispute-review.component';
 import { toSignal } from '@angular/core/rxjs-interop';
 import { DatePipe } from '@angular/common';
-import { ActivatedRoute, RouterLink } from '@angular/router';
+import { ActivatedRoute, Router, RouterLink } from '@angular/router';
 import { MatButtonModule } from '@angular/material/button';
 import { TranslatePipe } from '../../shared/translate.pipe';
 import { MatIconModule } from '@angular/material/icon';
@@ -31,7 +31,7 @@ const STATUS_META: Record<ChecklistStatus, { label: string; icon: string; tone: 
 @Component({
   selector: 'app-case',
   standalone: true,
-  imports: [DocumentTasksComponent, DisputeReviewComponent, DocumentPreviewComponent, CoverageEstimateComponent, DatePipe, FormsModule, RouterLink, MatButtonModule, MatIconModule, MatProgressBarModule, NextStepsComponent, SkeletonComponent, EmptyStateComponent, ClaimsListComponent, TranslatePipe, InrPipe],
+  imports: [DocumentTasksComponent, CoverageEstimateComponent, DatePipe, FormsModule, RouterLink, MatButtonModule, MatIconModule, SkeletonComponent, ClaimsListComponent, InrPipe],
   templateUrl: './case.component.html',
   styleUrl: './case-overview.css',
   styles: `
@@ -60,6 +60,7 @@ const STATUS_META: Record<ChecklistStatus, { label: string; icon: string; tone: 
     .diary .d-text { flex: 1; min-width: 0; }
     .mark { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px 12px; margin-top: 12px; }
     .mark label { display: flex; flex-direction: column; gap: 4px; font-size: .85rem; color: var(--cn-muted); }
+    .outcome-note {display:grid;gap:8px;font-size:.9rem}.outcome-note textarea{width:100%;box-sizing:border-box;padding:12px;font:inherit;background:var(--cn-field);color:var(--cn-ink);border:1px solid var(--cn-border);border-radius:8px;resize:vertical}
     .mark input { min-height: 44px; padding: 0 10px; font: inherit; color: var(--cn-ink); border: 1px solid var(--cn-border); border-radius: 10px; background: var(--cn-field); }
     .wait { border-radius: 10px; padding: 8px 12px; margin-top: 12px; font-size: .9rem; }
     .start-card { display: flex; gap: 16px; align-items: flex-start; border-color: var(--cn-c1-line);
@@ -79,6 +80,9 @@ export class CaseComponent {
     && !['overview', 'investigation', 'documents', 'history'].includes(this.params().get('section') ?? '')
     && !['documents', 'checklist', 'dispute-papers', 'diary', 'overview', 'next-steps'].includes(this.fragment() ?? ''));
   readonly section = computed(() => {
+    const step = this.params().get('step');
+    if (step === 'documents') return 'documents';
+    if (step === 'outcome') return 'history';
     const fragment = this.fragment();
     if (fragment === 'documents' || fragment === 'checklist' || fragment === 'dispute-papers') return 'documents';
     if (fragment === 'diary' || fragment === 'claims') return 'history';
@@ -86,10 +90,6 @@ export class CaseComponent {
     const selected = this.params().get('section');
     return ['overview', 'investigation', 'documents', 'history'].includes(selected ?? '') ? selected : 'overview';
   });
-  readonly sections = [
-    { id: 'overview', label: 'Overview' }, { id: 'investigation', label: 'Investigation' },
-    { id: 'documents', label: 'Documents' }, { id: 'history', label: 'History' },
-  ];
   private api = inject(ApiService);
   readonly workspace = this.api.workspace;
   readonly claims = toSignal(this.api.getClaims());
@@ -127,6 +127,8 @@ export class CaseComponent {
 
   readonly timeline = this.journey.timeline;
   readonly sentClaim = computed(() => this.timeline().some((e) => e.kind === 'claim_sent'));
+  readonly outcomeSaved = signal(false);
+  readonly outcomeNote = signal('');
   readonly diaryDate = signal(todayIso());
   readonly today = todayIso();
   readonly saving = signal(false);
@@ -146,6 +148,16 @@ export class CaseComponent {
     if (!this.bill()) steps.push({ text: 'Add your final hospital bill so we can check it.', action: 'Add the hospital bill', route: '/upload', query: { type: 'Hospital bill' } });
     return steps;
   });
+
+  constructor() {
+    const router = inject(Router);
+    effect(() => {
+      if (this.dashboard || this.listPage() || !this.claimCase()) return;
+      if (this.section() === 'documents' || this.section() === 'history') return;
+      const next = this.section() === 'investigation' ? this.journey.steps()[5] : this.journey.current() ?? this.journey.steps()[8];
+      router.navigate([next.route], {queryParams:{workspace:this.workspace.mode(),...next.query}, replaceUrl:true});
+    });
+  }
 
   status(s: ChecklistStatus) {
     return STATUS_META[s];
@@ -172,10 +184,10 @@ export class CaseComponent {
     });
   }
 
-  add(kind: 'claim_sent' | 'closed'): void {
+  add(kind: 'claim_sent' | 'closed' | 'outcome_recorded'): void {
     if (!this.diaryDate()) return;
     this.saving.set(true);
-    this.diary.add({ kind, date: this.diaryDate() }).subscribe({ next: () => this.saving.set(false), error: () => this.saving.set(false) });
+    this.diary.add({ kind, date: this.diaryDate(), ...((kind === 'closed' || kind === 'outcome_recorded') && this.outcomeNote().trim() ? {note:this.outcomeNote().trim()} : {}) }).subscribe({ next: () => {this.saving.set(false);if(kind === 'outcome_recorded')this.outcomeSaved.set(true);}, error: () => this.saving.set(false) });
   }
 
   remove(id: string): void {

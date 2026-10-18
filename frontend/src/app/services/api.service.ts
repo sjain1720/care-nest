@@ -141,6 +141,7 @@ export class ApiService {
   readonly workspaceKey = signal('');
   private exampleReady?: Observable<WorkspaceReady>;
   readonly exampleOutdated = signal(false);
+  readonly legacySamplePolicy = signal(false);
   resetExampleWorkspace() { return this.http.post('/api/demo/reset', {}, { params: { workspace: 'example' } }); }
 
   // Live mode: null means "not uploaded yet" (404).
@@ -155,6 +156,7 @@ export class ApiService {
 
   private loadedWorkspace?: Workspace;
   clearWorkspace(): void {
+    this.legacySamplePolicy.set(false);
     this.loadedWorkspace = undefined;
     this.workspace.mode.set('general'); this.workspaceKey.set('');
     this.policy.set(of(null)); this.claim.set(of(null)); this.bill.set(of(null));
@@ -467,7 +469,14 @@ export class ApiService {
   }
 
   private loadPolicy(): Observable<PolicyFacts | null> {
-    return this.get<PolicyFacts>('policy', 'policy.json', '/api/policy').pipe(catchError(() => of(null)), shareReplay(1));
+    const mode = this.workspace.mode();
+    return this.get<PolicyFacts>('policy', 'policy.json', '/api/policy').pipe(
+      this.ownerTap(() => this.legacySamplePolicy.set(false)),
+      catchError((error) => {
+        if (mode === this.workspace.mode()) this.legacySamplePolicy.set(
+          mode === 'personal' && error?.error?.detail?.code === 'sample_policy_requires_upload');
+        return of(null);
+      }), shareReplay(1));
   }
 
   private loadCase(): Observable<ClaimCase | null> {

@@ -31,7 +31,7 @@ const SEVERITY: Record<BillCheck['severity'], { icon: string; tone: string }> = 
 @Component({
   selector: 'app-bill-check',
   standalone: true,
-  imports: [DocumentPreviewComponent, RouterLink, MatButtonModule, MatIconModule, InrPipe, NextStepsComponent, SkeletonComponent, EmptyStateComponent, GlossComponent, BillReviewComponent, TranslatePipe, CitationChipComponent],
+  imports: [DocumentPreviewComponent, RouterLink, MatButtonModule, MatIconModule, InrPipe, SkeletonComponent, EmptyStateComponent, GlossComponent, BillReviewComponent, TranslatePipe, CitationChipComponent],
   templateUrl: './bill-check.component.html',
   styles: `
     .totals { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; }

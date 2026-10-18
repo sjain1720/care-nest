@@ -70,6 +70,7 @@ export class UploadComponent {
   readonly contextError = signal('');
   readonly replaceExisting = signal(false);
   readonly taskId = inject(ActivatedRoute).snapshot.queryParamMap.get('task') ?? undefined;
+  readonly journeyStep = inject(ActivatedRoute).snapshot.queryParamMap.get('step');
   readonly returnTo = inject(ActivatedRoute).snapshot.queryParamMap.get('returnTo') === 'reply' ? 'reply' : 'documents';
   readonly targetTask = computed(()=>this.context()?.tasks.find(t=>t.id===this.taskId));
   readonly processing = computed(()=>this.items().some(it=>!it.done && !it.error));
@@ -82,8 +83,8 @@ export class UploadComponent {
     },error:()=>this.contextError.set('Could not open the selected claim. Return to its documents and retry.')});
   }
   private readonly routeKey = inject(ActivatedRoute).snapshot.queryParamMap.get('claimKey');
-  returnRoute(){return this.returnTo === 'reply' ? '/case/reply' : '/case/detail';}
-  returnQuery(){return this.returnTo === 'reply' ? {workspace:this.workspace.mode()} : {workspace:this.workspace.mode(),section:'documents'};}
+  returnRoute(){if(this.journeyStep==='policy')return '/policy';if(this.journeyStep==='decision')return '/case/settlement';return this.returnTo === 'reply' ? '/case/reply' : '/case/detail';}
+  returnQuery(){if(this.journeyStep==='policy'||this.journeyStep==='decision')return {workspace:this.workspace.mode(),step:this.journeyStep};return this.returnTo === 'reply' ? {workspace:this.workspace.mode()} : {workspace:this.workspace.mode(),section:'documents'};}
 
   readonly chat = inject(ChatService);
   private destroyRef = inject(DestroyRef);

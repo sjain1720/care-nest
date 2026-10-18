@@ -14,7 +14,7 @@ import { ChatService } from '../services/chat.service';
   imports: [DatePipe, FormsModule, MatButtonModule, MatIconModule, CitationChipComponent],
   template: `
     <section class="proof" aria-label="Answer evidence and checks">
-      <h4>{{ hasEvidence() ? (verification().scope === 'timing_only' ? 'What we checked · timing only' : 'What we checked') : 'One more policy detail is needed' }}</h4>
+      <h4>{{ hasEvidence() ? (verification().scope === 'source_only' ? 'Policy evidence' : verification().scope === 'timing_only' ? 'What we checked · timing only' : 'What we checked') : 'One more policy detail is needed' }}</h4>
       @if (hasEvidence()) {
       <ul class="checks" aria-label="Completed and missing checks">
         @for (check of compactChecks(); track check.kind) {
@@ -108,7 +108,7 @@ export class AnswerEvidenceComponent {
   compactChecks() {
     const checks = this.verification().checks;
     const paired = ['source', 'quote'].every(kind => checks.some(c => c.kind === kind && c.status === 'passed'));
-    return checks.filter(c => (c.status === 'passed' || c.kind === 'dates') && !(paired && c.kind === 'quote'))
+    return checks.filter(c => (c.status === 'passed' || c.kind === 'dates' || (this.verification().scope === 'source_only' && c.kind === 'support')) && !(paired && c.kind === 'quote'))
       .map(c => paired && c.kind === 'source' ? { ...c, label: 'Source and quotation matched' } : c);
   }
   needsTreatmentDate(): boolean { return this.verification().missingInputs.some(text => text.includes('planned treatment date')); }

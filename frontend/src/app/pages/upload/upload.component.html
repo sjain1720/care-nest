@@ -39,8 +39,8 @@
       @if (it.done) {
         <div class="upload-success" role="status"><mat-icon>task_alt</mat-icon><div><strong>{{workspace.mode()==='example' ? 'Saved in your example claim' : 'Saved in My documents'}}</strong><p>Uploaded does not mean reviewed or sent. Check the document and any extracted details.</p></div></div>
         <div class="row upload-next-action">
-          @if(!taskId){<a mat-flat-button class="btn-teal" [routerLink]="uploadAction(it.detectedType).route" [fragment]="uploadAction(it.detectedType).fragment" [queryParams]="it.detectedType === 'Policy document' ? {workspace: workspace.mode(), q: 'Summarise my uploaded policy and tell me which personal schedule details are missing.'} : {workspace: workspace.mode()}">{{ uploadAction(it.detectedType).label }} <mat-icon>arrow_forward</mat-icon></a>}
-          @if(taskId){<a mat-flat-button [routerLink]="returnRoute()" [queryParams]="returnQuery()">Review this item and continue →</a>}
+          @if(!taskId && !journeyStep){<a mat-flat-button class="btn-teal" [routerLink]="uploadAction(it.detectedType).route" [fragment]="uploadAction(it.detectedType).fragment" [queryParams]="it.detectedType === 'Policy document' ? {workspace: workspace.mode(), q: 'Summarise my uploaded policy and tell me which personal schedule details are missing.'} : {workspace: workspace.mode()}">{{ uploadAction(it.detectedType).label }} <mat-icon>arrow_forward</mat-icon></a>}
+          @if(taskId || journeyStep){<a mat-flat-button [routerLink]="returnRoute()" [queryParams]="returnQuery()">Review this item and continue →</a>}
           @if (it.detectedType === 'Policy document') { <a mat-button routerLink="/policy" [queryParams]="{workspace: workspace.mode()}">View policy details</a> }
         </div>
       }

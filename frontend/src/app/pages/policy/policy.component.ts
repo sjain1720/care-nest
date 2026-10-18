@@ -60,6 +60,7 @@ const FLAG_ICONS: Record<string, string> = { missing_pages: 'find_in_page', outd
 })
 export class PolicyComponent {
   private api = inject(ApiService);
+  readonly legacySamplePolicy = this.api.legacySamplePolicy;
   readonly sourceUrl = computed(() => isLive('policy') || this.api.workspace.mode() === 'personal'
     ? this.api.workspace.url('/api/policy/document?version=' + encodeURIComponent(this.policy()?.policyId ?? '')) : '/demo/sample_policy.pdf');
   /** undefined = loading, null = no policy uploaded yet. */

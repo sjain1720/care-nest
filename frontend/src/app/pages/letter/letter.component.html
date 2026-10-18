@@ -1,10 +1,10 @@
 <div class="page">
   <div class="page-head no-print">
-    <h1>{{ 'Write to the insurer' | t }}</h1>
+    <h1>{{ (sending() ? 'Send follow-up' : kind() === 'cover_letter' ? 'Submit claim' : 'Review your response letter') | t }}</h1>
     <p>{{ 'We fill this in from your own papers and check every amount. Read it, change anything you like, send it, then mark it as sent.' | t }}</p>
   </div>
 
-  <div class="kinds no-print" role="group" [attr.aria-label]="'Kind of letter' | t">
+  <details class="no-print" style="margin-bottom:16px"><summary>Change letter type</summary><div class="kinds no-print" role="group" [attr.aria-label]="'Kind of letter' | t">
     @for (k of kinds; track k.id) {
       <button type="button" class="kind" [class.active]="kind() === k.id" (click)="choose(k.id)" [disabled]="loading()" [attr.aria-pressed]="kind() === k.id">
         <strong>{{ k.label | t }}</strong><small>{{ k.when | t }}</small>
@@ -12,6 +12,7 @@
     }
   </div>
 
+  </details>
   @if (error()) { <p class="warn">{{ error() }}</p> }
   @if (loading()) { <app-skeleton label="Writing your letter…" [count]="1" /> }
 
@@ -22,7 +23,7 @@
     </details>
   }
   @if (letter(); as l) {
-    <section class="card">
+    <details class="card" [open]="!sending()"><summary>Review or edit the letter</summary>
       @for (w of l.warnings ?? []; track $index) { <div class="warn no-print">{{ w }}</div> }
       @if (edited()) {
         <div class="note no-print">
@@ -41,7 +42,7 @@
         <summary>Supporting documents — attach copies yourself</summary>
         <p class="small muted">These are available sources, not files attached by CareNest. Confirm what is relevant before sending.</p>
         <ul>@for (e of supportingDocuments(); track $index) { <li>{{ e }}</li> }</ul>
-        <a mat-button routerLink="/case" fragment="checklist">Open document checklist</a>
+        <a mat-button routerLink="/case/detail" [queryParams]="{step:'documents'}">Open document checklist</a>
       </details>
       @if (policyEvidence().length) {
         <details style="margin-bottom:16px"><summary>Policy evidence used ({{ policyEvidence().length }})</summary>
@@ -61,10 +62,13 @@
         <button mat-stroked-button class="btn-sky" type="button" (click)="copy()"><mat-icon>{{ copied() ? 'check' : 'content_copy' }}</mat-icon> {{ (copied() ? 'Copied' : 'Copy text') | t }}</button>
         <button mat-stroked-button class="btn-teal" type="button" (click)="download()"><mat-icon>download</mat-icon> {{ 'Download .txt' | t }}</button>
       </div>
-    </section>
+    </details>
 
+    @if(sending() || kind() === 'cover_letter') {
     <section class="card no-print" id="sent">
-      <h2>{{ 'Sent it? Mark it here' | t }}</h2>
+      <h2>{{ kind() === 'cover_letter' ? 'Record your original claim submission' : 'Record sending your follow-up' }}</h2>
+      <p>CareNest does not send this letter. Download or copy it above, send through your insurer’s channel, then record the date here.</p>
+      @if(blanks().length){<p class="warn">The draft still has {{blanks().length}} blanks. Fill them before sending.</p>}
       <p class="muted small" style="margin:0">{{ "We count the days and tell you what to do if the insurer doesn't answer." | t }}</p>
       @for (e of sentForKind(); track e.id) {
         <div class="sent-row">
@@ -85,6 +89,7 @@
         </p>
       }
     </section>
+    }
   } @else if (!loading() && !error()) {
     <app-skeleton label="Getting your letter ready…" [count]="1" />
   }

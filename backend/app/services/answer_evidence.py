@@ -240,7 +240,7 @@ def timing_facts_answer(question, facts, dates):
         nextAction=NextAction(label='Check policy details',route='/policy')), c.periodId
 
 
-def build_verification(facts, citations, hits, support, dates, selected_period=None, timing_only=False):
+def build_verification(facts, citations, hits, support, dates, selected_period=None, timing_only=False, source_only=False):
     pages = {h['page']: h for h in hits if h.get('originalPage') is True}
     originals = bool(citations) and all(c.page in pages for c in citations)
     quotes = originals and all(matched_quote(c.quote, pages[c.page]['text']) for c in citations)
@@ -258,6 +258,11 @@ def build_verification(facts, citations, hits, support, dates, selected_period=N
     if timing_only:
         checks[-1] = AnswerCheck(kind='support',status='not_run',label='Coverage conditions to confirm',
             detail='Showing only the source-checked waiting-period wording and calendar result. A full coverage interpretation is not provided.')
+    elif source_only:
+        checks[-1] = AnswerCheck(kind='support', status='not_run' if support is None else 'not_confirmed',
+            label='Answer check unavailable' if support is None else 'Interpretation not fully verified',
+            detail='The automated explanation check could not run. The displayed quotations still match the original policy.' if support is None else
+            'The proposed explanation did not pass the support review. The answer is limited to matched policy facts and quotations; applicability still needs checking.')
     bound = bound_dates(citations, hits, dates, selected_period) if (support is True or timing_only) and quotes else []
     treatment = next((t for t in dates.get('treatments', []) if t.periodId == selected_period
                       and bound and all(any(c.page == ref.page and normalize(c.quote) == normalize(ref.quote) for c in citations)
@@ -270,6 +275,7 @@ def build_verification(facts, citations, hits, support, dates, selected_period=N
             label='Dates compared in code' if bound else 'Dates still need checking' if dates['requested'] else 'Dates not compared',
             detail='Waiting-period end dates were recalculated from the source-matched duration and the recorded start date.' if bound else 'No verified date result is attached. Confirm the relevant waiting period, continuity/start date and planned treatment date.'))
     return AnswerVerification(policyId=facts.policyId, policyName=facts.planName, checks=checks, dates=bound,
-        scope='timing_only' if timing_only else 'explanation', missingInputs=dates['missing'], treatment=treatment,
+        scope='timing_only' if timing_only else 'source_only' if source_only else 'explanation', missingInputs=dates['missing'], treatment=treatment,
         qualification='Timing only; confirm the applicable benefit and other conditions before relying on coverage.' if timing_only else
+        'Check the attached clauses and issued schedule before acting. Source matching does not confirm personal eligibility or payment.' if source_only else
         'These checks support the explanation. Your insurer confirms coverage and payment.')

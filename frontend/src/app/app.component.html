@@ -76,7 +76,7 @@
       </a>
     }
     <!-- Wide screens: a slim banner with the breadcrumb on every page except the dashboard. -->
-    @if (crumbs().length > 1 && !onAskPage()) {
+    @if (crumbs().length > 1 && !onAskPage() && !onClaimSubpage()) {
       <div class="page-banner no-print">
         <div class="pb-inner">
           <nav [attr.aria-label]="'Breadcrumb' | t">

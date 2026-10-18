@@ -8,6 +8,7 @@ from unittest.mock import Mock, patch
 from app.schemas import Citation, PolicyFacts, WaitingPeriod
 from app.services.answer_evidence import bound_dates, build_verification, matched_quote, prepare_dates, restrict_timing_answer, timing_facts_answer
 from app.services import policy_qa
+from app.services.answer_support import SupportReview
 
 QUOTE = 'Listed cataract procedures require 24 months of continuous coverage.'
 RULE = 'Expenses related to the treatment of the listed Conditions, surgeries/treatments shall be excluded until the expiry of 12 months of continuous coverage after the date of inception of the first policy with us.'
@@ -90,7 +91,7 @@ class AnswerEvidenceTests(unittest.TestCase):
              patch.object(policy_qa.store,'load_page',side_effect=lambda _, p: QUOTE if p==12 else None), \
              patch.object(policy_qa,'embed_texts',return_value=[[0.0]]), \
              patch.object(policy_qa,'gemini',return_value=ai), \
-             patch.object(policy_qa,'check_support',return_value=support):
+             patch.object(policy_qa,'review_support',return_value=SupportReview(status='supported' if support else 'unsupported')):
             return policy_qa.answer_question(question,today=date(2026,10,17))
 
     def test_service_attaches_actual_checks_and_does_not_approve_coverage(self):
@@ -100,7 +101,7 @@ class AnswerEvidenceTests(unittest.TestCase):
 
     def test_unsupported_answer_or_missing_dates_cannot_inherit_green_checks(self):
         answer=self.answer('Cataract surgery on 2026-09-12?',support=False).answer
-        self.assertEqual(answer.verdict,'cant_confirm')
+        self.assertEqual(answer.verdict,'needs_checking')
         self.assertFalse(answer.verification.dates)
         answer=self.answer('Cataract surgery after 18 months?').answer
         self.assertEqual(answer.verdict,'needs_checking')
@@ -124,7 +125,7 @@ class AnswerEvidenceTests(unittest.TestCase):
 
     def test_timing_fallback_does_not_infer_applicable_period_from_diagnosis(self):
         answer=self.answer('Does cataract surgery on 2026-09-12 qualify?',support=False).answer
-        self.assertEqual(answer.verdict,'cant_confirm')
+        self.assertEqual(answer.verdict,'needs_checking')
         self.assertFalse(answer.verification.dates)
 
     def test_timing_fallback_does_not_trust_extracted_kind_without_source_anchor(self):
@@ -188,7 +189,7 @@ class AnswerEvidenceTests(unittest.TestCase):
              patch.object(policy_qa.store,'load_page',side_effect=lambda _,p: next((h['text'] for h in sources if h['page']==p),None)), \
              patch.object(policy_qa,'embed_texts',return_value=[[0.0]]), \
              patch.object(policy_qa,'gemini',return_value=ai), \
-             patch.object(policy_qa,'check_support',return_value=False):
+             patch.object(policy_qa,'review_support',return_value=SupportReview(status='unsupported')):
             card=policy_qa.answer_question(QUESTION,today=date(2026,10,17)).answer
         self.assertEqual(card.verification.treatment.treatment,'Cataract')
         self.assertEqual(card.verification.treatment.listCitation.docUrl,'/api/policy/document?policyId=owned-policy')
@@ -230,7 +231,7 @@ class AnswerEvidenceTests(unittest.TestCase):
              patch.object(policy_qa.store,'load_page',side_effect=lambda _,p: QUOTE if p==12 else None), \
              patch.object(policy_qa,'embed_texts',return_value=[[0.0]]), \
              patch.object(policy_qa,'gemini',return_value=ai), \
-             patch.object(policy_qa,'check_support') as support:
+             patch.object(policy_qa,'review_support') as support:
             answer=policy_qa.answer_question('What is the cataract waiting period?').answer
         self.assertEqual(ai.models.generate_content.call_count,2)
         support.assert_not_called()

@@ -4,7 +4,7 @@
     <p>{{ 'Paste their email or letter, or upload it as a PDF. We tell you what it means and what to do next.' | t }}</p>
   </div>
 
-  @if (latest()?.outcome !== 'asks_for_papers') { <app-next-steps [steps]="nextSteps()" /> }
+
 
   @if (latest(); as r) {
     <section [class]="'card result out-' + meta(r.outcome).tone" id="result" aria-live="polite">
@@ -14,13 +14,13 @@
       </div>
       @if (r.summary) { <p><app-gloss [text]="r.summary" /></p> }
       @if (r.newApprovedAmount) {
-        <p class="amount-now">{{ 'They will now pay, in total:' | t }} <strong>{{ r.newApprovedAmount | inr }}</strong></p>
+        <p class="amount-now">Revised insurer-approved amount: <strong>{{ r.newApprovedAmount | inr }}</strong>. Confirm whether payment has arrived.</p>
       }
       @if (r.quote) {
         <div class="section-label">{{ 'Their words' | t }}</div>
         <blockquote class="quote">“{{ r.quote }}”</blockquote>
       }
-      @if (r.outcome === 'asks_for_papers') { <app-document-tasks group="reply" /> }
+      @if (r.outcome === 'asks_for_papers') { <p>Review the requested items in Prepare documents, then prepare a response. Missing items stay visible.</p><ul>@for(p of r.papersAsked ?? [];track $index){<li>{{p}}</li>}</ul> }
       @if (r.papersAsked?.length && r.outcome !== 'asks_for_papers') {
         <div class="section-label">{{ 'Papers they asked for' | t }}</div>
         <ul>
@@ -31,19 +31,6 @@
         <p class="small"><a [href]="r.docUrl" target="_blank" rel="noopener">{{ 'Open their letter' | t }}</a></p>
       }
       <div class="row" style="margin-top:12px">
-        @if (r.outcome === 'paid_more' || r.outcome === 'explained') {
-          <button mat-flat-button type="button" (click)="close()" [disabled]="saving() || journey.closed()">
-            <mat-icon>task_alt</mat-icon> {{ (journey.closed() ? 'Claim closed' : "I'm happy – close my claim") | t }}
-          </button>
-        }
-        @if (r.outcome === 'asks_for_papers') {
-          <button mat-flat-button class="btn-sky" type="button" (click)="markPapersSent()" [disabled]="saving() || papersSent()">
-            <mat-icon>send</mat-icon> {{ (papersSent() ? 'Papers marked as sent' : "I've sent the papers") | t }}
-          </button>
-        }
-        @if (r.outcome !== 'paid_more' && r.outcome !== 'asks_for_papers') {
-          <a mat-stroked-button class="btn-rose" routerLink="/case/letter" [queryParams]="{ kind: 'grievance' }"><mat-icon>report</mat-icon> {{ 'Make a complaint' | t }}</a>
-        }
         <button mat-button type="button" (click)="remove(r.id)">{{ 'Remove this reply' | t }}</button>
       </div>
     </section>

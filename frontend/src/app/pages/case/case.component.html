@@ -37,201 +37,39 @@
     <app-claims-list />
   }
   @if (!dashboard) {
-    <nav class="section-tabs claim-sections" aria-label="Claim sections">
-      @for (tab of sections; track tab.id) {
-        <a routerLink="/case/detail" [queryParams]="{ section: tab.id, workspace: workspace.mode() }" [class.active]="section() === tab.id" [attr.aria-current]="section() === tab.id ? 'page' : null">{{ tab.label }}</a>
-      }
-    </nav>
-  }
-  @if (claimCase(); as c) {
-    <div class="page-head head-row">
-      <div class="head-text">
-        @if (isEmpty()) {
-          <h1>{{ 'My claim' | t }}</h1>
-          <p>{{ 'Nothing has been added to this claim yet.' | t }}</p>
-        } @else {
-          @if (dashboard) { <h2>{{ c.title }}</h2> } @else { <h1>{{ c.title }}</h1> }
-          <p>{{ c.patient.name }} · {{ c.hospital }}</p>
-        }
-      </div>
-      <div class="head-actions">
-        <a mat-stroked-button routerLink="/case" fragment="claims"><mat-icon>folder_copy</mat-icon> {{ 'Back to all claims' | t }}</a>
-      </div>
-    </div>
-
-    @if (isEmpty()) {
-    <section class="card start-card" aria-labelledby="start-title">
-      <span class="sc-icon"><mat-icon>note_add</mat-icon></span>
-      <div class="sc-text">
-        <h2 id="start-title">{{ 'Start your claim' | t }}</h2>
-        <p>{{ 'Add your final hospital bill first. We read every charge, check it against your policy and build your claim from it. A PDF or a clear phone photo is fine.' | t }}</p>
-        <div class="row">
-          <a mat-flat-button class="btn-teal" routerLink="/upload" [queryParams]="{ type: 'Hospital bill' }"><mat-icon>receipt_long</mat-icon> {{ 'Add the hospital bill' | t }}</a>
-          <a mat-stroked-button class="btn-sky" routerLink="/upload"><mat-icon>upload_file</mat-icon> {{ 'Add another document' | t }}</a>
-        </div>
-      </div>
-    </section>
-    } @else {
-    @if (dashboard || section() === 'overview') {
-    @if (!dashboard && decisionDocument(); as doc) { <details class="card source-disclosure"><summary>Inspect the insurer’s original decision</summary><app-document-preview [url]="doc.docUrl" [title]="doc.name" /></details> }
-    <section class="card claim-overview" id="overview" aria-label="Claim overview">
-      <div class="overview-heading"><h2>{{ 'Your claim at a glance' | t }}</h2><span>{{ c.stage }}</span></div>
-      <div class="overview-fields">
-        <div><span>{{ 'Patient' | t }}</span><strong>{{ c.patient.name }}</strong><small>{{ c.patient.relation }} · {{ c.hospital }}</small></div>
-        <div><span>{{ 'Hospital stay' | t }}</span><strong>{{ (c.admissionDate | date: 'd MMM') || 'Not recorded' }} – {{ (c.dischargeDate | date: 'd MMM y') || 'Not recorded' }}</strong><small>{{ c.diagnosis }}</small></div>
-        @if (settlement(); as decision) {
-          <a routerLink="/case/settlement"><span>{{ 'Claimed' | t }}</span><strong>{{ decision.claimedAmount | inr }}</strong><small>{{ 'From the insurer decision' | t }}</small></a>
-          <a routerLink="/case/settlement"><span>{{ 'Insurer approved' | t }}</span><strong class="approved">{{ decision.approvedAmount | inr }}</strong><small>{{ 'Approval is not proof of payment' | t }}</small></a>
-          <a class="deduction-shortcut" routerLink="/case/settlement"><span>{{ 'Itemized deductions' | t }}</span><strong class="deducted">{{ decision.reconciliation ? (decision.reconciliation.deductedTotal | inr) : 'Not reconciled yet' }}</strong><small>{{ 'See why money was cut' | t }} →</small></a>
-        } @else {
-          <a class="deduction-shortcut" routerLink="/case/settlement"><span>{{ 'Insurer decision' | t }}</span><strong>{{ (c.rejection ? 'Claim refused' : 'Not added yet') | t }}</strong><small>{{ 'Explain deductions or rejection' | t }} →</small></a>
-        }
-      </div>
-      @if (settlement()?.reconciliation; as amounts) { @if (!amounts.arithmeticOk) {
-        <p class="tone-warn">The decision amounts do not reconcile. Open Why money was cut to review the discrepancy.</p>
-      } }
-      <p class="small muted">Recorded milestones below describe your claim history; use the four stages above to continue.</p>
-      <details class="overview-steps"><summary><strong>{{ 'Your claim steps' | t }} · {{ journey.doneCount() }}/{{ journey.steps().length }}</strong></summary>
-        <ol>@for (step of journey.steps(); track step.label) {
-          <li><a [class.complete]="step.done" [routerLink]="step.route" [fragment]="step.fragment" [queryParams]="step.query"><span>{{ step.label | t }}</span><small>{{ (step.done ? 'Done' : 'To do') | t }}</small></a></li>
-        }</ol>
-      </details>
-      <a mat-flat-button class="btn-teal" routerLink="/case/settlement">{{ 'Explain deductions or rejection' | t }} <mat-icon>arrow_forward</mat-icon></a>
-    </section>
-    <details id="next-steps" class="card"><summary>Other checklist guidance</summary><app-next-steps [steps]="nextSteps()" /></details>
-    }
-    @if (!dashboard && section() === 'overview') {
-    <section class="card">
-      <div class="facts">
-        <div><span>{{ 'Illness' | t }}</span>{{ c.diagnosis }}</div>
-        <div><span>{{ 'Hospital stay' | t }}</span>{{ c.admissionDate | date: 'd MMM' }} – {{ c.dischargeDate | date: 'd MMM y' }}</div>
-        <div><span>{{ 'How you claim' | t }}</span>{{ (c.claimType === 'cashless' ? 'Cashless (insurer pays the hospital)' : 'Reimbursement (you pay, then claim)') | t }} · {{ c.claimNumber }}</div>
-        <div><span>{{ 'Where it stands' | t }}</span><strong>{{ c.stage }}</strong></div>
-      </div>
-    </section>
-
-    }
-    @if (!dashboard && section() === 'history') {
-    <section class="card" id="diary">
-      <h2>{{ 'Claim diary' | t }}</h2>
-      <p class="muted small" style="margin:0">{{ 'What you sent and what the insurer said, with dates. You need these if you complain.' | t }}</p>
-      @if (timeline().length) {
-        <ol class="diary">
-          @for (e of timeline(); track e.id) {
-            <li>
-              <span class="d-date">{{ e.date | date: 'd MMM y' }}</span>
-              <span class="d-text">
-                @if (e.kind === 'reply') { <a routerLink="/case/reply">{{ text(e) | t }}</a> } @else { {{ text(e) | t }} }
-                @if (e.reference) { <span class="muted small"> · ref {{ e.reference }}</span> }
-                @if (e.note) { <span class="muted small"> – {{ e.note }}</span> }
-              </span>
-              @if (!e.id.startsWith('sample-')) {
-                <button mat-icon-button type="button" (click)="remove(e.id)" [attr.aria-label]="('Remove from diary' | t) + ': ' + text(e)"><mat-icon>close</mat-icon></button>
-              }
-            </li>
+    @if (claimCase(); as c) {
+      @if (section() === 'documents') {
+        <section class="card" id="checklist">
+          <h2>Prepare documents</h2>
+          <p class="muted">Review the papers you have. This general checklist does not establish your insurer’s exact requirements.</p>
+          @if (journey.lastReply()?.outcome === 'asks_for_papers') {
+            <h3>Requested in the latest insurer reply</h3><app-document-tasks group="reply" />
           }
-        </ol>
+          <app-document-tasks group="checklist" />
+        </section>
+        <details class="card"><summary>All uploaded claim files ({{c.documents.length}})</summary><ul class="docs">
+          @for(d of c.documents;track d.id){<li><mat-icon>description</mat-icon><div class="spacer"><strong>{{d.name}}</strong><div class="small muted">{{d.type}}</div></div>@if(d.docUrl){<a mat-button [href]="d.docUrl" target="_blank" rel="noopener">Open</a>}</li>}
+        </ul></details>
+      } @else if (section() === 'history') {
+        <section class="card" id="record-outcome">
+          <h2>Record outcome</h2>
+          @if(journey.lastReply();as reply){<p>{{reply.summary || 'Review the original reply before recording an outcome.'}}</p>@if(reply.newApprovedAmount){<p>Revised approval: <strong>{{reply.newApprovedAmount | inr}}</strong>. Confirm whether payment has actually arrived.</p>}}
+          <p>Record what happened, including payment received or a remaining issue. A rejection or an approval does not automatically close the claim.</p>
+          @if(journey.closed()){
+            <p role="status">You marked this claim closed. The history is retained.</p><button mat-stroked-button (click)="reopen()">Reopen claim</button>
+          } @else {
+            <label class="outcome-note">Outcome / payment update<textarea rows="3" maxlength="300" [ngModel]="outcomeNote()" (ngModelChange)="outcomeNote.set($event)" placeholder="For example: payment received; clarification still pending"></textarea></label>
+            @if(outcomeSaved()){<p role="status">Update saved. Your claim remains open.</p>}
+            <div class="mark"><label>Date<input type="date" [max]="today" [ngModel]="diaryDate()" (ngModelChange)="diaryDate.set($event)"></label><button mat-flat-button (click)="add('outcome_recorded')" [disabled]="saving() || !diaryDate() || !outcomeNote().trim()">Save update · keep claim open</button><button mat-stroked-button (click)="add('closed')" [disabled]="saving() || !diaryDate()">Save outcome and close claim</button><a mat-button routerLink="/case/reply">Keep open · review reply</a></div>
+          }
+        </section>
+        <details class="card" id="diary"><summary>Claim history and correspondence ({{timeline().length}})</summary><ol class="diary">
+          @for(e of timeline();track e.id){<li><span class="d-date">{{e.date | date:'d MMM y'}}</span><div class="d-text">{{text(e)}}@if(e.reference){<span class="small muted"> · {{e.reference}}</span>}@if(e.note){<p class="small muted">{{e.note}}</p>}</div>@if(!e.id.startsWith('sample-')){<button mat-button (click)="remove(e.id)" [attr.aria-label]="'Remove from diary: '+text(e)">Remove</button>}</li>}
+        </ol><p class="small muted">Removing a diary entry changes the recorded history; it does not reverse an action taken outside CareNest.</p></details>
       } @else {
-        <p class="small">{{ 'Nothing yet. When you send your claim or a letter, mark it as sent and it shows up here.' | t }}</p>
+        <section class="card"><h2>{{journey.current()?.label || 'Review claim outcome'}}</h2><p>{{journey.flow().note}}</p><a mat-flat-button [routerLink]="(journey.current() || journey.steps()[8]).route" [queryParams]="(journey.current() || journey.steps()[8]).query">Continue →</a></section>
       }
-      @if (journey.awaiting(); as a) {
-        <div [class]="'wait ' + (journey.overdue() ? 'tone-bad' : 'tone-info')" role="status">
-          {{ 'Waiting for the insurer:' | t }} {{ journey.waitingDays() }} {{ (journey.waitingDays() === 1 ? 'day' : 'days') | t }}.
-          @if (journey.overdue()) { {{ 'That is longer than usual –' | t }} <a routerLink="/case/letter" [queryParams]="{ kind: 'grievance' }" fragment="escalation">{{ 'see what to do next' | t }}</a>. }
-        </div>
-      }
-      <div class="mark">
-        <label>{{ 'Date' | t }} <input type="date" name="diaryDate" [max]="today" [ngModel]="diaryDate()" (ngModelChange)="diaryDate.set($event)"></label>
-        @if (!sentClaim()) {
-          <button mat-stroked-button class="btn-sky" type="button" (click)="add('claim_sent')" [disabled]="saving()"><mat-icon>send</mat-icon> {{ 'I sent my claim' | t }}</button>
-        }
-        <a mat-stroked-button class="btn-violet" routerLink="/case/reply"><mat-icon>mark_email_read</mat-icon> {{ 'The insurer replied' | t }}</a>
-        @if (journey.closed()) {
-          <button mat-button type="button" (click)="reopen()"><mat-icon>undo</mat-icon> {{ 'Reopen the claim' | t }}</button>
-        } @else {
-          <button mat-flat-button type="button" (click)="add('closed')" [disabled]="saving()"><mat-icon>task_alt</mat-icon> {{ 'Close this claim' | t }}</button>
-        }
-      </div>
-      <p class="muted small" style="margin-bottom:0">{{ 'Sent a letter? Mark it on the' | t }} <a routerLink="/case/letter" fragment="sent">{{ 'letter page' | t }}</a>{{ ', so it is linked to that letter.' | t }}</p>
-    </section>
-    }
-    }
-
-    @if (!dashboard && section() === 'history') { @if (journey.lastReply(); as reply) {
-      <section class="card"><h2>Recorded insurer outcome</h2><p>{{reply.summary || 'Review the original reply and its recorded outcome.'}}</p>
-      @if(reply.newApprovedAmount){<p>Revised approved amount: <strong>{{reply.newApprovedAmount | inr}}</strong>. Approval is not confirmation of payment.</p>}
-      <a mat-stroked-button routerLink="/case/reply" [queryParams]="{workspace:workspace.mode()}">Review insurer reply</a>
-      <p class="small muted">Only close the claim when you choose to. A refusal or an explanation does not automatically close it.</p></section>
-    } }
-    @if (!dashboard && section() === 'documents') {
-    <section class="card" id="checklist">
-      <h2>{{ 'Papers checklist' | t }}</h2>
-      @if (journey.lastReply()?.outcome === 'asks_for_papers') {
-        <section class="card"><h3>Documents requested in the latest insurer reply</h3><app-document-tasks group="reply" /></section>
-      }
-      <p class="muted small" style="margin:0">{{ 'Tick each paper when you have it.' | t }}</p>
-      <mat-progress-bar mode="determinate" [value]="progressPct()" [attr.aria-label]="'Papers collected' | t" />
-      <p class="small"><strong>{{ collected() }} {{ 'of' | t }} {{ claimItems().length }}</strong> {{ 'ready' | t }}</p>
-
-      <a mat-stroked-button routerLink="/upload" [queryParams]="{workspace:workspace.mode(),returnTo:'documents',type:'Other'}">Add documents</a>
-      <app-document-tasks group="checklist" />
-      <p class="small muted">Having a paper, uploading it and checking its contents are separate. Missing items do not prevent preparing a draft.</p>
-    </section>
-
-    @if (!isEmpty()) {
-    <section class="card" id="documents">
-      <h2>{{ 'Your uploaded files' | t }}</h2>
-      <ul class="docs">
-        @for (d of c.documents; track d.id) {
-          <li>
-            <mat-icon>{{ d.id.startsWith('img-') ? 'image' : 'picture_as_pdf' }}</mat-icon>
-            <div class="spacer"><strong>{{ d.name }}</strong><div class="muted small">{{ d.type | t }} · {{ d.pages }} {{ (d.pages === 1 ? 'page' : 'pages') | t }}</div></div>
-            @if (d.docUrl) {
-              <a mat-button [href]="d.docUrl" target="_blank" rel="noopener" [attr.aria-label]="('Open' | t) + ' ' + d.name">{{ 'Open' | t }}</a>
-            } @else {
-              <span class="pill tone-ok"><mat-icon class="icon-sm">check</mat-icon>{{ 'Read' | t }}</span>
-            }
-          </li>
-        }
-      </ul>
-      <a mat-stroked-button class="btn-teal" routerLink="/upload" style="margin-top:8px"><mat-icon>upload_file</mat-icon> {{ 'Add documents' | t }}</a>
-    </section>
-    }
-    }
-
-    @if (!dashboard && section() === 'investigation') {
-      <app-dispute-review />
-      <section class="card"><h2>Explore your evidence and next steps</h2><p class="muted">Use these tools to inspect the bill, understand the decision and prepare your response.</p>
-        <nav class="investigation-tools" aria-label="Investigation tools">
-          @for (tool of tools.slice(0, 5); track tool.label) { <a [routerLink]="tool.route"><mat-icon>{{ tool.icon }}</mat-icon><span>{{ tool.label }}</span><mat-icon>arrow_forward</mat-icon></a> }
-        </nav>
-      </section>
-    }
-  } @else if (claimCase() === null) {
-    <app-empty-state icon="note_add" title="No claim yet" action="Add documents" actionIcon="upload_file" route="/upload"
-      text="Start your claim by adding your hospital bill, or any other paper from the hospital stay. A PDF or a clear phone photo is fine." />
-  } @else {
-    <app-skeleton label="Loading your claim…" [count]="3" />
+    } @else {<app-skeleton label="Loading your claim…" [count]="2" />}
   }
   }
 </div>
-
-<ng-template #row let-item>
-  <div class="check">
-    <button mat-icon-button class="toggle" type="button" (click)="toggle(item.id)"
-            [attr.aria-label]="((item.status === 'collected' ? 'Mark as missing' : 'Mark as collected') | t) + ': ' + item.name">
-      <mat-icon [style.color]="item.status === 'collected' ? 'var(--cn-ok)' : 'var(--cn-muted)'">{{ status(item.status).icon }}</mat-icon>
-    </button>
-    <div class="body">
-      <div class="name-row">
-        <span class="name">{{ item.name }}</span>
-        <span [class]="'pill tone-' + status(item.status).tone">{{ status(item.status).label | t }}</span>
-      </div>
-      <div class="meta"><strong>{{ 'Get it from:' | t }}</strong> {{ item.source }}</div>
-      <div class="meta">{{ item.why }}</div>
-      @if (item.status === 'missing') {
-        <button mat-button type="button" class="asked" (click)="askedFor(item.id)" [attr.aria-label]="('I\'ve asked for it' | t) + ': ' + item.name"><mat-icon>schedule</mat-icon> {{ "I've asked for it" | t }}</button>
-      }
-    </div>
-  </div>
-</ng-template>

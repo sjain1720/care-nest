@@ -34,7 +34,9 @@ import { AnswerEvidenceComponent } from './answer-evidence.component';
         </div>
       }
 
-      @if (answer().toConfirm.length) {
+      @if (answer().verification?.scope === 'source_only' && answer().toConfirm.length) {
+        <p class="small muted" role="note">{{ answer().toConfirm.join(' ') }}</p>
+      } @else if (answer().toConfirm.length) {
         <div class="confirm">
           <div class="confirm-title"><mat-icon class="icon-sm">flag</mat-icon> {{ 'What to do next' | t }}</div>
           <ul>
