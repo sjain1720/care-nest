@@ -216,7 +216,7 @@ class QueryHelpRequest(BaseModel):
 
 class TimelineEventIn(BaseModel):
     """Something the family did: sent the claim or a letter, answered a query, filed a complaint, or closed the claim."""
-    kind: Literal["claim_sent", "letter_sent", "query_answered", "complaint_filed", "closed", "outcome_recorded"]
+    kind: Literal["claim_sent", "letter_sent", "query_answered", "complaint_filed", "closed", "outcome_recorded", "payment_recorded"]
     date: str = Field(pattern=r"^\d{4}-\d{2}-\d{2}$")
     letterKind: Literal["clarification", "reconsideration", "grievance", "cover_letter", "document_response"] | None = None
     replyId: str | None = Field(default=None, max_length=80)
@@ -224,6 +224,7 @@ class TimelineEventIn(BaseModel):
     inputFingerprint: str | None = Field(default=None, pattern=r'^[a-f0-9]{64}$')
     level: int | None = Field(default=None, ge=1, le=3)
     reference: str | None = Field(default=None, max_length=60)
+    paymentAmount: float | None = Field(default=None, ge=0, le=100_000_000, allow_inf_nan=False)
     note: str | None = Field(default=None, max_length=300)
 
 
@@ -254,6 +255,16 @@ class BillReviewIn(BaseModel):
     items: list[BillReviewItem] = Field(max_length=400)
 
 
+class ClaimFinancials(BaseModel):
+    billedAmount: float | None = None
+    claimedAmount: float | None = None
+    approvedAmount: float | None = None
+    receivedAmount: float | None = None
+    decisionType: Literal['none', 'settlement', 'rejection'] = 'none'
+    decisionAvailable: bool = False
+    needsReview: bool = False
+
+
 class ClaimSummary(BaseModel):
     policyId: str | None = None
     id: str
@@ -265,6 +276,7 @@ class ClaimSummary(BaseModel):
     claimNumber: str
     claimedAmount: float | None
     approvedAmount: float | None
+    receivedAmount: float | None = None
     status: Literal["in_progress", "paid", "part_paid", "refused"]
     closed: bool
     awaitingReply: bool = False

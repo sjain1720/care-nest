@@ -28,6 +28,9 @@ _NEXT = {
 }
 _AGENT = {"bill": "Bill & Settlement Analyst", "settlement": "Bill & Settlement Analyst", "documents": "Claim Assistant"}
 _NEEDS = {"bill": ("bill", "your hospital bill"), "settlement": ("settlement", "the insurer's settlement letter")}
+_QUESTION_FILLER = {'about', 'after', 'before', 'could', 'does', 'from', 'have', 'policy', 'should',
+                    'their', 'there', 'these', 'this', 'what', 'when', 'where', 'which', 'would', 'your',
+                    'claim', 'bill', 'amount', 'covered'}
 
 
 class CiteRef(BaseModel):
@@ -124,18 +127,53 @@ def answer_case_question(question: str, intent: str, log: StepLog | None = None,
                 citations.append(Citation(quote=c.quote, **src))
 
     verdict, headline, summary, to_confirm = out.verdict, out.headline, out.summary, list(out.toConfirm)
-    if not citations and verdict != "cant_confirm":
-        verdict, headline = "cant_confirm", "I couldn't confirm this from your documents"
-        summary = "The available documents did not provide a verified source for this answer. Please check with your insurer or hospital."
-        to_confirm.insert(0, "Ask the insurer or hospital directly and keep their reply in writing.")
-    if citations and not check_support(question, {'headline':headline,'summary':summary,'toConfirm':to_confirm},
+    factual = bool(re.match(r'^\s*(?:what|how much)\b', question, re.I))
+    source_only = False
+    if not citations:
+        related = related_case_fact(question, facts, out.citations)
+        if related:
+            citation, summary = related
+            citations, verdict, headline = [citation], 'info' if factual else 'needs_checking', 'What your records show'
+            to_confirm = ['This extracted record does not establish the applicable policy rule or final payment. Check the original document and ask the insurer about any missing basis.']
+            source_only = True
+        else:
+            verdict, headline = "cant_confirm", "I couldn't confirm this from your documents"
+            summary = "The available documents did not provide a verified source for this answer. Please check with your insurer or hospital."
+            to_confirm.insert(0, "Ask the insurer or hospital directly and keep their reply in writing.")
+    if citations and not source_only and not check_support(question, {'headline':headline,'summary':summary},
                                        {'recordedFacts':facts}, facts):
-        verdict, headline, summary, citations = 'cant_confirm', 'The explanation needs more evidence', 'The available facts did not support the proposed explanation. Ask for the applicable clause and itemized calculation.', []
-        to_confirm = ['Confirm the applicable clause and itemized calculation with the insurer.']
+        # Matched case records remain useful even when the generated
+        # interpretation is rejected. Do not reuse the rejected prose.
+        verdict, headline = ('info' if factual else 'needs_checking'), 'What your records show'
+        summary = 'The available record says: ' + ' '.join(f'“{c.quote}”' for c in citations[:2])
+        to_confirm = ['I could not verify the proposed explanation. Check the original document and ask the insurer for the applicable clause and itemized calculation.']
     log.add("Verifier", f"Checked sources: {len(citations)} of {len(out.citations)} references matched policy pages or extracted records")
     return AskResponse(steps=log.steps, answer=AnswerCard(
         verdict=verdict, headline=headline, summary=summary, citations=citations,
         toConfirm=to_confirm[:3], nextAction=_NEXT.get(out.nextAction)))
+
+
+def related_case_fact(question, facts, proposed_citations):
+    """Find a question-relevant extracted fact without claiming it is original PDF wording."""
+    terms = {word.lower() for word in re.findall(r'[A-Za-z][A-Za-z0-9]{3,}', question.replace('-', ' '))
+             if word.lower() not in _QUESTION_FILLER}
+    preferred = {c.ref.strip('[] ') for c in proposed_citations}
+    ranked = []
+    for order, fact in enumerate(facts):
+        if fact['source']['docId'] == 'policy' or not fact['text']:
+            continue
+        overlap = sum(bool(re.search(r'\b' + re.escape(word) + r'\b', fact['text'], re.I)) for word in terms)
+        if not overlap or (len(terms) > 1 and overlap < 2 and fact['ref'] not in preferred):
+            continue
+        ranked.append((overlap * 10 + (3 if fact['ref'] in preferred else 0) - order, fact))
+    if not ranked:
+        return None
+    fact = max(ranked, key=lambda item: item[0])[1]
+    text = fact['text'][:300].strip()
+    if not quote_in_text(text, fact['text']):
+        return None
+    citation = Citation(quote=text, **fact['source'])
+    return citation, f'The {fact["source"]["docName"].lower()} says: {text}'
 
 
 def reusable_case_pages(case_doc, policy_id, question):

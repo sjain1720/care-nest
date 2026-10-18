@@ -3,7 +3,7 @@ import json
 from pathlib import Path
 import unittest
 from app.schemas import AnswerCard, Citation, PolicyFacts
-from app.services.policy_fact_answer import source_fact_answer, basic_fact_sources
+from app.services.policy_fact_answer import source_fact_answer, basic_fact_sources, related_source_answer
 
 
 class PolicyFactAnswerTests(unittest.TestCase):
@@ -90,3 +90,16 @@ class PolicyFactAnswerTests(unittest.TestCase):
         calls.clear()
         basic_fact_sources('Is dental treatment covered?',self.facts,'owned-policy',[],load)
         self.assertFalse(calls)
+
+    def test_related_excerpt_never_turns_an_illustration_into_personal_cover(self):
+        hits=[self.hit(3,'Example: Base Sum Insured ₹15,00,000')]
+        self.assertIsNone(related_source_answer('What is my sum insured?',self.facts,hits))
+
+    def test_related_excerpt_requires_original_page_and_question_overlap(self):
+        original=[self.hit(7,'Emergency ambulance charges are payable up to the limit in the policy schedule.')]
+        answer=related_source_answer('What about ambulance charges?',self.facts,original)
+        self.assertEqual(answer.verdict,'info')
+        self.assertIn('ambulance charges',answer.summary)
+        self.assertEqual(answer.citations[0].page,7)
+        self.assertIsNone(related_source_answer('What about ambulance charges?',self.facts,[self.hit(7,original[0]['text'],False)]))
+        self.assertIsNone(related_source_answer('What about dental surgery?',self.facts,original))

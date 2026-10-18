@@ -4,14 +4,14 @@ from datetime import date
 
 from app.services.policy_details import format_inr
 
-USER_EVENT_KINDS = ("claim_sent", "letter_sent", "query_answered", "complaint_filed", "closed", "outcome_recorded")
+USER_EVENT_KINDS = ("claim_sent", "letter_sent", "query_answered", "complaint_filed", "closed", "outcome_recorded", "payment_recorded")
 REPLY_OUTCOMES = ("paid_more", "explained", "no_change", "asks_for_papers", "rejected", "unclear")
 # Usual waits; the UI tells users to check the latest rule before acting on them.
 REPLY_DAYS = 14
 DECISION_DAYS = 30
 
 REPLY_STAGE = {
-    "paid_more": "The insurer agreed to pay more",
+    "paid_more": "The insurer stated an approved amount",
     "explained": "The insurer explained the cuts",
     "no_change": "The insurer kept its decision – you can complain",
     "asks_for_papers": "The insurer asked for more papers",
@@ -45,7 +45,7 @@ def _short(iso_date: str) -> str:
 
 def stage_from_timeline(events: list[dict], has_decision: bool, today: date) -> str | None:
     """Claim stage from the latest diary entry, or None when the uploaded letters say more."""
-    events = [e for e in events if e.get("kind") != "outcome_recorded"]
+    events = [e for e in events if e.get("kind") not in ("outcome_recorded", "payment_recorded")]
     if has_decision:
         # A query answered during the hospital stay says nothing once the insurer has decided.
         events = [e for e in events if e.get("kind") != "query_answered"]

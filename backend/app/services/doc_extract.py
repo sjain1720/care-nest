@@ -53,13 +53,17 @@ class DeductionOut(BaseModel):
 
 
 class SettlementOut(BaseModel):
-    letterType: Literal["settlement", "rejection", "query", "other"] = "settlement"
+    letterType: Literal["settlement", "rejection", "query", "other"] = "other"
     insurer: str | None = None
     claimNumber: str | None = None
     letterDate: str | None = None
     patientName: str | None = None
     claimedAmount: float | None = None
     approvedAmount: float | None = None
+    summary: str = ""
+    papersAsked: list[str] = []
+    referenceNumber: str | None = None
+    replyOutcome: Literal["paid_more", "explained", "no_change", "asks_for_papers", "rejected", "unclear"] = "unclear"
     deductions: list[DeductionOut] = []
     rejectionReason: str | None = None
     rejectionReasonPage: int | None = None
@@ -86,7 +90,10 @@ skewed or handwritten). Extract it as JSON. Rules:
 SETTLEMENT_PROMPT = """This document (a PDF or a phone photo) is a letter from an Indian health insurer or TPA (settlement, rejection or query).
 Extract it as JSON. Rules:
 - letterType: settlement (payment with or without deductions), rejection (claim denied), query (asks for documents), other.
-- claimedAmount, approvedAmount and each deduction amount as plain numbers in rupees.
+- Classify by the document contents, not the upload category. A request for documents before deciding is query, NEVER settlement or rejection merely because no money is approved yet.
+- claimedAmount, approvedAmount and each deduction amount as plain numbers in rupees. Missing amounts MUST be null, never 0. Approved is the TOTAL approved, not an additional payment or the claimed amount. An authorization is not proof the money reached the bank.
+- summary: concise factual summary. papersAsked: the specific requested documents/clarifications.
+- referenceNumber: printed claim/request reference. replyOutcome: asks_for_papers for a query, paid_more for an explicit final approval amount, rejected for a refusal, explained/no_change for those communications, otherwise unclear.
 - deductions: every deducted / disallowed / non-payable row. insurerReason = the remark exactly as printed, or "-" if none.
 - rejectionReason (rejection letters only): the reason given, copied as printed, and the page it is on.
 - Blank patient placeholders such as _____ mean patientName=null. Never fill them from context.

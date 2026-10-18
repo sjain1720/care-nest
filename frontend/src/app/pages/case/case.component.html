@@ -38,7 +38,14 @@
   }
   @if (!dashboard) {
     @if (claimCase(); as c) {
-      @if (section() === 'documents') {
+      @if (section() === 'insurer-response') {
+        <section class="card"><h2>Have you received anything from the insurer?</h2>
+          <p>A request for documents or clarification is a response too. It does not mean the claim was settled or rejected.</p>
+          <div class="row"><button mat-stroked-button (click)="responseChoice.set('no')">Not yet · I am waiting</button><button mat-flat-button (click)="responseChoice.set('yes')">Yes · add their response</button></div>
+          @if(responseChoice()==='no'){<p role="status">Your claim remains awaiting a response. Come back when the insurer contacts you.</p>}
+          @if(responseChoice()==='yes'){<p>We will identify whether it is a document request, approval/settlement, rejection or another communication.</p><a mat-flat-button routerLink="/upload" [queryParams]="{workspace:workspace.mode(),type:'Insurer reply',step:'decision'}">Upload insurer response</a><a mat-button routerLink="/case/reply" [queryParams]="{workspace:workspace.mode()}">Paste their message instead</a>}
+        </section>
+      } @else if (section() === 'documents') {
         <section class="card" id="checklist">
           <h2>Prepare documents</h2>
           <p class="muted">Review the papers you have. This general checklist does not establish your insurer’s exact requirements.</p>
@@ -54,6 +61,8 @@
         <section class="card" id="record-outcome">
           <h2>Record outcome</h2>
           @if(journey.lastReply();as reply){<p>{{reply.summary || 'Review the original reply before recording an outcome.'}}</p>@if(reply.newApprovedAmount){<p>Revised approval: <strong>{{reply.newApprovedAmount | inr}}</strong>. Confirm whether payment has actually arrived.</p>}}
+          <label class="outcome-note">Total payment actually received so far (₹)<input type="number" min="0" max="100000000" [ngModel]="paymentAmount()" (ngModelChange)="paymentAmount.set($event)" placeholder="Leave blank until confirmed"></label>
+          <button mat-stroked-button (click)="recordPayment()" [disabled]="saving() || paymentAmount() === null || paymentAmount()! < 0">Save received amount · keep claim open</button>
           <p>Record what happened, including payment received or a remaining issue. A rejection or an approval does not automatically close the claim.</p>
           @if(journey.closed()){
             <p role="status">You marked this claim closed. The history is retained.</p><button mat-stroked-button (click)="reopen()">Reopen claim</button>

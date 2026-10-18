@@ -50,8 +50,8 @@
 
   <h2>{{ (completedUpload() ? "Add another document" : "Choose a document") | t }}</h2>
   <div class="upload-categories" aria-label="Choose document type">
-    @for (type of ['Policy document', 'Hospital bill', 'Settlement letter']; track type) {
-      <button type="button" [class.selected]="docType === type" (click)="docType = $any(type)"><mat-icon>{{ type === 'Policy document' ? 'policy' : type === 'Hospital bill' ? 'receipt_long' : 'description' }}</mat-icon>{{ type === 'Settlement letter' ? 'Insurer decision' : type }}</button>
+    @for (type of ['Policy document', 'Hospital bill', 'Insurer reply']; track type) {
+      <button type="button" [class.selected]="docType === type" (click)="docType = $any(type)"><mat-icon>{{ type === 'Policy document' ? 'policy' : type === 'Hospital bill' ? 'receipt_long' : 'description' }}</mat-icon>{{ type === 'Insurer reply' ? 'Insurer response' : type }}</button>
     }
   </div>
   <div class="row" style="margin-bottom:12px">

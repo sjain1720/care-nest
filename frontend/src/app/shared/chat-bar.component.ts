@@ -270,12 +270,15 @@ export class ChatBarComponent {
     this.destroyRef.onDestroy(() => media.removeEventListener('change', resized));
     // Decorative suggestions never change typed text or announce repeated prompts.
     if (!matchMedia('(prefers-reduced-motion: reduce)').matches) {
-      const timer = setInterval(() => {
-        if (!document.hidden && !this.query() && !this.inputFocused() && (this.inline() || this.chat.panelOpen())) {
-          this.promptIndex.update((index) => (index + 1) % SEARCH_PROMPTS.length);
-        }
-      }, 3200);
-      this.destroyRef.onDestroy(() => clearInterval(timer));
+      effect((onCleanup) => {
+        const intervalMs = this.path() === '/' ? 1600 : 3200;
+        const timer = setInterval(() => {
+          if (!document.hidden && !this.query() && !this.inputFocused() && (this.inline() || this.chat.panelOpen())) {
+            this.promptIndex.update((index) => (index + 1) % SEARCH_PROMPTS.length);
+          }
+        }, intervalMs);
+        onCleanup(() => clearInterval(timer));
+      });
     }
     // Wide screens: the chat's input only appears when it opens, so put the cursor there.
     effect(() => {

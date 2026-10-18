@@ -18,7 +18,7 @@ from app.services.general_qa import general_answer, needs_policy
 from app.services.plain_language import NEXT_STEPS, STYLE, language_rule
 from app.services.steps import StepLog
 from app.services.answer_support import review_support
-from app.services.policy_fact_answer import basic_fact_sources, source_fact_answer
+from app.services.policy_fact_answer import basic_fact_sources, related_source_answer, source_fact_answer
 from app.services.policy_sources import page_sources, named_benefit_sources
 from app.services.grounding import normalize
 from app.services.answer_evidence import bound_dates, build_verification, include_waiting_sources, matched_quote, prepare_dates, restrict_timing_answer, timing_facts_answer
@@ -77,6 +77,9 @@ Rules:
 - Missing schedule/member details do not prevent explaining what a cited clause says. Give the narrow
   supported rule, keep personal eligibility conditional and ask for only the details still needed.
   An extracted label saying "not found" means unknown; it is not proof a benefit or condition is absent.
+- Lead with the useful rule or fact the available wording establishes. Put missing-clause or
+  personal-applicability qualifications in toConfirm, after the answer. A missing detail alone
+  is not a reason to replace a source-supported partial answer with a generic refusal.
 - For a named benefit, use its actual definition and limit in the supplied policy. Never assume an
   unfamiliar branded name means restoration or renewal. If the user challenges an earlier explanation,
   recheck the sources and correct the mistaken premise; earlier assistant answers are not evidence.
@@ -169,10 +172,22 @@ def answer_question(question: str, today: date | None = None, log: StepLog | Non
             log.add('Verifier', 'Source correction unavailable; retaining only matched quotations')
 
     answer = checked_candidate(out, hits, dates, question)
+    source_only = False
+    if not answer.citations:
+        # A model can paraphrase the right page but fail to copy its quotation.
+        # Preserve a relevant, contiguous original-page excerpt instead of a
+        # generic refusal; never reuse the unverified generated explanation.
+        preferred_pages = {hits[int(c.ref.strip('[]C ')) - 1]['page'] for c in out.citations
+            if c.ref.strip('[]C ').isdigit() and 0 < int(c.ref.strip('[]C ')) <= len(hits)}
+        related = related_source_answer(question, facts, hits, preferred_pages)
+        if related:
+            answer, source_only = related, True
+            log.add('Verifier', 'Showing related original policy wording with its limits stated separately')
     review = None
-    if answer.citations:
+    if answer.citations and not source_only:
         log.add('Verifier', 'Checking whether the cited wording supports the explanation')
-        review = review_support(question, answer.model_dump(), facts_text, cited_sources(answer, hits))
+        review = review_support(question, {'verdict':answer.verdict,'headline':answer.headline,'summary':answer.summary},
+                                facts_text, cited_sources(answer, hits))
         if review.status == 'unsupported':
             # One interpretation correction, independently reviewed. A previous
             # quotation repair must not prevent narrowing unsupported prose.
@@ -199,7 +214,9 @@ def answer_question(question: str, today: date | None = None, log: StepLog | Non
                 corrected = repair.parsed if isinstance(repair.parsed, AnswerOut) else AnswerOut.model_validate_json(repair.text)
                 candidate = checked_candidate(corrected, hits, dates, question)
                 if candidate.citations:
-                    checked = review_support(question, candidate.model_dump(), facts_text, cited_sources(candidate, hits))
+                    checked = review_support(question,
+                        {'verdict':candidate.verdict,'headline':candidate.headline,'summary':candidate.summary},
+                        facts_text, cited_sources(candidate, hits))
                     if checked.supported:
                         answer, out, review = candidate, corrected, checked
             except Exception:
@@ -208,13 +225,13 @@ def answer_question(question: str, today: date | None = None, log: StepLog | Non
     if review is not None:
         support = True if review.supported else False if review.status == 'unsupported' else None
     timing_only = False
-    source_only = False
     selected_period = out.waitingPeriodId
     if support is not True or (dates['requested'] and not bound_dates(answer.citations, hits, dates, selected_period)):
         fallback = timing_facts_answer(question, facts, dates)
         if fallback:
             answer, selected_period = fallback
             timing_only = True
+            source_only = False
             log.add('Verifier', 'Keeping source-checked timing facts separate from unconfirmed coverage conditions')
     if review is not None and not review.supported and not timing_only:
         # A rejected interpretation must not erase independently matched text or

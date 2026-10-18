@@ -98,7 +98,8 @@ def review_bill(body: BillReviewIn):
 
 @router.get("/case/settlement")
 def get_settlement():
-    settlement = case_store.get_case().get("settlement")
+    from app.services.claim_financials import settlement_view
+    settlement = settlement_view(case_store.get_case())
     if not settlement:
         raise HTTPException(404, "No settlement letter has been uploaded yet.")
     return settlement
@@ -127,6 +128,8 @@ def update_checklist_item(item_id: str, body: ChecklistUpdate):
 
 @router.post("/case/timeline")
 def add_timeline_event(body: TimelineEventIn):
+    if body.kind == 'payment_recorded' and body.paymentAmount is None:
+        raise HTTPException(422, 'Enter the total amount actually received so far.')
     if body.kind == "outcome_recorded" and not (body.note or "").strip():
         raise HTTPException(422, "Write an outcome update before saving it.")
     if body.letterKind == 'document_response':

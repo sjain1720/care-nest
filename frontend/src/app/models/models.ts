@@ -229,9 +229,9 @@ export interface Deduction {
 export interface Settlement {
   claimNumber: string;
   letterDate: string;
-  billedAmount: number;
-  claimedAmount: number;
-  approvedAmount: number;
+  billedAmount: number | null;
+  claimedAmount: number | null;
+  approvedAmount: number | null;
   deductions: Deduction[];
   reconciliation?: { deductedTotal: number; arithmeticOk: boolean; unexplainedGap: number };
 }
@@ -266,7 +266,14 @@ export interface EscalationStep {
   verify: boolean;
 }
 
+export interface ClaimFinancials {
+  billedAmount: number | null; claimedAmount: number | null; approvedAmount: number | null;
+  receivedAmount: number | null; decisionType: 'none'|'settlement'|'rejection';
+  decisionAvailable: boolean; needsReview: boolean;
+}
+
 export interface ClaimCase {
+  financials?: ClaimFinancials;
   id: string;
   title: string;
   patient: Member;
@@ -309,6 +316,7 @@ export interface ClaimSummary {
   claimedAmount: number | null;
   /** null while the insurer hasn't decided; 0 if refused. */
   approvedAmount: number | null;
+  receivedAmount?: number | null;
   status: ClaimStatus;
   closed: boolean;
   /** A recorded outgoing follow-up is awaiting a newer reply or decision. */
@@ -328,7 +336,7 @@ export interface PastClaimInput {
   claimNumber?: string;
 }
 
-export type TimelineKind = 'claim_sent' | 'letter_sent' | 'query_answered' | 'complaint_filed' | 'reply' | 'closed' | 'outcome_recorded';
+export type TimelineKind = 'claim_sent' | 'letter_sent' | 'query_answered' | 'complaint_filed' | 'reply' | 'closed' | 'outcome_recorded' | 'payment_recorded';
 
 /** What the insurer's reply means for the family. */
 export type ReplyOutcome = 'paid_more' | 'explained' | 'no_change' | 'asks_for_papers' | 'rejected' | 'unclear';
@@ -346,6 +354,8 @@ export interface TimelineEvent {
   level?: number;
   reference?: string;
   note?: string;
+  paymentAmount?: number;
+  communicationType?: 'settlement'|'query'|'rejection'|'other';
   outcome?: ReplyOutcome;
   summary?: string;
   newApprovedAmount?: number;
@@ -356,7 +366,7 @@ export interface TimelineEvent {
   docUrl?: string;
 }
 
-export type TimelineEventInput = Pick<TimelineEvent, 'kind' | 'date' | 'letterKind' | 'level' | 'reference' | 'note' | 'replyId' | 'claimKey' | 'inputFingerprint'>;
+export type TimelineEventInput = Pick<TimelineEvent, 'kind' | 'date' | 'letterKind' | 'level' | 'reference' | 'note' | 'paymentAmount' | 'replyId' | 'claimKey' | 'inputFingerprint'>;
 
 export type LetterKind = 'clarification' | 'reconsideration' | 'grievance' | 'cover_letter' | 'document_response';
 

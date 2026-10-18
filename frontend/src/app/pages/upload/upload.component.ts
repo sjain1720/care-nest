@@ -22,7 +22,7 @@ const TYPE_LABELS: Partial<Record<DocType, string>> = {
   auto: 'Let CareNest work it out',
   'Settlement letter': "Insurer's payment letter (settlement)",
   'Rejection letter': "Insurer's refusal letter",
-  'Insurer reply': "Insurer's reply to my letter",
+  'Insurer reply': "Any insurer response (request, approval or rejection)",
 };
 
 interface UploadItem {
@@ -83,8 +83,8 @@ export class UploadComponent {
     },error:()=>this.contextError.set('Could not open the selected claim. Return to its documents and retry.')});
   }
   private readonly routeKey = inject(ActivatedRoute).snapshot.queryParamMap.get('claimKey');
-  returnRoute(){if(this.journeyStep==='policy')return '/policy';if(this.journeyStep==='decision')return '/case/settlement';return this.returnTo === 'reply' ? '/case/reply' : '/case/detail';}
-  returnQuery(){if(this.journeyStep==='policy'||this.journeyStep==='decision')return {workspace:this.workspace.mode(),step:this.journeyStep};return this.returnTo === 'reply' ? {workspace:this.workspace.mode()} : {workspace:this.workspace.mode(),section:'documents'};}
+  returnRoute(){if(this.journeyStep==='policy')return '/policy';if(this.journeyStep==='decision')return '/case/reply';return this.returnTo === 'reply' ? '/case/reply' : '/case/detail';}
+  returnQuery(){if(this.journeyStep==='policy')return {workspace:this.workspace.mode(),step:this.journeyStep};if(this.journeyStep==='decision')return {workspace:this.workspace.mode()};return this.returnTo === 'reply' ? {workspace:this.workspace.mode()} : {workspace:this.workspace.mode(),section:'documents'};}
 
   readonly chat = inject(ChatService);
   private destroyRef = inject(DestroyRef);
@@ -99,7 +99,7 @@ export class UploadComponent {
   nextSteps = computed<NextStep[]>(() => [
     { text: 'Start with your policy papers. We read every page.', done: !!this.hasPolicy() },
     { text: 'Add the final hospital bill: a PDF, or a clear phone photo if the bill is one page.', done: !!this.hasBill() },
-    { text: "Add the insurer's letter when it arrives (payment or refusal). We explain it.", done: !!this.hasSettlement() || !!this.journey.rejection() },
+    { text: "Add any insurer response: a request for documents, approval or rejection.", done: !!this.hasSettlement() || !!this.journey.rejection() },
     { text: 'Wrote to the insurer and they answered? Add their reply too.', done: !!this.journey.lastReply() },
   ]);
   docType: DocType = 'auto';

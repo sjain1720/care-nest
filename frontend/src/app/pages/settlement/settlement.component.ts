@@ -83,7 +83,7 @@ export class SettlementComponent {
   explained = computed(() => this.settlement()?.deductions.filter((d) => d.trust !== 'unknown').reduce((s, d) => s + d.amount, 0) ?? 0);
   arithmeticOk = computed(() => {
     const s = this.settlement();
-    return !!s && s.claimedAmount - this.totalDeducted() === s.approvedAmount;
+    return !!s && s.claimedAmount !== null && s.approvedAmount !== null && s.claimedAmount - this.totalDeducted() === s.approvedAmount;
   });
 
   nextSteps = computed<NextStep[]>(() => {
@@ -97,7 +97,7 @@ export class SettlementComponent {
       steps.push({ text: `The insurer replied: ${OUTCOME_META[reply.outcome ?? 'unclear'].label.toLowerCase()}.`, action: 'See the reply', route: '/case/reply' });
     }
     if (this.totalDeducted() === 0) {
-      steps.push({ text: 'The insurer paid everything you claimed. Nothing to question.', done: true });
+      steps.push({ text: 'No itemized deductions are recorded. Check the approved amount and confirm payment separately.', done: true });
       steps.push({ text: 'Check the money reached your bank.' });
       steps.push({ text: 'Then close your claim.', action: 'Close the claim', route: '/case', fragment: 'diary', done: this.journey.closed() });
       return steps;

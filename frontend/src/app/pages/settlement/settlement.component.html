@@ -1,8 +1,8 @@
 <div class="page">
   @if (decisionOnly()) {
-    <header class="page-head"><h2>Add insurer decision</h2><p>Review the approval, deduction or rejection letter. The recorded amounts come from this document.</p></header>
+    <header class="page-head"><h2>Insurer response</h2><p>A response may request more documents, approve an amount, reject a claim or provide other information.</p></header>
     @if(original();as doc){<app-document-preview [url]="doc.docUrl" [title]="doc.name" />}
-    @else {<section class="card"><p>No original decision document is linked yet.</p><a mat-stroked-button routerLink="/upload" [queryParams]="{type:'Settlement letter',step:'decision'}">Upload decision</a></section>}
+    @else {<section class="card"><p>No original decision document is linked yet.</p><a mat-stroked-button routerLink="/upload" [queryParams]="{type:'Insurer reply',step:'decision'}">Upload insurer response</a></section>}
   } @else {
   <header class="page-head"><h2>Review decision & prepare response</h2><p>Check the amounts, inspect the evidence and prepare your response.</p></header>
   <app-dispute-review />
@@ -32,13 +32,13 @@
   @if (journey.lastReply(); as r) {
     <a class="card reply-banner" routerLink="/case/reply">
       <mat-icon>mark_email_read</mat-icon>
-      <span class="grow"><strong>The insurer replied on {{ r.date | date: 'd MMM' }}: {{ outcomeLabel(r.outcome).toLowerCase() }}</strong>@if (r.newApprovedAmount) { – they now pay {{ r.newApprovedAmount | inr }} }</span>
+      <span class="grow"><strong>The insurer replied on {{ r.date | date: 'd MMM' }}: {{ outcomeLabel(r.outcome).toLowerCase() }}</strong>@if (r.newApprovedAmount) { – approved amount stated: {{ r.newApprovedAmount | inr }} }</span>
       <mat-icon>chevron_right</mat-icon>
     </a>
   }
   @if (settlement(); as s) {
     <div class="page-head">
-      <h2>@if (totalDeducted()) { {{ 'Why' | t }} {{ totalDeducted() | inr }} {{ 'was cut from your claim' | t }} } @else { {{ 'The insurer approved the claimed amount' | t }} }</h2>
+      <h2>@if (totalDeducted()) { {{ 'Why' | t }} {{ totalDeducted() | inr }} {{ 'was cut from your claim' | t }} } @else { Insurer decision received }</h2>
       <p>{{ "From the insurer's letter of" | t }} {{ s.letterDate | date: 'd MMM y' }} · {{ 'Claim' | t }} {{ s.claimNumber }}</p>
     </div>
 
@@ -46,21 +46,23 @@
     <div class="left">
     <section class="card">
       <div class="totals">
-        <div class="stat"><div class="label">{{ 'You claimed' | t }}</div><div class="value amount">{{ s.claimedAmount | inr }}</div></div>
-        <div class="stat"><div class="label">{{ 'Insurer approved' | t }}</div><div class="value amount">{{ s.approvedAmount | inr }}</div></div>
+        <div class="stat"><div class="label">{{ 'You claimed' | t }}</div><div class="value amount">{{ s.claimedAmount !== null ? (s.claimedAmount | inr) : 'Not provided' }}</div></div>
+        <div class="stat"><div class="label">{{ 'Insurer approved' | t }}</div><div class="value amount">{{ s.approvedAmount !== null ? (s.approvedAmount | inr) : 'Not stated' }}</div></div>
         <div class="stat deducted"><div class="label">{{ 'Cut' | t }}</div><div class="value amount">{{ totalDeducted() | inr }}</div></div>
       </div>
       <div class="math row small">
         @if (arithmeticOk()) {
           <span class="pill tone-ok"><mat-icon class="icon-sm">calculate</mat-icon>{{ 'The numbers add up' | t }}</span>
-          <span class="muted">{{ s.claimedAmount | inr }} − {{ totalDeducted() | inr }} = {{ s.approvedAmount | inr }}</span>
+          <span class="muted">{{ s.claimedAmount !== null ? (s.claimedAmount | inr) : 'Not provided' }} − {{ totalDeducted() | inr }} = {{ s.approvedAmount !== null ? (s.approvedAmount | inr) : 'Not stated' }}</span>
         } @else {
-          <span class="pill tone-bad"><mat-icon class="icon-sm">calculate</mat-icon>{{ "The numbers don't add up. Ask the insurer." | t }}</span>
+          <span class="pill tone-bad"><mat-icon class="icon-sm">calculate</mat-icon>{{ "Some amounts are missing or do not reconcile. Check the original letter." | t }}</span>
         }
       </div>
 
+      @if(s.claimedAmount !== null && s.approvedAmount !== null){
       <app-waterfall [claimed]="s.claimedAmount" [approved]="s.approvedAmount" [steps]="waterfallSteps()"
                      [selected]="open()" (select)="select($event)" />
+      }
       <p class="small muted" style="margin:0 0 8px">{{ 'Tap a cut to see why it happened.' | t }}</p>
       <p class="small" style="margin-bottom:0">
         <strong>{{ explained() | inr }}</strong> {{ 'of the cut has an explanation to check; this does not prove policy applicability.' | t }}

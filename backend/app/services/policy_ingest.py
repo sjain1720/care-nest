@@ -26,7 +26,7 @@ class UnsupportedFileError(ValueError):
 
 _POLICY_HINTS = ("sum insured", "waiting period", "policy wording", "exclusion", "policyholder", "insured person")
 _OTHER_TYPES = (
-    ("Insurer reply", ("your letter dated", "your email dated", "your mail dated", "with reference to your", "your grievance", "your complaint")),
+    ("Insurer reply", ("additional documents", "please submit", "claim approval", "your letter dated", "your email dated", "your mail dated", "with reference to your", "your grievance", "your complaint")),
     ("Settlement letter", ("settlement letter", "amount approved", "claim settled", "approved amount", "amount settled")),
     ("Rejection letter", ("repudiat", "claim is rejected", "claim has been rejected", "denial of claim")),
     ("Discharge summary", ("discharge summary",)),

@@ -16,7 +16,11 @@ import { InrPipe } from './inr.pipe';
  <header class="claim-heading">
    <a class="back-link" routerLink="/case" [queryParams]="{workspace:workspace.mode()}">← All claims</a>
    <h1>{{claim.title || 'Your claim'}}</h1><p>{{claim.patient.name}} · {{claim.hospital || 'Hospital not added yet'}}</p>
-   @if(settlement();as s){<dl class="claim-amounts"><div><dt>Claimed</dt><dd>{{s.claimedAmount | inr}}</dd></div><div><dt>Insurer approved</dt><dd>{{s.approvedAmount | inr}}</dd></div><div><dt>Difference</dt><dd>{{s.claimedAmount - s.approvedAmount | inr}}</dd></div></dl><p class="small muted">From the insurer’s decision. Approval is not confirmation of payment.</p>}
+   @if(claim.financials;as f){
+   <dl class="claim-amounts"><div><dt>Amount claimed</dt><dd>{{f.claimedAmount !== null ? (f.claimedAmount | inr) : 'Not provided'}}</dd></div><div><dt>Insurer approved</dt><dd>{{f.approvedAmount !== null ? (f.approvedAmount | inr) : f.decisionAvailable ? 'Not stated' : 'Awaiting decision'}}</dd></div><div><dt>Payment received</dt><dd>{{f.receivedAmount !== null ? (f.receivedAmount | inr) : 'Not confirmed'}}</dd></div></dl>
+   @if(f.billedAmount !== null){<p class="small muted">Hospital bill: {{f.billedAmount | inr}}. Bill total, amount claimed, approval and payment are separate.</p>}
+   @if(f.needsReview){<p role="alert">An earlier communication was treated as a decision. Add that insurer response again to correct its classification; the original file is retained.</p>}
+   }
  </header>
  <details class="journey no-print" [open]="expanded()" (toggle)="expanded.set($any($event.target).open)">
  <summary><span><strong>Step {{selected()+1}} of 9 · {{steps()[selected()].label}}</strong><small>{{steps()[selected()].status}} · {{journey.doneCount()}} completed</small></span><span class="expand-label">View all steps</span></summary>
@@ -62,11 +66,11 @@ export class ClaimFlowComponent {
    if(i===0) return this.policy()?step(1,'Continue to bill review'):{label:'Add your policy',route:'/upload',query:{type:'Policy document',step:'policy'}};
    if(i===1) return this.bill()?.reviewed ? step(this.journey.decided()?5:2,this.journey.decided()?'Review insurer deductions':'Continue to documents') : this.bill()?{label:'Review extracted bill',route:'/case/bill',fragment:'review'}:{label:'Add hospital bill',route:'/upload',query:{type:'Hospital bill'}};
    if(i===2) return this.journey.decided()||this.journey.lastReply()?.outcome==='asks_for_papers' ? {label:'Prepare response with current documents',route:'/case/letter',query:{step:'response',kind:this.journey.lastReply()?.outcome==='asks_for_papers'?'document_response':this.journey.suggestedLetter()}} : step(3,'Continue with current documents');
-   if(i===3) return this.journey.decided()||this.journey.timeline().some(e=>e.kind==='claim_sent') ? step(4,'Continue to insurer decision') : {label:'Record your submission',route:'/case/letter',query:{step:'submit',kind:'cover_letter'},fragment:'sent'};
-   if(i===4) return this.journey.decided()?step(this.bill()?.reviewed?5:1,this.bill()?.reviewed?'Review decision & prepare response':'Review bill before deductions'):{label:'Add insurer decision',route:'/upload',query:{type:'Settlement letter',step:'decision'}};
-   if(i===5) return this.reviewAction()?step(6,'Continue to send follow-up'):{label:'Review the editable letter',route:'/case/letter',query:{step:'response',kind:this.journey.suggestedLetter()}};
+   if(i===3) return this.journey.decided()||this.journey.timeline().some(e=>e.kind==='claim_sent') ? step(4,'Check insurer response') : {label:'Record your submission',route:'/case/letter',query:{step:'submit',kind:'cover_letter'},fragment:'sent'};
+   if(i===4) return this.journey.decided()?step(this.bill()?.reviewed?5:1,this.bill()?.reviewed?'Review decision & prepare response':'Review bill before deductions'):{label:'Check insurer response',route:'/case/detail',query:{step:'decision'}};
+   if(i===5) return this.reviewAction()?step(6,'Continue to send follow-up'):{label:'Review the editable letter',route:'/case/letter',query:{step:'response',kind:this.journey.lastReply()?.outcome==='asks_for_papers'?'document_response':this.journey.suggestedLetter()}};
    if(i===6) return this.steps()[6].done?step(7,'Continue to insurer reply'):{...this.steps()[6],label:'Record when you sent it',query:{step:'send',kind:this.query()['kind']??this.journey.suggestedLetter()}};
-   if(i===7) return this.journey.lastReply() && this.steps()[7].done ? step(this.journey.lastReply()?.outcome==='asks_for_papers'?2:8,this.journey.lastReply()?.outcome==='asks_for_papers'?'Review requested documents':'Continue to outcome'):{label:'Add the insurer reply',route:'/case/reply',fragment:'add'};
+   if(i===7) return this.journey.lastReply() && this.steps()[7].done ? step(this.journey.lastReply()?.outcome==='asks_for_papers'?2:this.journey.decided()?8:4,this.journey.lastReply()?.outcome==='asks_for_papers'?'Review requested documents':this.journey.decided()?'Continue to outcome':'Wait for a decision'):{label:'Add the insurer reply',route:'/case/reply',fragment:'add'};
    return this.journey.closed()?{label:'Back to all claims',route:'/case'}:{label:'Record outcome or close claim',route:'/case/detail',query:{step:'outcome'},fragment:'record-outcome'};
  });
  readonly messageTitle=computed(()=>this.selected()===1&&this.bill()?.reviewed?'Bill review saved':this.selected()===6&&this.steps()[6].done?'Follow-up recorded as sent':this.selected()===8&&this.journey.closed()?'Claim closed by you':'Your next action');

@@ -16,10 +16,10 @@ import { ChatService } from '../services/chat.service';
     <section class="proof" aria-label="Answer evidence and checks">
       <h4>{{ hasEvidence() ? (verification().scope === 'source_only' ? 'Policy evidence' : verification().scope === 'timing_only' ? 'What we checked · timing only' : 'What we checked') : 'One more policy detail is needed' }}</h4>
       @if (hasEvidence()) {
-      <ul class="checks" aria-label="Completed and missing checks">
+      <ul class="checks" aria-label="Completed checks">
         @for (check of compactChecks(); track check.kind) {
-          <li [class.passed]="check.status === 'passed'" [class.unconfirmed]="check.status === 'not_confirmed'">
-            <mat-icon aria-hidden="true">{{ check.status === 'passed' ? 'check_circle' : check.status === 'not_run' ? 'radio_button_unchecked' : 'help_outline' }}</mat-icon>
+          <li class="passed">
+            <mat-icon aria-hidden="true">check_circle</mat-icon>
             {{ check.label }}
           </li>
         }
@@ -58,10 +58,10 @@ import { ChatService } from '../services/chat.service';
             </dl>
           </section>
         }
-        @if (hasEvidence()) { <details class="check-method">
+        @if (compactChecks().length) { <details class="check-method">
           <summary>How these checks work</summary>
           <dl class="check-details">
-          @for (check of verification().checks; track check.kind) {
+          @for (check of compactChecks(); track check.kind) {
             <div><dt>{{ check.label }}</dt><dd>{{ check.detail }}</dd></div>
           }
           </dl>
@@ -79,7 +79,7 @@ import { ChatService } from '../services/chat.service';
     h4 { margin:0 0 8px; font-size:.9rem; color:var(--cn-strong); }
     .checks { list-style:none; display:flex; flex-wrap:wrap; gap:6px 12px; padding:0; margin:0 0 10px; }
     .checks li { display:flex; align-items:center; gap:5px; font-size:.78rem; color:var(--cn-muted); }
-    .checks .passed { color:var(--cn-primary); }.checks .unconfirmed { color:var(--cn-warn); }
+    .checks .passed { color:var(--cn-primary); }
     .checks mat-icon { font-size:17px; width:17px; height:17px; flex:none; }
     summary { cursor:pointer; font-size:.85rem; font-weight:600; padding:5px 0; min-height:24px; }
     summary:focus-visible { outline:2px solid var(--cn-primary); outline-offset:3px; }
@@ -106,10 +106,14 @@ export class AnswerEvidenceComponent {
   plannedDate = '';
   hasEvidence(): boolean { return this.verification().checks.some(c => c.kind === 'quote' && c.status === 'passed'); }
   compactChecks() {
-    const checks = this.verification().checks;
-    const paired = ['source', 'quote'].every(kind => checks.some(c => c.kind === kind && c.status === 'passed'));
-    return checks.filter(c => (c.status === 'passed' || c.kind === 'dates' || (this.verification().scope === 'source_only' && c.kind === 'support')) && !(paired && c.kind === 'quote'))
-      .map(c => paired && c.kind === 'source' ? { ...c, label: 'Source and quotation matched' } : c);
+    const passed = this.verification().checks.filter(check => check.status === 'passed');
+    const source = passed.find(check => check.kind === 'source');
+    const quote = passed.find(check => check.kind === 'quote');
+    if (!source || !quote) return [];
+
+    const secondKind = this.verification().scope === 'timing_only' ? ['dates', 'support'] : ['support', 'dates'];
+    const second = secondKind.map(kind => passed.find(check => check.kind === kind)).find(Boolean);
+    return [{ ...source, label: 'Source and quotation matched', detail: `${source.detail} ${quote.detail}` }, ...(second ? [second] : [])];
   }
   needsTreatmentDate(): boolean { return this.verification().missingInputs.some(text => text.includes('planned treatment date')); }
   sendDate(): void {

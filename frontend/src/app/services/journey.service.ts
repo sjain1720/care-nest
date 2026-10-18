@@ -34,12 +34,12 @@ export class JourneyService {
   }
   readonly lastReply = computed(() => this.latestOf(['reply']));
   readonly lastSent = computed(() => this.latestOf(this.decided() ? SENT_KINDS.filter((k) => k !== 'query_answered') : SENT_KINDS));
-  readonly closed = computed(() => this.timeline().filter(e => e.kind !== 'outcome_recorded').at(-1)?.kind === 'closed');
+  readonly closed = computed(() => this.timeline().filter(e => e.kind !== 'outcome_recorded' && e.kind !== 'payment_recorded').at(-1)?.kind === 'closed');
   readonly rejection = computed(() => this.claimCase()?.rejection ?? null);
-  readonly decided = computed(() => !!this.settlement() || !!this.rejection());
+  readonly decided = computed(() => this.claimCase()?.financials?.decisionAvailable ?? (!!this.settlement() || !!this.rejection()));
   readonly cutTotal = computed(() => this.settlement()?.deductions.reduce((s, d) => s + d.amount, 0) ?? 0);
   /** Full amount approved with no recorded deductions: follow-up may be unnecessary. */
-  readonly nothingToQuestion = computed(() => !!this.settlement() && !this.rejection() && this.cutTotal() === 0 && this.settlement()!.claimedAmount === this.settlement()!.approvedAmount);
+  readonly nothingToQuestion = computed(() => !!this.settlement() && !this.rejection() && this.cutTotal() === 0 && this.settlement()!.claimedAmount !== null && this.settlement()!.approvedAmount !== null && this.settlement()!.claimedAmount === this.settlement()!.approvedAmount);
   readonly lettersSent = computed(() => this.timeline().filter((e) => e.kind === 'letter_sent' || e.kind === 'complaint_filed'));
   readonly suggestedLetter = computed<LetterKind>(() => suggestLetter(this.claimCase(), this.settlement()));
 

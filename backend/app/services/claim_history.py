@@ -2,6 +2,7 @@
 import secrets
 
 from app.services.claim_tracker import sorted_timeline
+from app.services.claim_financials import financials, effective_case
 
 _CONTENT_KEYS = ("documents", "bill", "settlement", "rejection", "timeline", "checklistStatus")
 
@@ -27,7 +28,7 @@ def claim_status(claimed: float | None, approved: float | None) -> str:
 
 def workflow_state(case_doc: dict) -> dict:
     """Lifecycle is separate from payment outcome and which claim is being viewed."""
-    events = [e for e in sorted_timeline(case_doc.get("timeline")) if e.get("kind") != "outcome_recorded"]
+    events = [e for e in sorted_timeline(case_doc.get("timeline")) if e.get("kind") not in ("outcome_recorded", "payment_recorded")]
     latest = events[-1] if events else {}
     closed = latest.get("kind") == "closed"
     decision = case_doc.get("settlement") or case_doc.get("rejection") or {}
@@ -43,7 +44,7 @@ def archived_summary(record: dict) -> dict:
     """Refresh lifecycle flags for older saved snapshots without rewriting history."""
     summary = record["summary"]
     if "case" in record:
-        return {**summary, **workflow_state(record["case"])}
+        return {**summary, **summarize_case(record["case"], summary["id"])}
     return {**summary, "awaitingReply": False}
 
 
@@ -51,13 +52,8 @@ def summarize_case(case_doc: dict, claim_id: str) -> dict:
     header = case_doc.get("billHeader") or {}
     bill, settlement, rejection = (case_doc.get(k) or {} for k in ("bill", "settlement", "rejection"))
     timeline = sorted_timeline(case_doc.get("timeline"))
-    approved = settlement.get("approvedAmount", 0) if settlement else (0 if rejection else None)
-    # A later reply from the insurer can raise the amount paid.
-    raised = [e["newApprovedAmount"] for e in timeline
-              if e.get("kind") == "reply" and e.get("outcome") == "paid_more" and e.get("newApprovedAmount")]
-    if raised:
-        approved = raised[-1]
-    claimed = settlement.get("claimedAmount") or bill.get("total") or None
+    amounts = financials(case_doc)
+    approved, claimed = amounts['approvedAmount'], amounts['claimedAmount']
     return {
         "id": claim_id,
         "source": "carenest",
@@ -70,6 +66,7 @@ def summarize_case(case_doc: dict, claim_id: str) -> dict:
         "claimNumber": settlement.get("claimNumber") or rejection.get("claimNumber") or "",
         "claimedAmount": claimed,
         "approvedAmount": approved,
+        "receivedAmount": amounts["receivedAmount"],
         "status": claim_status(claimed, approved),
         **workflow_state(case_doc),
     }
